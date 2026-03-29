@@ -583,13 +583,24 @@ function injectMenu(active = 'dashboard', eventId = null) {
     document.body.insertAdjacentHTML('afterbegin', html);
 
     // Dashboard özel: Rozeti '+ YENİ ETKİNLİK' butonunun hemen soluna yerleştir
+    // Not: injectMenu bazı sayfalarda header'dan önce çalıştığı için retry gerekir.
     if (active === 'dashboard') {
-        const topMeta = document.getElementById('bpTopMeta');
-        const newEventBtn = document.querySelector('header button[onclick="openModal()"]');
-        if (topMeta && newEventBtn && newEventBtn.parentElement) {
-            topMeta.classList.add('inline-mode');
-            newEventBtn.parentElement.insertBefore(topMeta, newEventBtn);
-        }
+        let tries = 0;
+        const placeMetaNearCreateButton = () => {
+            tries += 1;
+            const topMeta = document.getElementById('bpTopMeta');
+            const newEventBtn = document.querySelector('header button[onclick="openModal()"]');
+
+            if (topMeta && newEventBtn && newEventBtn.parentElement) {
+                topMeta.classList.add('inline-mode');
+                newEventBtn.parentElement.insertBefore(topMeta, newEventBtn);
+                return;
+            }
+
+            if (tries < 40) setTimeout(placeMetaNearCreateButton, 100);
+        };
+
+        setTimeout(placeMetaNearCreateButton, 0);
     }
 
     const clockEl = document.getElementById('bpTopClock');
