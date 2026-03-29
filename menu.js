@@ -59,10 +59,11 @@
     // 2. OTURUM KONTROLÜ
     let session = safeJSONParse(localStorage.getItem('BiletPro_Session'));
     const path = window.location.pathname;
-    const currentPage = path.split("/").pop();
+    const rawPage = path.split("/").pop();
+    const currentPage = rawPage && rawPage.trim() ? rawPage.trim() : 'index.html';
     const tabLoggedIn = sessionStorage.getItem('BiletPro_LoggedInTab') === '1';
 
-    if (!session && currentPage !== 'login.html' && currentPage !== '') {
+    if (!session && currentPage !== 'login.html') {
         window.location.href = 'login.html';
         return;
     }
