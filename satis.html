@@ -572,7 +572,7 @@
         }
 
         // SATIŞI MÜHÜRLE
-        function finalize() {
+        async function finalize() {
             const perms = getCurrentUserPerms();
             if(!perms.pSale) return showToast("Satış yetkiniz yok!", "error");
 
@@ -592,6 +592,34 @@
             if(blacklist.includes(ph)) return showToast("Bu müşteri kara listededir. Satış yapılamaz!", "error");
 
             if(!n || basket.length === 0) return showToast("Müşteri adı ve masa seçimi zorunludur!", "error");
+
+            let isUpdate = editId !== null;
+
+            // === ÇAKIŞMA KONTROLÜ: Yeni satışlarda masanın online'da satılıp satılmadığını kontrol et ===
+            if (!isUpdate && window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online') {
+                const confirmBtn = document.getElementById('confirmBtn');
+                const btnOldText = confirmBtn ? confirmBtn.textContent : '';
+                if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Kontrol ediliyor...'; }
+                try {
+                    const tableNosToCheck = basket.map(b => String(b.masa.no));
+                    const check = await window.BiletProOnlineStore.checkTablesAvailableOnline(ev.id, tableNosToCheck);
+                    if (!check.ok && check.reason === 'already_sold') {
+                        const soldMsg = Object.entries(check.soldTo || {})
+                            .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
+                            .join(', ');
+                        showToast(`Satış iptal! Bu masa az önce başka bir kasada satıldı: ${soldMsg}`, 'error');
+                        if (window.BiletProAutoSync && typeof window.BiletProAutoSync.syncNow === 'function') {
+                            window.BiletProAutoSync.syncNow('conflict_detected');
+                        }
+                        return;
+                    }
+                } catch(e) {
+                    console.warn('[BiletPro] Çakışma kontrolü başarısız, yerel kayda devam ediliyor:', e);
+                } finally {
+                    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = btnOldText; }
+                }
+            }
+            // ============================================================================================
             
             const net = recalc(); 
             const paid = parseFloat(document.getElementById('paidAmt').value) || 0;
@@ -600,7 +628,6 @@
             lastMasaDetails = basket.map(b => `${b.cat.name} (MASA ${b.masa.no})`).join(", ");
             const masaNosOnly = basket.map(b => b.masa.no).join("");
             
-            let isUpdate = editId !== null; 
             let oldHash = null;
             
             if(isUpdate) {

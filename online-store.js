@@ -309,6 +309,40 @@
             }
 
             return data || { ok: false, reason: 'no_data' };
+        },
+
+        // Satış oncesi masa musaitlik kontrolu: Supabase'deki en guncel payload_json'a bakar
+        async checkTablesAvailableOnline(legacyEventId, tableNos) {
+            if (this.mode !== 'online' || !this.client) return { ok: true, reason: 'offline' };
+            if (!legacyEventId || !tableNos || tableNos.length === 0) return { ok: true, reason: 'invalid_params' };
+
+            const { data, error } = await this.client
+                .from('events')
+                .select('payload_json')
+                .eq('legacy_event_id', String(legacyEventId))
+                .single();
+
+            if (error || !data?.payload_json) return { ok: true, reason: 'no_online_data' };
+
+            const onlineEv = data.payload_json;
+            const alreadySold = {};
+
+            for (const tNo of tableNos) {
+                outer: for (const cat of (onlineEv.categories || [])) {
+                    for (const masa of (cat.masalar || [])) {
+                        if (String(masa.no) === String(tNo) && masa.isSold) {
+                            alreadySold[String(tNo)] = masa.soldTo || 'Bilinmiyor';
+                            break outer;
+                        }
+                    }
+                }
+            }
+
+            const soldTables = Object.keys(alreadySold);
+            if (soldTables.length > 0) {
+                return { ok: false, reason: 'already_sold', tables: soldTables, soldTo: alreadySold };
+            }
+            return { ok: true };
         }
     };
 
