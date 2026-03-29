@@ -122,7 +122,7 @@
 
         <main class="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-[40px] no-scrollbar flex flex-col lg:flex-row gap-4 sm:gap-8 max-w-[1850px] mx-auto w-full">
             
-            <div class="w-full lg:w-7/12 xl:w-8/12 flex flex-col relative h-[50vh] lg:h-full min-h-[400px]">
+            <div class="w-full lg:w-7/12 xl:w-8/12 flex flex-col relative h-[50vh] lg:h-full min-h-[280px] sm:min-h-[340px] lg:min-h-[400px]">
                 <div class="camera-container">
                     <video id="videoFeed" autoplay playsinline muted webkit-playsinline></video>
                     <canvas id="qrCanvas"></canvas>
@@ -185,8 +185,8 @@
         </main>
     </div>
 
-    <div id="debtModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-[450px] p-[40px] rounded-[32px] shadow-2xl animate-pop">
+    <div id="debtModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-[450px] p-5 sm:p-[40px] rounded-[26px] sm:rounded-[32px] shadow-2xl animate-pop">
             <div class="text-center mb-8">
                 <h3 class="font-black text-amber-500 text-xl uppercase italic">KAPIDA TAHSİLAT</h3>
                 <p id="dmDesc" class="text-xs font-bold text-slate-500 mt-2">—</p>
