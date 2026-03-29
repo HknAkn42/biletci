@@ -24,11 +24,29 @@
             position: sticky;
             top: 0;
             z-index: 50;
-            background: linear-gradient(180deg, rgba(244,247,250,0.98) 75%, rgba(244,247,250,0.7) 100%);
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 65%, rgba(244,247,250,0.82) 100%);
             backdrop-filter: blur(8px);
             border: 1px solid #e2e8f0;
-            border-radius: 18px;
-            padding: 12px;
+            border-radius: 22px;
+            padding: 14px;
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+        }
+        .report-chip {
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .7px;
+            color: #334155;
+            text-transform: uppercase;
+        }
+        .report-title {
+            background: linear-gradient(135deg, #0f172a, #1d4ed8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
         .report-scroll-box {
             max-height: min(52dvh, 520px);
@@ -42,6 +60,54 @@
             top: 0;
             z-index: 1;
             background: #f8fafc;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+        .action-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999998;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .action-modal {
+            width: 100%;
+            max-width: 520px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(2, 6, 23, 0.22);
+            padding: 22px;
+        }
+        .action-code {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #1d4ed8;
+            text-align: center;
+        }
+        .action-input {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-weight: 700;
+            color: #0f172a;
         }
         @media (max-width: 768px) {
             .report-sticky-head { top: 0; padding: 10px; }
@@ -57,19 +123,24 @@
         <div class="max-w-7xl mx-auto space-y-8">
             <header class="report-sticky-head flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-black uppercase tracking-tighter">RAPORLAR</h1>
+                    <h1 class="report-title text-3xl font-black uppercase tracking-tighter">RAPORLAR</h1>
                     <p class="text-slate-500 text-sm uppercase tracking-widest mt-1">Personel & denetim analizi</p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="report-chip">Canlı Senkron</span>
+                        <span class="report-chip">Denetim İzleri</span>
+                        <span class="report-chip">Finans Arşivi</span>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">Finans Yenile</button>
-                    <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">Log Yenile</button>
-                    <button onclick="resetReportTestData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black uppercase tracking-wider text-[11px]">Deneme Verisini Sıfırla</button>
-                    <button onclick="hardResetAllSalesWithCode();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 font-black uppercase tracking-wider text-[11px]">Tüm Satışları Sıfırla (Kodlu)</button>
+                    <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">🔄 Finans Yenile</button>
+                    <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">🧾 Log Yenile</button>
+                    <button onclick="resetReportTestData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black uppercase tracking-wider text-[11px]">🧪 Deneme Verisini Sıfırla</button>
+                    <button onclick="hardResetAllSalesWithCode();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 font-black uppercase tracking-wider text-[11px]">💣 Tüm Satışları Sıfırla (Kodlu)</button>
                 </div>
             </header>
 
             <section class="glass-card p-6">
-                <h2 class="text-xl font-black uppercase mb-4">Personel Finansal Performans</h2>
+                <h2 class="section-title mb-4"><span>📊</span><span>Personel Finansal Performans</span></h2>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div class="col-span-1 md:col-span-2">
                         <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Toplam Etkinlik</span>
@@ -107,7 +178,7 @@
 
             <section id="debtListSection" class="glass-card p-6">
                 <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-                    <h2 class="text-xl font-black uppercase">Borçlu Liste (Geciken)</h2>
+                    <h2 class="section-title"><span>⏳</span><span>Borçlu Liste (Geciken)</span></h2>
                     <button onclick="sendOverdueReminders()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-xs uppercase tracking-wider font-black hover:bg-amber-600">Hatırlatma Gönder</button>
                 </div>
                 <div class="report-scroll-box no-scrollbar">
@@ -132,7 +203,7 @@
             <section id="archiveSection" class="glass-card p-6">
                 <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
                     <div>
-                        <h2 class="text-xl font-black uppercase">Finans Arşivi Yönetimi</h2>
+                        <h2 class="section-title"><span>🗄️</span><span>Finans Arşivi Yönetimi</span></h2>
                         <p class="text-[11px] text-slate-500 font-semibold mt-1">Silinmiş etkinliklerin ciro/borç kayıtları burada tutulur.</p>
                     </div>
                     <button onclick="exportArchiveCSV()" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-xs uppercase tracking-wider font-black hover:bg-blue-700">Arşivi CSV İndir</button>
@@ -174,7 +245,7 @@
 
             <section class="glass-card p-6">
                 <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-                    <h2 class="text-xl font-black uppercase">Audit Log Filtreleme</h2>
+                    <h2 class="section-title"><span>🛡️</span><span>Audit Log Filtreleme</span></h2>
                     <div class="flex items-center gap-2">
                         <label for="auditFilter" class="font-black text-xs uppercase tracking-wider">Filtre</label>
                         <select id="auditFilter" class="border border-slate-200 rounded-lg px-2 py-2" onchange="applyLogFilter(this.value)">
@@ -220,7 +291,62 @@
 
         function notifyRefresh(action) {
             if(typeof showToast === 'function') showToast(action + ' tamamlandı', 'success');
-            else alert(action + ' tamamlandı');
+        }
+
+        function openActionDialog(opts = {}) {
+            const {
+                title = 'İşlem Onayı',
+                description = '',
+                confirmText = 'Onayla',
+                cancelText = 'Vazgeç',
+                tone = 'danger',
+                code = null,
+                inputPlaceholder = 'Kodu buraya yazın'
+            } = opts;
+
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'action-overlay';
+
+                const toneClass = tone === 'danger'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white';
+
+                overlay.innerHTML = `
+                    <div class="action-modal">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <h3 class="text-lg font-black uppercase tracking-wide text-slate-900">${title}</h3>
+                            <button type="button" class="text-2xl font-bold text-slate-400 hover:text-red-500" data-close-modal>&times;</button>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-600 leading-relaxed">${description}</p>
+                        ${code ? `<div class="mt-4 space-y-3"><div class="action-code">${code}</div><input id="actionCodeInput" class="action-input" placeholder="${inputPlaceholder}" /></div>` : ''}
+                        <div class="mt-6 grid grid-cols-2 gap-3">
+                            <button type="button" class="px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-700 font-black uppercase text-xs" data-cancel-modal>${cancelText}</button>
+                            <button type="button" class="px-4 py-3 rounded-xl font-black uppercase text-xs ${toneClass}" data-confirm-modal>${confirmText}</button>
+                        </div>
+                    </div>
+                `;
+
+                const close = (result) => {
+                    overlay.remove();
+                    resolve(result);
+                };
+
+                overlay.querySelector('[data-close-modal]').onclick = () => close({ confirmed: false, input: '' });
+                overlay.querySelector('[data-cancel-modal]').onclick = () => close({ confirmed: false, input: '' });
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) close({ confirmed: false, input: '' });
+                });
+
+                overlay.querySelector('[data-confirm-modal]').onclick = () => {
+                    const input = (overlay.querySelector('#actionCodeInput')?.value || '').trim();
+                    close({ confirmed: true, input });
+                };
+
+                document.body.appendChild(overlay);
+                const inputEl = overlay.querySelector('#actionCodeInput');
+                if (inputEl) inputEl.focus();
+            });
         }
 
         function refreshFinancials() {
@@ -360,9 +486,15 @@
             notifyRefresh('Log yenileme');
         }
 
-        function resetReportTestData() {
-            const ok = confirm('Rapor deneme verileri (Audit Log + Finans Arşivi) sıfırlanacak. Mevcut etkinlik satışları silinmez. Devam edilsin mi?');
-            if(!ok) return;
+        async function resetReportTestData() {
+            const result = await openActionDialog({
+                title: 'Deneme Verisini Sıfırla',
+                description: 'Audit Log + Finans Arşivi verileri silinecek. Mevcut etkinlik satışları korunur.',
+                confirmText: 'Sıfırla',
+                cancelText: 'Vazgeç',
+                tone: 'danger'
+            });
+            if(!result.confirmed) return;
 
             localStorage.removeItem('BiletPro_AuditLogs');
             localStorage.removeItem('BiletPro_FinanceArchive');
@@ -375,21 +507,33 @@
             renderAuditLogs();
 
             if(typeof showToast === 'function') showToast('Rapor deneme verileri sıfırlandı.', 'success');
-            else alert('Rapor deneme verileri sıfırlandı.');
         }
 
         async function hardResetAllSalesWithCode() {
             const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-            const typed = prompt(`KRİTİK İŞLEM!\nTüm satışlar sıfırlanacak (etkinlik/kategori/masa yapısı korunur).\nOnay için şu kodu yaz: ${code}`);
-            if(!typed) return;
-            if(String(typed).trim().toUpperCase() !== code) {
+            const codeDialog = await openActionDialog({
+                title: 'Kritik İşlem Onayı',
+                description: 'Tüm satışlar sıfırlanacak. Etkinlik/kategori/masa mimarisi korunur. Devam için ekrandaki kodu girin.',
+                confirmText: 'Kodu Doğrula',
+                cancelText: 'Vazgeç',
+                tone: 'danger',
+                code,
+                inputPlaceholder: 'Onay kodunu yazın'
+            });
+            if(!codeDialog.confirmed) return;
+            if(String(codeDialog.input || '').trim().toUpperCase() !== code) {
                 if(typeof showToast === 'function') showToast('Kod yanlış. İşlem iptal edildi.', 'error');
-                else alert('Kod yanlış. İşlem iptal edildi.');
                 return;
             }
 
-            const ok = confirm('Son onay: Tüm satış kayıtları ve kapı logları sıfırlanacak. Devam edilsin mi?');
-            if(!ok) return;
+            const finalDialog = await openActionDialog({
+                title: 'Son Onay',
+                description: 'Bu işlem tüm satış kayıtlarını ve kapı loglarını temizler. Geri alınamaz.',
+                confirmText: 'Evet, Kalıcı Sıfırla',
+                cancelText: 'İptal',
+                tone: 'danger'
+            });
+            if(!finalDialog.confirmed) return;
 
             // 1) Event satış alanlarını yerelde sıfırla
             events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
@@ -432,7 +576,6 @@
             renderAuditLogs();
 
             if(typeof showToast === 'function') showToast('Tüm satışlar kod doğrulaması ile sıfırlandı.', 'success');
-            else alert('Tüm satışlar sıfırlandı.');
         }
 
         function calculateStaffFinancials() {
@@ -637,7 +780,7 @@
         function sendOverdueReminders() {
             const debtBody = document.getElementById('debtListBody');
             if(!debtBody) return;
-            alert('Borçlu kişilere WhatsApp/E-posta linkleri hazırlandı. Gerçek üstünden göndermek için sarı satırları kullanın.');
+            if(typeof showToast === 'function') showToast('WhatsApp/E-posta linkleri hazır. Sarı satırları kullanabilirsiniz.', 'info');
         }
 
         function renderAuditLogs() {
