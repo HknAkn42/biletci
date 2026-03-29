@@ -165,6 +165,19 @@
             return JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
         }
 
+        async function syncAuditLogsFromOnline() {
+            try {
+                if(!window.BiletProOnlineStore || typeof window.BiletProOnlineStore.init !== 'function') return false;
+                const initRes = await window.BiletProOnlineStore.init();
+                if(!initRes || initRes.mode !== 'online') return false;
+                if(typeof window.BiletProOnlineStore.pullAuditToLocal !== 'function') return false;
+                const pull = await window.BiletProOnlineStore.pullAuditToLocal(1000);
+                return !!(pull && pull.ok);
+            } catch(_) {
+                return false;
+            }
+        }
+
         function applyLogFilter(value) {
             currentAuditFilter = value;
             renderAuditLogs();
@@ -303,9 +316,10 @@
             body.innerHTML = rows.length ? rows.join('') : '<tr><td class="p-3 text-center text-slate-500" colspan="6">Arşiv kaydı bulunamadı.</td></tr>';
         }
 
-        function refreshLogs() {
+        async function refreshLogs() {
             const btn = event?.target;
             if(btn) { btn.disabled=true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+            await syncAuditLogsFromOnline();
             renderAuditLogs();
             setTimeout(() => { if(btn) { btn.disabled=false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
             notifyRefresh('Log yenileme');
@@ -623,9 +637,12 @@
         }
 
         // İlk yüklemede veri getir
-        renderStaffFinancials();
-        renderArchiveManager();
-        renderAuditLogs();
+        (async () => {
+            renderStaffFinancials();
+            renderArchiveManager();
+            await syncAuditLogsFromOnline();
+            renderAuditLogs();
+        })();
     </script>
 </body>
 </html>

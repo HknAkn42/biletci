@@ -336,6 +336,51 @@
             return true;
         },
 
+        normalizeAuditLogRows(rows) {
+            const list = Array.isArray(rows) ? rows : [];
+            return list.map((r) => {
+                const createdAt = r?.created_at || new Date().toISOString();
+                return {
+                    time: new Date(createdAt).toLocaleString('tr-TR'),
+                    actor: r?.actor_name || 'anon',
+                    username: r?.actor_username || 'anon',
+                    role: r?.actor_role || 'guest',
+                    module: r?.module || 'Sistem',
+                    action: r?.action || 'İşlem',
+                    details: r?.details || ''
+                };
+            });
+        },
+
+        async pullAuditToLocal(limit = 1000) {
+            if (this.mode !== 'online' || !this.client) {
+                return { ok: false, reason: 'offline_mode', changed: false, count: 0 };
+            }
+
+            const safeLimit = Math.max(50, Math.min(2000, parseInt(limit, 10) || 1000));
+            const { data, error } = await this.client
+                .from('audit_logs')
+                .select('module, action, details, actor_name, actor_username, actor_role, created_at')
+                .order('created_at', { ascending: false })
+                .limit(safeLimit);
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] pullAuditToLocal error:', error);
+                return { ok: false, reason: error.message || 'fetch_failed', changed: false, count: 0 };
+            }
+
+            const normalized = this.normalizeAuditLogRows(data || []);
+            const currentRaw = localStorage.getItem('BiletPro_AuditLogs') || '[]';
+            const nextRaw = JSON.stringify(normalized);
+            const changed = currentRaw !== nextRaw;
+
+            if (changed) {
+                localStorage.setItem('BiletPro_AuditLogs', nextRaw);
+            }
+
+            return { ok: true, changed, count: normalized.length };
+        },
+
         // satis.html için: mevcut legacy event yapısını online tabloya senkronlar
         async syncLegacyEventBundle(ev) {
             if (!ev || !ev.id) return { ok: false, reason: 'invalid_event' };
