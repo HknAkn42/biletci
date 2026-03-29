@@ -694,6 +694,7 @@
 
         document.getElementById('staffForm').onsubmit = (e) => {
             e.preventDefault();
+            const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
             
             const role = document.getElementById('sRole').value;
             const perms = {
@@ -710,16 +711,21 @@
             };
 
             const person = {
-                name: document.getElementById('sName').value,
-                username: document.getElementById('sUser').value,
-                password: document.getElementById('sPass').value,
+                name: String(document.getElementById('sName').value || '').trim(),
+                username: normalizeUsername(document.getElementById('sUser').value),
+                password: String(document.getElementById('sPass').value || ''),
                 role: role,
                 pin: null,
                 isActive: true,
                 perms: perms
             };
+
+            if(!person.name || !person.username || !person.password) {
+                if(typeof showToast === 'function') showToast("Ad, kullanıcı adı ve şifre zorunludur!", "error");
+                return;
+            }
             
-            if(staffData.some(s => s.username === person.username)) {
+            if(staffData.some(s => normalizeUsername(s && s.username) === person.username)) {
                 if(typeof showToast === 'function') showToast("Bu kullanıcı adı zaten mevcut!", "error");
                 else alert("Bu kullanıcı adı zaten mevcut!");
                 return;
@@ -830,6 +836,7 @@
 
         document.getElementById('editStaffForm').onsubmit = (e) => {
             e.preventDefault();
+            const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
             
             const role = document.getElementById('eRole').value;
             const newPass = document.getElementById('ePass').value.trim();
@@ -847,8 +854,21 @@
             };
 
             const staff = staffData[editingStaffIndex];
-            staff.name = document.getElementById('eName').value;
-            staff.username = document.getElementById('eUser').value;
+            const nextName = String(document.getElementById('eName').value || '').trim();
+            const nextUser = normalizeUsername(document.getElementById('eUser').value);
+            if(!nextName || !nextUser) {
+                if(typeof showToast === 'function') showToast("Ad ve kullanıcı adı zorunludur!", "error");
+                return;
+            }
+
+            const conflict = staffData.some((s, i) => i !== editingStaffIndex && normalizeUsername(s && s.username) === nextUser);
+            if (conflict) {
+                if(typeof showToast === 'function') showToast("Bu kullanıcı adı zaten mevcut!", "error");
+                return;
+            }
+
+            staff.name = nextName;
+            staff.username = nextUser;
             staff.role = role;
             staff.perms = perms;
             if(newPass) staff.password = newPass;

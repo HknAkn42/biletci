@@ -818,6 +818,7 @@ window.BiletProAutoSync = {
 
     _startRealtime() {
         const tryConnect = () => {
+            if (this._realtimeChannel) return;
             // BiletProOnlineStore hazır ve online modda olana kadar bekle
             if (!window.BiletProOnlineStore || !window.BiletProOnlineStore.client || window.BiletProOnlineStore.mode !== 'online') {
                 setTimeout(tryConnect, 2000);

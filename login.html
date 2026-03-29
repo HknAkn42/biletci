@@ -166,6 +166,7 @@
         let lastUser = null;
         let tempUser = null; 
         let inputPin = "";
+        let pinSubmitLock = false;
 
         window.onload = async () => {
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
@@ -219,14 +220,21 @@
             
             if (key === 'C') {
                 inputPin = "";
+                pinSubmitLock = false;
             } else if (key === 'OK') {
-                if (inputPin.length === 4) validatePin(currentStep);
+                if (inputPin.length === 4 && !pinSubmitLock) {
+                    pinSubmitLock = true;
+                    validatePin(currentStep);
+                }
             } else {
                 if (inputPin.length < 4) inputPin += key;
             }
 
             updatePinDots(currentStep);
-            if (inputPin.length === 4) setTimeout(() => validatePin(currentStep), 300);
+            if (inputPin.length === 4 && !pinSubmitLock) {
+                pinSubmitLock = true;
+                setTimeout(() => validatePin(currentStep), 300);
+            }
         }
 
         function updatePinDots(step) {
@@ -245,11 +253,12 @@
                 }
                 loginComplete(tempUser);
             } else {
-                const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
+                const user = staff.find(u => normalizeUsername(u && u.username) === normalizeUsername(lastUser));
                 if (user && user.isActive !== false && user.pin === inputPin) {
                     loginComplete(user);
                 } else {
                     inputPin = "";
+                    pinSubmitLock = false;
                     updatePinDots('login');
                     shakeTerminal();
                 }
