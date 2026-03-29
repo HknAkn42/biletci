@@ -105,6 +105,8 @@
                     <p class="text-slate-500 text-sm uppercase tracking-widest mt-1">Personel & denetim analizi</p>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <button onclick="scrollToArchiveSection();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 font-black uppercase tracking-wider text-[11px]">🗄️ Arşive Git</button>
+                    <button onclick="scrollToReportBottom();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-300 bg-slate-100 text-slate-700 font-black uppercase tracking-wider text-[11px]">⬇️ En Alta Git</button>
                     <button onclick="pullLiveReportData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider text-[11px]">☁️ Veri Çek</button>
                     <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">🔄 Finans Yenile</button>
                     <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">🧾 Log Yenile</button>
@@ -259,6 +261,24 @@
 
         function notifyRefresh(action) {
             if(typeof showToast === 'function') showToast(action + ' tamamlandı', 'success');
+        }
+
+        function getReportMainEl() {
+            return document.querySelector('.report-main');
+        }
+
+        function scrollToArchiveSection() {
+            const main = getReportMainEl();
+            const sec = document.getElementById('archiveSection');
+            if(!main || !sec) return;
+            const top = sec.offsetTop - 12;
+            main.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+
+        function scrollToReportBottom() {
+            const main = getReportMainEl();
+            if(!main) return;
+            main.scrollTo({ top: main.scrollHeight, behavior: 'smooth' });
         }
 
         function getSettingsPinFromConfig() {
