@@ -446,7 +446,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
             </div>
             <div class="u-sec">
                 <span class="u-n">${session.name}</span>
-                <button onclick="logout()" class="out-btn"><i>🚪</i> ÇIKIŞ</button>
+                <button onclick="logout(event)" class="out-btn"><i>🚪</i> ÇIKIŞ</button>
                 <button onclick="openGuide()" class="out-btn" style="background:#0f172a;color:#fff;"><i>📘</i> KILAVUZ</button>
                 <button onclick="openSystemSettings()" class="out-btn" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;"><i>⚙️</i> AYARLAR</button>
                 <button onclick="backupAllData()" class="out-btn"><i>💾</i> YEDEK AL</button>
@@ -454,7 +454,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 <button onclick="resetDemoData()" class="out-btn" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;"><i>🧪</i> DEMO SIFIRLA</button>
             </div>
             <div class="quick-actions">
-                <button onclick="logout()" class="quick-logout" title="ÇIKIŞ">🚪</button>
+                <button onclick="logout(event)" class="quick-logout" title="ÇIKIŞ">🚪</button>
             </div>
         </nav>
     `;
@@ -615,7 +615,13 @@ window.resetDemoData = function() {
     });
 }
 
-window.logout = function() {
+window.logout = function(ev) {
+    // Otomatik/programatik tetiklemeleri engelle, sadece gerçek kullanıcı etkileşimiyle çalışsın
+    if (!ev || ev.isTrusted !== true) {
+        console.warn('[BiletPro] logout otomatik çağrısı engellendi.');
+        return;
+    }
+
     showConfirm("ÇIKIŞ YAPILIYOR", "Güvenli çıkış yapılsın mı?", () => {
         localStorage.removeItem('BiletPro_Session');
         window.location.href = 'login.html';
