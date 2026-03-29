@@ -7,6 +7,8 @@
     const ONLINE_CACHE_KEY = 'BiletPro_OnlineRuntime';
     const DELETED_EVENTS_KEY = 'BiletPro_DeletedEvents';
     const AUDIT_RESET_AT_KEY = 'BiletPro_AuditResetAt';
+    const CLOG_RESET_AT_KEY = 'BiletPro_CLogResetAt';
+    const LOCAL_CLOG_RESET_AT_KEY = 'BiletPro_LocalCLogResetAt';
 
     function getLocalDeletedIds() {
         try {
@@ -381,6 +383,56 @@
                 return { ok: false, reason: error.message || 'upsert_failed' };
             }
             return { ok: true, resetAt: stamp };
+        },
+
+        async getCLogResetAt() {
+            if (this.mode !== 'online' || !this.client) return null;
+
+            const { data, error } = await this.client
+                .from('app_config')
+                .select('value')
+                .eq('key', CLOG_RESET_AT_KEY)
+                .maybeSingle();
+
+            if (error) return null;
+            const v = data?.value;
+            if (typeof v === 'string' && v.trim()) return v.trim();
+            return null;
+        },
+
+        async setCLogResetAt(isoString) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const stamp = String(isoString || new Date().toISOString()).trim();
+
+            const { error } = await this.client
+                .from('app_config')
+                .upsert({ key: CLOG_RESET_AT_KEY, value: stamp }, { onConflict: 'key' });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] setCLogResetAt error:', error);
+                return { ok: false, reason: error.message || 'upsert_failed' };
+            }
+            return { ok: true, resetAt: stamp };
+        },
+
+        async applyRemoteCLogResetIfNeeded() {
+            if (this.mode !== 'online' || !this.client) return { ok: false, changed: false, reason: 'offline_mode' };
+
+            const remoteResetAt = await this.getCLogResetAt();
+            if (!remoteResetAt) return { ok: true, changed: false, reason: 'no_remote_marker' };
+
+            const localResetAt = String(localStorage.getItem(LOCAL_CLOG_RESET_AT_KEY) || '').trim();
+            if (localResetAt === remoteResetAt) return { ok: true, changed: false, reason: 'already_applied' };
+
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('BiletPro_CLog_')) keys.push(k);
+            }
+            keys.forEach((k) => localStorage.removeItem(k));
+            localStorage.setItem(LOCAL_CLOG_RESET_AT_KEY, remoteResetAt);
+
+            return { ok: true, changed: true, cleared: keys.length, resetAt: remoteResetAt };
         },
 
         async pullAuditToLocal(limit = 1000) {

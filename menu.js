@@ -967,7 +967,19 @@ window.BiletProAutoSync = {
                 configPullRes = await window.BiletProOnlineStore.pullConfigFromOnline();
             }
 
-            const anyChanged = !!(pullRes.changed || staffPullRes.changed || configPullRes.changed);
+            // 5) Audit loglarını online'dan çek
+            let auditPullRes = { ok: false, changed: false };
+            if (typeof window.BiletProOnlineStore.pullAuditToLocal === 'function') {
+                auditPullRes = await window.BiletProOnlineStore.pullAuditToLocal(1000);
+            }
+
+            // 6) Kontrol paneli CLog reset marker'ını uygula
+            let cLogResetRes = { ok: false, changed: false };
+            if (typeof window.BiletProOnlineStore.applyRemoteCLogResetIfNeeded === 'function') {
+                cLogResetRes = await window.BiletProOnlineStore.applyRemoteCLogResetIfNeeded();
+            }
+
+            const anyChanged = !!(pullRes.changed || staffPullRes.changed || configPullRes.changed || auditPullRes.changed || cLogResetRes.changed);
 
             const ok = failed === 0 && (pullRes.ok !== false);
             this.saveStatus({
@@ -980,7 +992,9 @@ window.BiletProAutoSync = {
                 pulled: pullRes.count || 0,
                 changed: anyChanged,
                 staffChanged: !!staffPullRes.changed,
-                configChanged: !!configPullRes.changed
+                configChanged: !!configPullRes.changed,
+                auditChanged: !!auditPullRes.changed,
+                cLogResetChanged: !!cLogResetRes.changed
             });
 
             // Veri değiştiyse sayfayı yenile
@@ -990,7 +1004,7 @@ window.BiletProAutoSync = {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
-                    const forceReloadForConfigOrStaff = !!(configPullRes.changed || staffPullRes.changed);
+                    const forceReloadForConfigOrStaff = !!(configPullRes.changed || staffPullRes.changed || auditPullRes.changed || cLogResetRes.changed);
                     if (isRealtime || forceReloadForConfigOrStaff || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
                         if (!isRealtime) sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
                         setTimeout(() => window.location.reload(), 300);

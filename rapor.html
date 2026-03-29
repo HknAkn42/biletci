@@ -434,12 +434,26 @@
             }
             clogKeys.forEach(k => localStorage.removeItem(k));
 
+            const resetStamp = new Date().toISOString();
+            localStorage.setItem('BiletPro_LocalCLogResetAt', resetStamp);
+
             try {
                 if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
                     const initRes = await window.BiletProOnlineStore.init();
-                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.setAuditResetAt === 'function') {
-                        await window.BiletProOnlineStore.setAuditResetAt(new Date().toISOString());
+                    if(initRes && initRes.mode === 'online') {
+                        if(typeof window.BiletProOnlineStore.setAuditResetAt === 'function') {
+                            await window.BiletProOnlineStore.setAuditResetAt(resetStamp);
+                        }
+                        if(typeof window.BiletProOnlineStore.setCLogResetAt === 'function') {
+                            await window.BiletProOnlineStore.setCLogResetAt(resetStamp);
+                        }
                     }
+                }
+            } catch(_) {}
+
+            try {
+                if(window.BiletProAutoSync && typeof window.BiletProAutoSync.syncNow === 'function') {
+                    await window.BiletProAutoSync.syncNow('manual_audit_reset');
                 }
             } catch(_) {}
 
