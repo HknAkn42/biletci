@@ -133,26 +133,14 @@
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
         }
 
-        let lastUser = localStorage.getItem('BiletPro_LastUser');
+        let lastUser = null;
         let tempUser = null; 
         let inputPin = "";
 
         window.onload = () => {
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
-            if (lastUser) {
-                const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
-                if (user && user.pin && user.isActive !== false) {
-                    showStep('stepPinLogin');
-                    document.getElementById('welcomeUser').innerText = `HOŞ GELDİN, ${user.name.split(' ')[0].toUpperCase()}`;
-                    renderPad('loginPinPad');
-                } else {
-                    localStorage.removeItem('BiletPro_LastUser');
-                    lastUser = null;
-                    showStep('stepLogin');
-                }
-            } else {
-                showStep('stepLogin');
-            }
+            localStorage.removeItem('BiletPro_LastUser');
+            showStep('stepLogin');
         };
 
         function showStep(id) {
@@ -171,7 +159,6 @@
 
             if (user) {
                 tempUser = user;
-                localStorage.setItem('BiletPro_LastUser', user.username);
                 if (!user.pin) {
                     showStep('stepCreatePin');
                     renderPad('createPinPad');
