@@ -407,6 +407,12 @@
             }
 
             localStorage.removeItem('BiletPro_AuditLogs');
+            const clogKeys = [];
+            for(let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if(k && k.startsWith('BiletPro_CLog_')) clogKeys.push(k);
+            }
+            clogKeys.forEach(k => localStorage.removeItem(k));
 
             try {
                 if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
@@ -418,7 +424,7 @@
             } catch(_) {}
 
             renderAuditLogs();
-            if(typeof showToast === 'function') showToast('Audit loglar PIN doğrulaması ile sıfırlandı.', 'success');
+            if(typeof showToast === 'function') showToast('Audit loglar ve kontrol paneli kod logları sıfırlandı.', 'success');
         }
 
         async function hardResetAllSalesWithCode() {
