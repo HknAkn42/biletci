@@ -331,20 +331,11 @@ window.writeAuditEvent = function(module, action, details) {
    SOL MENÜ ENJEKSİYONU (SQUEEZE YAPISI)
    ========================================== */
 function injectMenu(active = 'dashboard', eventId = null) {
-    try {
-        const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Misafir", role: "user" };
-        const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
-        
-        // BiletProCore hazır mı diye kontrol et
-        if (!window.BiletProCore || typeof window.BiletProCore.getConfig !== 'function') {
-            console.warn('[injectMenu] BiletProCore not ready, using defaults');
-            var cfg = { menuLabels: {}, menuVisibility: {} };
-        } else {
-            var cfg = window.BiletProCore.getConfig();
-        }
-        
-        const labels = cfg.menuLabels || {};
-        const visibility = cfg.menuVisibility || {};
+    const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Misafir", role: "user" };
+    const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+    const cfg = window.BiletProCore.getConfig();
+    const labels = cfg.menuLabels || {};
+    const visibility = cfg.menuVisibility || {};
 
     const style = document.createElement('style');
     style.innerHTML = `

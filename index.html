@@ -64,15 +64,6 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pl-[90px] lg:pl-[130px] pb-24 lg:pb-[150px] no-scrollbar">
-            <div class="mb-6 bg-blue-50 p-6 rounded-[24px] border border-blue-200">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px] mb-1">⚡ PARALEL TEST</p>
-                        <p class="text-sm text-blue-700">Demo etkinlik ve bilet oluştur, sonra Satış sekmesinde QR'ı test et</p>
-                    </div>
-                    <button onclick="createDemoEventAndTicket()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-blue-700 transition-all">DEMO BAŞLAT</button>
-                </div>
-            </div>
             <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
             </div>
 
@@ -534,47 +525,6 @@
                     render(); 
                 }
             }
-        }
-        
-        // DEMO ETKİNLİK + BİLET OLUŞTUR (Paralel Test için)
-        function createDemoEventAndTicket() {
-            // 1. Demo etkinlik oluştur
-            const eventId = 'DEMO_' + Date.now().toString();
-            const demoEvent = {
-                id: eventId,
-                title: "🎉 DEMO ETKİNLİĞİ - Paralel Test",
-                company: "Test Şirketi",
-                venue: "Test Salonu",
-                city: "İstanbul",
-                fullAddress: "Test Adresi No:1",
-                date: new Date().toISOString().split('T')[0],
-                doorTime: "18:00",
-                startTime: "19:00",
-                cover: "",
-                logo: "",
-                categories: [{
-                    name: "VIP",
-                    masalar: [{
-                        no: "1",
-                        isSold: false,
-                        soldTo: null
-                    }]
-                }],
-                isActive: true
-            };
-
-            events.push(demoEvent);
-            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
-
-            if(typeof showToast === 'function') {
-                showToast("✅ Demo etkinliği oluşturuldu!", "success");
-            } else {
-                alert("✅ Demo etkinliği oluşturuldu!");
-            }
-
-            setTimeout(() => {
-                window.location.href = 'satis.html?id=' + eventId;
-            }, 500);
         }
         
         // BAŞLANGIÇ RENDER
