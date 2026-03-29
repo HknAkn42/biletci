@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EventPro | Bilet Satış Terminali</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <link rel="stylesheet" href="theme.css">
+
+    <style>
+        .silk-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 40px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
+        .input-silk { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 18px !important; padding: 1.1rem !important; color: #0f172a !important; font-weight: 700; width: 100%; margin-bottom: 12px; font-size: 0.9rem; transition: 0.3s; }
+        .input-silk:focus { border-color: #2563eb !important; background: #ffffff !important; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); outline: none; }
+        
+        /* KİLİTLİ INPUT GÖRÜNÜMÜ İÇİN */
+        select:disabled.input-silk { background: #f1f5f9 !important; color: #94a3b8 !important; cursor: not-allowed; border-color: #e2e8f0 !important; box-shadow: none !important; opacity: 0.8; }
+        
+        .label-mini { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; margin-left: 8px; display: block; letter-spacing: 1px; }
+
+        .radar-box { position: relative; width: 100%; margin-bottom: 30px; }
+        .radar-box input { background: #fff !important; border: 2px solid #e2e8f0 !important; padding-left: 50px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.02); font-size: 1rem; }
+        .radar-box input:focus { border-color: #0f172a !important; }
+        .radar-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
+
+        .basket-item { background: #ffffff; border: 1px solid #edf2f7; border-radius: 20px; padding: 15px 20px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: 0.2s; }
+        .btn-pay { padding: 16px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; font-size: 10px; font-weight: 800; color: #64748b; transition: 0.3s; cursor: pointer; text-transform: uppercase; }
+        .btn-pay.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 5px 15px rgba(15, 23, 42, 0.2); }
+
+        .category-shell { background: #fff; border-radius: 42px; border: 1px solid #e2e8f0; margin-bottom: 25px; overflow: hidden; transition: 0.3s; box-shadow: 0 15px 40px rgba(0,0,0,0.02); }
+        .cat-header { padding: 25px 40px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fcfdfe; cursor: pointer; user-select: none; transition: 0.2s; }
+        .cat-header:hover { background: #f8fafc; }
+        .masalar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 20px; padding: 35px 40px; }
+        .category-shell.collapsed .masalar-grid { display: none; }
+        .chevron { transition: 0.3s; color: #94a3b8; }
+        .collapsed .chevron { transform: rotate(-90deg); }
+
+        .masa-silk { background: #fff; border: 1px solid #edf2f7; border-radius: 26px; padding: 25px 10px; text-align: center; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; position: relative; overflow: hidden; }
+        .masa-silk:hover { border-color: #2563eb; transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.04); }
+        .masa-silk.sold { background: #f8fafc; border-style: dashed; opacity: 0.7; }
+        .masa-silk.selected { border-color: #2563eb; background: #eff6ff; border-width: 2px; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15); }
+        .m-no { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
+        .m-kap { font-size: 24px; font-weight: 900; color: #0f172a; font-style: italic; line-height: 1; }
+        .m-alt { font-size: 9px; font-weight: 800; color: #64748b; margin-top: 4px; text-transform: uppercase; }
+
+        .finance-summary { background: #f8fafc; border-radius: 28px; padding: 25px; border: 1px solid #f1f5f9; margin-top: 25px; }
+        .fin-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .btn-confirm { background: #0f172a; color: #fff; width: 100%; padding: 20px; border-radius: 20px; font-weight: 800; text-transform: uppercase; margin-top: 25px; transition: 0.3s; font-size: 12px; letter-spacing: 1px; box-shadow: 0 15px 30px rgba(15, 23, 42, 0.2); }
+        .btn-confirm:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 20px 40px rgba(37, 99, 235, 0.3); }
+
+        .modal-bg { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(30px); }
+        .animate-pop { animation: pop 0.4s forwards; }
+        @keyframes pop { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .vip-ticket-cut { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #cbd5e1; z-index: 10; }
+        .vip-ticket-hole { position: absolute; width: 30px; height: 30px; background: rgba(15, 23, 42, 0.85); border-radius: 50%; z-index: 20; transform: translateY(-50%); }
+        .hole-left { left: -15px; }
+        .hole-right { right: -15px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #ticketModal, #ticketModal * { visibility: visible; }
+            #ticketModal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #fff !important; overflow: visible !important; }
+            .no-print { display: none !important; }
+            .vip-ticket-hole { background: #fff; border: 1px solid #cbd5e1; }
+        }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+
+    <script src="menu.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        injectMenu('satis', eventId);
+    </script>
+
+    <div class="flex flex-col h-screen">
+        <header class="h-[80px] sm:h-[90px] px-3 sm:px-5 lg:px-[60px] pl-[90px] lg:pl-[130px] flex items-center justify-between gap-2 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="flex items-center gap-5">
+                <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white">
+                    <img id="headLogo" class="w-full h-full object-cover">
+                </div>
+                <div class="flex flex-col">
+                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Cashier Terminal</p>
+                    <h1 id="headTitle" class="text-xl font-black text-slate-800 tracking-tighter uppercase">SATIŞ VE TAHSİLAT</h1>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div id="sessionBadge" class="hidden bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl flex flex-col items-end">
+                    <span class="text-[8px] font-black text-blue-400 uppercase tracking-widest">AKTİF OTURUM</span>
+                    <span id="sessionNameText" class="text-xs font-bold text-blue-700">Bekleniyor...</span>
+                </div>
+                
+                <div class="bg-slate-50 px-3 sm:px-6 py-2 sm:py-3 rounded-2xl border border-slate-100 flex items-center gap-2 sm:gap-3 h-full">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span id="clock" class="font-black text-slate-600 text-sm tracking-widest">--:--:--</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pl-[90px] lg:pl-[130px] pb-24 lg:pb-[150px] no-scrollbar">
+            <div class="grid grid-cols-1 2xl:grid-cols-[460px_1fr] gap-5 lg:gap-[45px] items-start w-full max-w-[1850px]">
+                
+                <aside class="space-y-6">
+                    <div class="silk-card animate-pop 2xl:sticky 2xl:top-0">
+                        <div class="mb-8 text-center">
+                            <h3 id="hubMainTitle" class="text-lg font-extrabold uppercase tracking-tight text-slate-800">BİLET SATIŞ</h3>
+                            <div class="w-12 h-1.5 bg-blue-600 rounded-full mt-2 mx-auto"></div>
+                        </div>
+
+                        <div class="space-y-5">
+                            <div>
+                                <span class="label-mini">Müşteri Bilgileri</span>
+                                <input id="custName" type="text" placeholder="Ad Soyad" class="input-silk mb-2">
+                                <input id="custPhone" type="tel" placeholder="05XX XXX XX XX" class="input-silk">
+                                
+                                <div class="relative">
+                                    <span class="label-mini mt-2 flex justify-between">
+                                        <span>Satışı Yapan Personel</span>
+                                        <span id="staffLockIcon" class="hidden text-red-400">🔒 KİLİTLİ</span>
+                                    </span>
+                                    <select id="staffSelect" class="input-silk cursor-pointer appearance-none">
+                                        </select>
+                                </div>
+                                
+                                <span class="label-mini mt-2">KAPI / VIP NOTU (Personel Görür)</span>
+                                <textarea id="gateNote" placeholder="Hakan Bey'in misafiri, borç sormayın..." class="input-silk !h-20 no-scrollbar py-3 resize-none font-semibold"></textarea>
+                            </div>
+
+                            <div>
+                                <span class="label-mini">Seçili Masalar</span>
+                                <div id="basketList" class="max-h-48 overflow-y-auto no-scrollbar space-y-2 p-1"></div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="label-mini">İSKONTO (%)</span><input id="prDisc" type="number" value="0" class="input-silk text-center" oninput="recalc()"></div>
+                                <div><span class="label-mini">EK İNDİRİM (₺)</span><input id="tlDisc" type="number" value="0" class="input-silk text-center" oninput="recalc()"></div>
+                            </div>
+
+                            <div>
+                                <span class="label-mini">Ödeme Yöntemi</span>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" id="btnPayNakit" onclick="setPay('Nakit')" class="btn-pay pay-opt active">Nakit</button>
+                                    <button type="button" id="btnPayKKarti" onclick="setPay('K.Kartı')" class="btn-pay pay-opt">K.Kartı</button>
+                                    <button type="button" id="btnPayHavale" onclick="setPay('Havale')" class="btn-pay pay-opt">Havale</button>
+                                </div>
+                            </div>
+
+                            <div class="relative">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="label-mini !mb-0">Alınan Tahsilat (₺)</span>
+                                    <button type="button" onclick="payFull()" class="text-[9px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-xl transition-all shadow-sm">TAMAMINI AL</button>
+                                </div>
+                                <input id="paidAmt" type="number" placeholder="0.00" class="input-silk !text-blue-600 !font-black !text-2xl text-center !mb-0" oninput="recalc()">
+                            </div>
+
+                            <div class="finance-summary">
+                                <div class="fin-row text-[10px] font-black text-slate-400 uppercase">
+                                    <span>Brüt Tutar</span>
+                                    <span id="grossDisp">₺0.00</span>
+                                </div>
+                                <div class="fin-row text-[10px] font-black text-red-400 uppercase">
+                                    <span>Toplam Kesinti</span>
+                                    <span id="saveDisp">₺0.00</span>
+                                </div>
+                                <div class="h-px bg-slate-200 my-4"></div>
+                                <div class="flex justify-between items-center">
+                                    <span class="font-black text-slate-800 text-sm">NET TUTAR</span>
+                                    <span id="netDisp" class="text-3xl font-black italic tracking-tighter text-blue-600">₺0.00</span>
+                                </div>
+                                <div id="debtRow" class="hidden flex justify-between pt-4 border-t border-red-100 mt-4">
+                                    <span class="text-[10px] font-black text-red-500 flex items-center gap-2">
+                                        <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div> KALAN BORÇ
+                                    </span> 
+                                    <span id="debtDisp" class="font-black text-red-600 text-lg">₺0.00</span>
+                                </div>
+                            </div>
+
+                            <button type="button" id="confirmBtn" onclick="finalize()" class="btn-confirm">SATIŞI KAYDET</button>
+                            
+                            <button type="button" id="viewTicketBtn" onclick="openExistingTicket()" class="hidden bg-blue-600 text-white w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:bg-blue-700 transition-all tracking-widest mt-2 border border-blue-500">🎫 BİLETİ GÖRÜNTÜLE / PAYLAŞ</button>
+                            
+                            <button type="button" id="cancelBtn" onclick="cancelSale()" class="hidden w-full py-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-all tracking-widest mt-2">Satışı İptal Et</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="space-y-6">
+                    <div class="radar-box">
+                        <svg class="radar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="searchInput" placeholder="Masa Numarası veya Müşteri Adı Ara..." class="input-silk !mb-0 !rounded-[24px]" onkeyup="handleSearch(this.value)">
+                    </div>
+                    <div id="masterList" class="space-y-8"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="ticketModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-4 sm:p-6">
+        <div class="w-full max-w-[420px] max-h-[95vh] overflow-y-auto no-scrollbar animate-pop relative pb-6 pt-6">
+            
+            <button onclick="closeTicketModal()" class="absolute top-0 right-4 text-white hover:text-red-400 transition-all font-black text-3xl no-print z-50">&times;</button>
+
+            <div id="ticketCaptureArea" class="bg-white rounded-[32px] overflow-hidden shadow-2xl relative mb-6">
+                <div class="bg-slate-900 p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                    <img id="tkEventLogo" crossOrigin="anonymous" class="w-20 h-20 object-cover rounded-2xl shadow-xl border-2 border-slate-700 mb-4 z-10 bg-white">
+                    <h2 id="tkEventName" class="text-2xl font-black text-white uppercase text-center tracking-tighter leading-none z-10">ETKİNLİK ADI</h2>
+                    <p class="text-[9px] font-black text-blue-500 uppercase tracking-[4px] mt-3 z-10">VIP GİRİŞ KARTI</p>
+                    <div class="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
+                        <svg width="180" height="180" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 22h20L12 2z"/></svg>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <div class="vip-ticket-cut"></div>
+                    <div class="vip-ticket-hole hole-left"></div>
+                    <div class="vip-ticket-hole hole-right"></div>
+                </div>
+
+                <div class="p-6 bg-white relative text-center">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-5 text-left">
+                        <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">MEKAN / LOKASYON</span>
+                        <p id="tkVenue" class="text-[12px] font-black text-slate-800 leading-tight uppercase">-</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-5 text-left border-b border-slate-100 pb-5">
+                        <div>
+                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">ETKİNLİK TARİHİ</span>
+                            <p id="tkDate" class="text-[13px] font-black text-slate-800">-</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">KAPI / BAŞLAMA</span>
+                            <p id="tkTime" class="text-[13px] font-black text-slate-800">-</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 mb-6 flex flex-col gap-2 items-center text-center">
+                        <span class="text-[8px] font-black text-blue-400 uppercase tracking-widest block">KATEGORİ VE BİRİM (MASA)</span>
+                        <p id="tkCategoryAndMasa" class="text-lg font-black text-blue-700 leading-tight uppercase">VIP - MASA 14</p>
+                        <span class="text-[8px] font-bold text-slate-500 uppercase block mt-1" id="tkCustName">ALICI: HAKAN AKIN</span>
+                    </div>
+
+                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">KAPI GÜVENLİK MÜHÜRÜ (QR)</span><br>
+                    
+                    <img id="qrcodeImg" crossOrigin="anonymous" class="inline-block w-[190px] h-[190px] bg-white border border-slate-200 rounded-[20px] shadow-sm p-3 mt-4 mb-4">
+                    
+                    <p id="tkHash" class="text-[9px] font-bold text-slate-400 font-mono tracking-widest uppercase">HASH-12345</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 no-print">
+                <button onclick="printTicket()" class="bg-white text-slate-800 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg border border-slate-200 hover:bg-slate-50 transition-all">🖨️ YAZDIR</button>
+                
+                <button onclick="copyAndShareWhatsApp()" id="shareBtn" class="bg-[#25D366] text-white py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:bg-[#1DA851] transition-all flex items-center justify-center gap-2">
+                    💬 KOPYALA & WHATSAPP
+                </button>
+                
+                <button onclick="closeTicketModal()" class="col-span-2 bg-slate-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:bg-slate-800 transition-all tracking-widest mt-2">KAPAT (ESC)</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+        let staffData = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
+        let blacklist = JSON.parse(localStorage.getItem('BiletPro_Blacklist')) || [];
+        
+        // GİRİŞ YAPMIŞ PERSONELİ (SESSION) BULMA VEYA SİMÜLE ETME
+        // (Şimdilik admin olarak simüle ediliyor, login.html yapıldığında buradan asıl veriyi çekecek)
+        let session = JSON.parse(localStorage.getItem('BiletPro_Session'));
+        if(!session) {
+            // Eğer session yoksa, test için Merkez Kasa (Admin) olarak farz et
+            session = { name: "Merkez Kasa", username: "merkez", role: "admin" };
+            // localStorage.setItem('BiletPro_Session', JSON.stringify(session)); // İsteğe bağlı
+        }
+
+        let ev = events.find(e => e.id == eventId);
+        
+        let basket = []; 
+        let payType = 'Nakit'; 
+        let editId = null; 
+        let searchTerm = ""; 
+        let lastTicketHash = ""; 
+        let lastPhone = ""; 
+        let lastDebt = 0; 
+        let lastMasaDetails = "";
+
+        if(!ev) window.location.href = 'index.html';
+        
+        document.getElementById('headLogo').src = ev.logo || 'https://via.placeholder.com/150';
+        document.getElementById('headTitle').innerText = ev.title + " | SATIŞ";
+        
+        // Oturum rozetini güncelle
+        document.getElementById('sessionBadge').classList.remove('hidden');
+        document.getElementById('sessionNameText').innerText = session.name + (session.role === 'admin' ? ' (Yönetici)' : '');
+        
+        setInterval(() => { 
+            const now = new Date(); 
+            document.getElementById('clock').innerText = now.toLocaleTimeString('tr-TR', { hour12: false }); 
+        }, 1000);
+
+        document.addEventListener('keydown', function(event) {
+            if(event.key === "Escape") {
+                const modal = document.getElementById('ticketModal');
+                if(!modal.classList.contains('hidden')) closeTicketModal();
+            }
+        });
+
+        function getCurrentUserPerms() {
+            const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || {};
+            const user = staffData.find(s => s.username.toLowerCase() === (session.username || '').toLowerCase());
+
+            const isAdmin = (session.role === 'admin')
+                || ((session.username || '').toLowerCase() === 'hakan')
+                || (user && user.role === 'admin');
+
+            if(isAdmin) {
+                return {
+                    pSale: true, pDiscount: true, pCancel: true,
+                    pDoor: true, pDoorPay: true, pDoorRisk: true,
+                    pManageEvents: true, pReports: true, pManageStaff: true, pViewLogs: true
+                };
+            }
+
+            return user && user.perms ? user.perms : {
+                pSale: false, pDiscount: false, pCancel: false,
+                pDoor: false, pDoorPay: false, pDoorRisk: false,
+                pManageEvents: false, pReports: false, pManageStaff: false, pViewLogs: false
+            };
+        }
+
+        // 1. PERSONEL LİSTESİNİ DOLDURMA VE YETKİ KİLİDİ UYGULAMA
+        function loadStaff() {
+            const select = document.getElementById('staffSelect');
+            const lockIcon = document.getElementById('staffLockIcon');
+            
+            let optionsHtml = '<option value="Merkez Kasa">Merkez Kasa</option>';
+            
+            // Sadece aktif olanları listele
+            const activeStaff = staffData.filter(s => s.isActive !== false);
+            activeStaff.forEach(s => {
+                optionsHtml += `<option value="${s.name}">${s.name}</option>`;
+            });
+            select.innerHTML = optionsHtml;
+
+            // Eğer oturan kişi listede varsa onu seçili hale getir
+            if (Array.from(select.options).some(opt => opt.value === session.name)) {
+                select.value = session.name;
+            }
+
+            // YETKİ KİLİDİ: Admin değilse menüyü kilitle
+            if (session.role !== 'admin') {
+                select.disabled = true;
+                lockIcon.classList.remove('hidden');
+            } else {
+                select.disabled = false;
+                lockIcon.classList.add('hidden');
+            }
+
+            const perms = getCurrentUserPerms();
+            const dynamicPayBtn = document.getElementById('confirmBtn');
+            const dynamicCancelBtn = document.getElementById('cancelBtn');
+            const prDisc = document.getElementById('prDisc');
+            const tlDisc = document.getElementById('tlDisc');
+
+            if (!perms.pSale) {
+                dynamicPayBtn.classList.add('btn-disabled');
+                dynamicPayBtn.disabled = true;
+                if(typeof showToast==='function') showToast('SATIŞ yetkiniz yok. Yönetici olun.', 'error');
+            }
+            if (!perms.pCancel) {
+                dynamicCancelBtn.classList.add('btn-disabled');
+                dynamicCancelBtn.disabled = true;
+            }
+            if (!perms.pDiscount) {
+                prDisc.disabled = true; tlDisc.disabled = true;
+            }
+
+            if (!perms.pManageStaff) {
+                // sitil: değişiklik yetkisi gibi bir şey, listede satışçı seçimini kilitle
+            }
+        }
+
+        function payFull() {
+            if(basket.length === 0) return showToast("Tahsilat için önce masa seçmelisiniz!", "error");
+            
+            document.getElementById('paidAmt').value = ""; 
+            const net = recalc(); 
+            document.getElementById('paidAmt').value = net; 
+            recalc(); 
+            
+            showToast("Tahsilat tutarı tamamlandı.", "success");
+        }
+
+        function toggleCategory(catId) { 
+            const cat = ev.categories.find(c => c.id === catId); 
+            cat.isOpen = (cat.isOpen === undefined) ? false : !cat.isOpen; 
+            saveAndRender(); 
+        }
+        
+        function setPay(t) { 
+            payType = t; 
+            document.querySelectorAll('.pay-opt').forEach(b => b.classList.remove('active'));
+            if(t === 'Nakit') document.getElementById('btnPayNakit').classList.add('active');
+            else if(t === 'K.Kartı') document.getElementById('btnPayKKarti').classList.add('active');
+            else if(t === 'Havale') document.getElementById('btnPayHavale').classList.add('active');
+            else { payType = 'Nakit'; document.getElementById('btnPayNakit').classList.add('active'); }
+        }
+
+        function handleSearch(val) { 
+            searchTerm = val.toLowerCase(); 
+            render(); 
+        }
+
+        function selectMasa(cId, mId) {
+            const cat = ev.categories.find(c => c.id === cId);
+            const m = cat.masalar.find(m => m.id === mId);
+            if(m.isDeleted) return; 
+            
+            if(m.isSold) { 
+                loadEdit(cat, m); 
+                return; 
+            }
+            
+            if(editId !== null) {
+                reset(); 
+            }
+
+            const basketIdx = basket.findIndex(i => i.masa.id === mId);
+            if(basketIdx > -1) { 
+                basket.splice(basketIdx, 1); 
+            } else { 
+                basket.push({ cat, masa: m, p: m.kapasite }); 
+            }
+
+            document.getElementById('paidAmt').value = "";
+
+            if(basket.length === 0) reset();
+            else { 
+                render(); 
+                recalc(); 
+            }
+        }
+
+        // DÜZENLEME MODU (GEÇMİŞİ KORUYAN PERSONEL KALKANI)
+        function loadEdit(cat, m) {
+            editId = m.id; 
+            basket = [{ cat, masa: m, p: m.saleDetail.people }];
+            document.getElementById('custName').value = m.soldTo || "";
+            document.getElementById('custPhone').value = m.saleDetail.phone || "";
+            document.getElementById('gateNote').value = m.saleDetail.gateNote || "";
+            document.getElementById('paidAmt').value = m.saleDetail.paid || 0;
+            
+            document.getElementById('prDisc').value = m.saleDetail.prDisc || 0;
+            document.getElementById('tlDisc').value = m.saleDetail.tlDisc || 0;
+            
+            // Satıcı bilgisini yükle ve pasif personelse listeye ekle
+            const seller = m.saleDetail.soldBy || "Merkez Kasa";
+            const staffSelect = document.getElementById('staffSelect');
+            
+            let exists = Array.from(staffSelect.options).some(opt => opt.value === seller);
+            if (!exists) {
+                // Sadece göstermelik olarak eski personeli listeye ekle
+                staffSelect.innerHTML += `<option value="${seller}">${seller} (Pasif/Eski)</option>`;
+            }
+            staffSelect.value = seller;
+            
+            setPay(m.saleDetail.paymentType || 'Nakit');
+            document.getElementById('hubMainTitle').innerText = "DÜZENLEME MODU";
+            
+            // Kullanıcı Admin değilse güncelleme yapamasın kısıtlaması istenirse eklenebilir, 
+            // Şimdilik sadece Personel Adı değiştirilemez kalsın (Zaten kilitli).
+            document.getElementById('confirmBtn').innerText = "GÜNCELLEMEYİ KAYDET";
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            document.getElementById('viewTicketBtn').classList.remove('hidden');
+            
+            showToast("Müşteri verisi yüklendi", "success"); 
+            render(); 
+            recalc();
+        }
+
+        function cancelSale() {
+            const perms = getCurrentUserPerms();
+            if(!perms.pCancel) return showToast("Satış iptal yetkiniz yok!", "error");
+            if(!editId) return;
+            
+            showConfirm("SATIŞI İPTAL ET", "Satışı iptal edip masayı boşa çıkarmak istiyor musunuz? Bu işlem geri alınamaz.", () => {
+                const targetM = ev.categories.find(c => c.id === basket[0].cat.id).masalar.find(mm => mm.id === editId);
+                targetM.isSold = false; 
+                delete targetM.soldTo; 
+                delete targetM.saleDetail;
+                save(); 
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Satış", "Satış İptal", `Masa ${targetM.no} satışı iptal edildi (${session.name})`);
+                showToast("SATIŞ İPTAL EDİLDİ", "error"); 
+                reset();
+            });
+        }
+
+        function reset() {
+            basket = []; 
+            editId = null; 
+            lastDebt = 0; 
+            lastMasaDetails = "";
+            document.getElementById('custName').value = ""; 
+            document.getElementById('custPhone').value = "";
+            document.getElementById('gateNote').value = "";
+            document.getElementById('prDisc').value = 0; 
+            document.getElementById('tlDisc').value = 0;
+            document.getElementById('paidAmt').value = "";
+            
+            // Reset to session default
+            const staffSelect = document.getElementById('staffSelect');
+            if (Array.from(staffSelect.options).some(opt => opt.value === session.name)) {
+                staffSelect.value = session.name;
+            } else {
+                staffSelect.value = "Merkez Kasa";
+            }
+            
+            document.getElementById('hubMainTitle').innerText = "BİLET SATIŞ";
+            document.getElementById('confirmBtn').innerText = "SATIŞI ONAYLA";
+            document.getElementById('cancelBtn').classList.add('hidden');
+            document.getElementById('viewTicketBtn').classList.add('hidden'); 
+            
+            setPay('Nakit'); 
+            render(); 
+            recalc();
+        }
+
+        function removeB(mid) { 
+            basket = basket.filter(i => i.masa.id !== mid); 
+            document.getElementById('paidAmt').value = "";
+            
+            if(basket.length === 0) reset(); 
+            else { 
+                render(); 
+                recalc(); 
+            } 
+        }
+
+        function recalc() {
+            let gross = 0; 
+            basket.forEach(i => gross += (i.cat.pricePerPerson * i.p));
+            const pr = parseFloat(document.getElementById('prDisc').value) || 0;
+            const tl = parseFloat(document.getElementById('tlDisc').value) || 0;
+            const paid = parseFloat(document.getElementById('paidAmt').value) || 0;
+
+            const prDiscountAmount = gross * (pr / 100);
+            const net = Math.max(0, (gross - prDiscountAmount) - tl);
+            const debt = Math.max(0, net - paid);
+
+            document.getElementById('grossDisp').innerText = "₺" + gross.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('saveDisp').innerText = "₺" + (gross - net).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('netDisp').innerText = "₺" + net.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            if(debt > 0.01 && paid > 0) { 
+                document.getElementById('debtRow').classList.remove('hidden'); 
+                document.getElementById('debtDisp').innerText = "₺" + debt.toLocaleString('tr-TR', {minimumFractionDigits: 2}); 
+            } else { 
+                document.getElementById('debtRow').classList.add('hidden'); 
+            }
+            return net;
+        }
+
+        // SATIŞI MÜHÜRLE
+        function finalize() {
+            const perms = getCurrentUserPerms();
+            if(!perms.pSale) return showToast("Satış yetkiniz yok!", "error");
+
+            // Yetki sertleştirme: İskonto izni yoksa backend-benzeri zorunlu sıfırlama
+            if(!perms.pDiscount) {
+                document.getElementById('prDisc').value = 0;
+                document.getElementById('tlDisc').value = 0;
+            }
+
+            const n = document.getElementById('custName').value.trim();
+            const ph = document.getElementById('custPhone').value.trim();
+            const gn = document.getElementById('gateNote').value.trim();
+            const sellerName = document.getElementById('staffSelect').value; // Personel seçimi
+            const seller = staffData.find(s => s.name === sellerName || s.username === sellerName);
+            if(seller && seller.isActive === false) return showToast("Pasif personel ile satış yapılamaz.", "error");
+
+            if(blacklist.includes(ph)) return showToast("Bu müşteri kara listededir. Satış yapılamaz!", "error");
+
+            if(!n || basket.length === 0) return showToast("Müşteri adı ve masa seçimi zorunludur!", "error");
+            
+            const net = recalc(); 
+            const paid = parseFloat(document.getElementById('paidAmt').value) || 0;
+            lastDebt = Math.max(0, net - paid);
+            
+            lastMasaDetails = basket.map(b => `${b.cat.name} (MASA ${b.masa.no})`).join(", ");
+            const masaNosOnly = basket.map(b => b.masa.no).join("");
+            
+            let isUpdate = editId !== null; 
+            let oldHash = null;
+            
+            if(isUpdate) {
+                const oldTarget = ev.categories.find(c => c.id === basket[0].cat.id).masalar.find(m => m.id === editId);
+                if(oldTarget && oldTarget.saleDetail) oldHash = oldTarget.saleDetail.ticketHash;
+            }
+            
+            lastTicketHash = oldHash || `EV${ev.id.toString().slice(-4)}-M${masaNosOnly}-T${Date.now().toString().slice(-6)}`;
+            lastPhone = ph;
+
+            const pr = parseFloat(document.getElementById('prDisc').value) || 0;
+            const tl = parseFloat(document.getElementById('tlDisc').value) || 0;
+
+            basket.forEach(i => {
+                const target = ev.categories.find(c => c.id === i.cat.id).masalar.find(m => m.id === i.masa.id);
+                target.isSold = true; 
+                target.soldTo = n;
+                const eventDate = ev.date ? new Date(ev.date) : new Date();
+                const dueDate = new Date(eventDate.getTime() + 24*60*60*1000);
+                target.saleDetail = { 
+                    phone: ph, 
+                    people: i.p, 
+                    paid: paid / basket.length, 
+                    paymentType: payType, 
+                    debt: lastDebt / basket.length, 
+                    ticketHash: lastTicketHash, 
+                    categoryName: i.cat.name,
+                    prDisc: pr, 
+                    tlDisc: tl,
+                    gateNote: gn,
+                    soldBy: sellerName, // SATICI BİLGİSİ BİLETE KAZINDI
+                    status: 'READY',
+                    saleDate: new Date().toISOString(),
+                    dueDate: dueDate.toISOString()
+                };
+            });
+            
+            save(); 
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Satış", isUpdate ? "Satış Güncellendi" : "Yeni Satış", `${sellerName} -> ${lastMasaDetails} | Tutar: ₺${net.toLocaleString('tr-TR',{minimumFractionDigits:2})}`);
+            
+            if(isUpdate) {
+                showToast("Satış başarıyla güncellendi", "success");
+                reset();
+            } else {
+                showToast("Satış tamamlandı. Bilet oluşturuluyor...", "success");
+                showTicketModal(n, lastMasaDetails, paid, lastTicketHash);
+            }
+        }
+
+        function openExistingTicket() {
+            if(!editId) return;
+            const cat = basket[0].cat;
+            const m = cat.masalar.find(mm => mm.id === editId);
+            
+            if(m && m.isSold) {
+                lastTicketHash = m.saleDetail.ticketHash;
+                lastPhone = m.saleDetail.phone;
+                lastDebt = m.saleDetail.debt;
+                lastMasaDetails = `${cat.name} (MASA ${m.no})`;
+                
+                showTicketModal(m.soldTo, lastMasaDetails, m.saleDetail.paid, lastTicketHash);
+            }
+        }
+
+        function showTicketModal(custName, masaDetails, paid, hash) {
+            document.getElementById('tkEventLogo').src = ev.logo || 'https://via.placeholder.com/150/ffffff/0f172a?text=LOGO';
+            document.getElementById('tkEventName').innerText = ev.title;
+            
+            const dateStr = ev.date ? new Date(ev.date).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'}) : 'TARİH BELİRSİZ';
+            const doorStr = ev.doorTime ? ev.doorTime : '--:--';
+            const startStr = ev.startTime ? ev.startTime : '--:--';
+            document.getElementById('tkDate').innerText = dateStr;
+            document.getElementById('tkTime').innerText = `${doorStr} / ${startStr}`;
+            
+            const venueText = ev.venue ? ev.venue : 'MEKAN BELİRSİZ';
+            const cityText = ev.city ? ev.city : '';
+            const fullAddrText = ev.fullAddress ? ev.fullAddress : '';
+            document.getElementById('tkVenue').innerHTML = `${venueText} ${cityText ? '- ' + cityText : ''} <br><span class="text-[9px] text-slate-500 font-bold tracking-normal">${fullAddrText}</span>`;
+            
+            document.getElementById('tkCustName').innerText = "ALICI: " + custName;
+            document.getElementById('tkCategoryAndMasa').innerText = masaDetails;
+            document.getElementById('tkHash').innerText = hash;
+            
+            document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=250&dark=0f172a&light=ffffff`;
+            
+            document.getElementById('ticketModal').classList.remove('hidden');
+        }
+
+        function closeTicketModal() { 
+            document.getElementById('ticketModal').classList.add('hidden'); 
+            reset(); 
+        }
+        
+        function printTicket() { 
+            window.print(); 
+        }
+        
+        async function copyAndShareWhatsApp() {
+            if(!lastPhone) return showToast("Müşteri telefonu girilmemiş!", "error");
+            
+            const btn = document.getElementById('shareBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ KOPYALANIYOR...";
+            
+            try {
+                let cleanPhone = lastPhone.replace(/\D/g, '');
+                while(cleanPhone.startsWith('0')) { cleanPhone = cleanPhone.substring(1); }
+                if(cleanPhone.length === 10) { cleanPhone = '90' + cleanPhone; } 
+                else if (cleanPhone.length < 10) { 
+                    showToast("Geçersiz telefon numarası!", "error"); 
+                    btn.innerHTML = originalText;
+                    return; 
+                }
+
+                const custName = document.getElementById('tkCustName').innerText.replace("ALICI: ", "");
+                let msg = `🎫 *${ev.title.toUpperCase()} - VIP GİRİŞ KARTI*\n\nMerhaba ${custName},\nBilet görseliniz ekte yer almaktadır.\n\n🔐 *Güvenlik Kodunuz:* ${lastTicketHash}`;
+                if(lastDebt > 0.5) { msg += `\n💰 *Kalan Bakiye:* ${lastDebt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL (Kapıda Tahsil Edilecektir)`; }
+                msg += `\n\nBizi tercih ettiğiniz için teşekkür ederiz. İyi eğlenceler!`;
+
+                const ticketEl = document.getElementById('ticketCaptureArea');
+                
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                const canvas = await html2canvas(ticketEl, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: "#ffffff",
+                    logging: false
+                });
+
+                canvas.toBlob(async function(blob) {
+                    try {
+                        const item = new ClipboardItem({ "image/png": blob });
+                        await navigator.clipboard.write([item]);
+                        
+                        showToast("Bilet kopyalandı! WhatsApp açılıyor...", "success");
+                        setTimeout(() => {
+                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }, 1000);
+                        
+                    } catch (clipboardErr) {
+                        const link = document.createElement('a');
+                        link.download = `VIP_Bilet_${lastTicketHash}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        
+                        showToast("Bilet indirildi! WhatsApp'a sürükleyebilirsiniz.", "info");
+                        setTimeout(() => {
+                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }, 1000);
+                    }
+                }, 'image/png');
+
+            } catch (error) {
+                console.error("Görsel oluşturma hatası:", error);
+                showToast("Görsel oluşturulurken hata oluştu.", "error");
+            } finally {
+                setTimeout(() => { btn.innerHTML = originalText; }, 1000);
+            }
+        }
+
+        function saveAndRender() { 
+            save(); 
+            render(); 
+        }
+
+        function save() { 
+            const idx = events.findIndex(e => e.id == eventId); 
+            events[idx] = ev; 
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+
+            // Online mod açıksa aynı satışı merkezi veritabanına da senkronla
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.syncLegacyEventBundle === 'function') {
+                (async () => {
+                    try {
+                        if (window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() === 'online') {
+                            const syncRes = await window.BiletProOnlineStore.syncLegacyEventBundle(ev);
+                            if (!syncRes?.ok) {
+                                console.warn('[SATIŞ] Online senkron başarısız, local mod devam:', syncRes);
+                            }
+                        }
+                    } catch (syncErr) {
+                        console.warn('[SATIŞ] Online senkron hatası:', syncErr);
+                    }
+                })();
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('masterList'); 
+            container.innerHTML = "";
+            const bl = document.getElementById('basketList');
+            
+            bl.innerHTML = basket.length === 0 ? '<p class="text-center py-10 border-2 border-dashed border-slate-200 rounded-[24px] text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50">Masa Seçimi Bekleniyor</p>' : '';
+            
+            basket.forEach(i => {
+                const d = document.createElement('div'); 
+                d.className = "basket-item animate-pop";
+                d.innerHTML = `
+                    <div>
+                        <p class="text-[11px] font-black uppercase text-slate-800">MASA ${i.masa.no}</p>
+                        <p class="text-[10px] text-blue-600 font-bold">${i.p} KİŞİ x ₺${i.cat.pricePerPerson}</p>
+                    </div>
+                    <button onclick="removeB(${i.masa.id})" class="w-8 h-8 rounded-xl bg-red-50 text-red-500 font-black text-sm hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">×</button>
+                `;
+                bl.appendChild(d);
+            });
+
+            if(!ev.categories) return;
+
+            let isSearchActive = searchTerm.length > 0;
+
+            ev.categories.forEach(cat => {
+                const filteredMasalar = cat.masalar.filter(m => !m.isDeleted && (m.no.toString().includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm))));
+                if(isSearchActive && filteredMasalar.length === 0) return;
+
+                const isCollapsed = isSearchActive ? false : (cat.isOpen === false);
+                const section = document.createElement('div'); 
+                section.className = `category-shell animate-pop ${isCollapsed ? 'collapsed' : ''}`;
+                
+                section.innerHTML = `
+                    <div class="cat-header" onclick="toggleCategory(${cat.id})">
+                        <div class="flex items-center gap-5">
+                            <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"></path></svg></div>
+                            <div class="w-5 h-5 rounded-full shadow-lg" style="background:${cat.color}"></div>
+                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${cat.name} <span class="ml-2 text-slate-400 font-bold">(${filteredMasalar.length})</span></h3>
+                        </div>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">₺${cat.pricePerPerson.toLocaleString()} / KİŞİ</span>
+                    </div>
+                    <div class="masalar-grid">
+                        ${filteredMasalar.sort((a,b)=>a.no-b.no).map(m => {
+                            const sel = basket.find(bi => bi.masa.id === m.id);
+                            return `
+                                <div onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''}">
+                                    <p class="m-no">MASA</p>
+                                    <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
+                                    <p class="m-alt">${m.isSold ? m.soldTo : m.kapasite + ' KİŞİLİK'}</p>
+                                    ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
+                                    <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${m.isSold ? '0.2' : '0.6'}"></div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+            });
+        }
+        
+        // Başlangıçta personelleri listeye ekle
+        loadStaff();
+        render();
+    </script>
+</body>
+</html>

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EventPro | Müşteri İstihbarat & Finans</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="theme.css">
+
+    <style>
+        .silk-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 30px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
+        .stat-widget { background: #fff; border: 1px solid #e2e8f0; border-radius: 24px; padding: 25px; transition: 0.3s; position: relative; overflow: hidden; }
+        .stat-widget:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.05); }
+        
+        .table-silk { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .table-silk tr { transition: 0.3s; }
+        .table-silk td { background: #fff; padding: 18px 20px; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .table-silk td:first-child { border-left: 1px solid #f1f5f9; border-top-left-radius: 20px; border-bottom-left-radius: 20px; }
+        .table-silk td:last-child { border-right: 1px solid #f1f5f9; border-top-right-radius: 20px; border-bottom-right-radius: 20px; }
+        .table-silk tr:hover td { background: #f8fafc; border-color: #e2e8f0; }
+
+        .badge { padding: 6px 12px; border-radius: 10px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-debt { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+        .badge-vip { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+
+        .pulse-red { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 0 rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        .input-silk { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 16px !important; padding: 0.9rem 1.2rem !important; color: #0f172a !important; font-weight: 700; font-size: 0.85rem; transition: 0.3s; }
+        .input-silk:focus { border-color: #2563eb !important; background: #ffffff !important; outline: none; }
+
+        .modal-bg { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(25px); }
+        .animate-pop { animation: pop 0.4s forwards; }
+        @keyframes pop { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        #historyPanel { position: fixed; right: -500px; top: 0; width: 450px; height: 100vh; background: #fff; box-shadow: -20px 0 60px rgba(0,0,0,0.05); z-index: 9500; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px; overflow-y: auto; }
+        #historyPanel.open { right: 0; }
+
+        .check-pill { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; transition: 0.2s; user-select: none; }
+        .check-pill.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+        /* KAMPANYA PİLOT PANELI */
+        .promo-pilot { position: fixed; bottom: 40px; right: 40px; width: 380px; background: #0f172a; border-radius: 35px; padding: 30px; box-shadow: 0 35px 80px rgba(0,0,0,0.4); z-index: 9000; color: #fff; border: 1px solid rgba(255,255,255,0.1); }
+        input[type="checkbox"] { width: 22px; height: 22px; border-radius: 8px; cursor: pointer; accent-color: #2563eb; }
+        
+        .btn-premium { padding: 18px 24px; border-radius: 18px; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; display: flex; align-items: center; gap: 10px; }
+        .btn-save { background: #0f172a; color: #fff; }
+        .btn-save:hover { background: #2563eb; transform: translateY(-2px); }
+
+        @media (max-width: 1023px) {
+            #historyPanel { width: min(100vw, 380px); padding: 20px; }
+            .promo-pilot { left: 12px; right: 12px; bottom: 12px; width: auto; padding: 18px; border-radius: 24px; }
+        }
+    </style>
+</head>
+<body class="no-scrollbar bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+
+    <script src="menu.js"></script>
+    <script>injectMenu('musteriler');</script>
+
+    <div id="toastContainer" class="fixed top-4 right-3 sm:top-8 sm:right-8 z-[9999] flex flex-col gap-3"></div>
+
+    <div id="promoPilot" class="hidden promo-pilot animate-pop">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Operasyon Modu: Toplu Gönderim</p>
+                <h4 id="pilotStatus" class="text-xl font-black italic tracking-tighter text-white">0 / 0 Tamamlandı</h4>
+            </div>
+            <button onclick="closePromoMode()" class="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-red-500 transition-all text-white font-bold">&times;</button>
+        </div>
+        
+        <div class="w-full bg-slate-800 h-2.5 rounded-full mb-8 overflow-hidden">
+            <div id="pilotBar" class="bg-blue-500 h-full transition-all duration-700" style="width: 0%"></div>
+        </div>
+        
+        <div class="bg-white/5 p-5 rounded-3xl mb-8 border border-white/10">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Sıradaki Müşteri</p>
+            <p id="nextPersonName" class="text-lg font-black text-white uppercase italic">-</p>
+            <div class="flex items-center justify-between mt-2">
+                <span id="nextPersonPhone" class="text-xs font-bold text-blue-400 opacity-80">-</span>
+                <span class="text-[9px] font-black bg-white/10 px-3 py-1 rounded-full text-slate-400">BEKLİYOR</span>
+            </div>
+        </div>
+
+        <button id="pilotFireBtn" onclick="fireNextMessage()" class="w-full bg-[#25D366] hover:bg-[#1DA851] text-white py-5 rounded-[22px] font-black text-[12px] uppercase shadow-2xl transition-all flex items-center justify-center gap-4 group">
+            <span>WHATSAPP'A FIRLAT VE İLERLE</span>
+            <span class="group-hover:translate-x-2 transition-transform">➡</span>
+        </button>
+    </div>
+
+    <main class="p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pl-[90px] lg:pl-[130px] pb-20 lg:pb-[100px] max-w-[1900px] mx-auto">
+        
+        <header class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div class="stat-widget">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sistemdeki Müşteriler</p>
+                <h2 id="statCustCount" class="text-4xl font-black italic tracking-tighter text-slate-800">0</h2>
+                <div class="absolute -right-4 -bottom-4 opacity-[0.03] text-8xl">👤</div>
+            </div>
+            <div class="stat-widget border-b-4 border-b-blue-600">
+                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Net Kasa (Ödenen)</p>
+                <h2 id="statTotalPaid" class="text-4xl font-black italic tracking-tighter text-blue-600">₺0.00</h2>
+            </div>
+            <div class="stat-widget border-b-4 border-b-red-500">
+                <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">Açık Alacaklar (Borç)</p>
+                <h2 id="statTotalDebt" class="text-4xl font-black italic tracking-tighter text-red-600">₺0.00</h2>
+            </div>
+        </header>
+
+        <div class="flex flex-wrap items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
+            <div class="flex items-center gap-4 flex-1 min-w-0 w-full lg:w-auto">
+                <div class="relative w-full max-w-xl">
+                    <input type="text" id="custSearch" placeholder="İstihbarat Taraması (İsim, Telefon veya Etkinlik)..." class="input-silk w-full !pl-16 !rounded-[24px] !py-5 shadow-sm" onkeyup="renderCustomers()">
+                    <svg class="absolute left-6 top-5 opacity-30" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+                <button onclick="copySelectedPhones()" class="bg-slate-900 text-white font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl shadow-xl hover:bg-slate-800 transition-all">📋 Numaraları Kopyala</button>
+                <button onclick="openExcelModal()" class="bg-white text-slate-800 font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50">📥 Excel Raporu</button>
+                <button onclick="openPromoModal()" class="bg-[#25D366] text-white font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl shadow-lg hover:bg-[#1DA851] flex items-center gap-3">
+                    <span class="text-base">📢</span> KAMPANYA BAŞLAT
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto no-scrollbar">
+            <table class="table-silk">
+                <thead>
+                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
+                        <th class="px-6 pb-6 w-12 text-center"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                        <th class="px-6 pb-6">Müşteri / Kimlik</th>
+                        <th class="px-6 pb-6">İletişim</th>
+                        <th class="px-6 pb-6">Son Katılım</th>
+                        <th class="px-6 pb-6 cursor-pointer hover:text-blue-600" onclick="toggleSort('debt')">Finansal Analiz (Borç ↓)</th>
+                        <th class="px-6 pb-6 text-right">Eylemler</th>
+                    </tr>
+                </thead>
+                <tbody id="customerTableBody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="promoModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-lg rounded-[45px] overflow-hidden animate-pop shadow-3xl">
+            <div class="bg-slate-900 p-10 text-white text-center">
+                <p class="text-[10px] font-black text-blue-400 uppercase tracking-[4px] mb-4">Pazarlama Departmanı</p>
+                <h3 class="text-3xl font-black italic tracking-tighter uppercase leading-none">KAMPANYA KURGUSU</h3>
+            </div>
+            <div class="p-5 sm:p-10">
+                <p class="text-[11px] font-bold text-slate-500 mb-6 leading-relaxed">Seçilen <span id="promoSelectedCount" class="text-blue-600 font-black">0</span> müşteriye gönderilecek mesaj şablonunu oluşturun. (Mesajın başına 'Merhaba [İsim]' otomatik eklenir.)</p>
+                
+                <textarea id="promoText" class="input-silk w-full !h-40 !py-5 resize-none mb-8" placeholder="Örn: Yeni etkinliğimizde size özel %10 indirim tanımlanmıştır. Sizi tekrar aramızda görmek isteriz!"></textarea>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="closePromoModal()" class="bg-slate-100 text-slate-500 py-5 rounded-[24px] font-black text-[11px] uppercase">VAZGEÇ</button>
+                    <button onclick="startAutoPilot()" class="bg-blue-600 text-white py-5 rounded-[24px] font-black text-[11px] uppercase shadow-xl hover:bg-blue-700">KUYRUĞU KAYDET VE BAŞLAT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-md rounded-[40px] overflow-hidden animate-pop shadow-3xl">
+            <div class="bg-red-600 p-10 text-white text-center">
+                <p class="text-[10px] font-black opacity-70 uppercase tracking-widest mb-2">Borç Yönetimi</p>
+                <h3 id="payCustName" class="text-3xl font-black uppercase italic tracking-tighter leading-none">-</h3>
+            </div>
+            <div class="p-5 sm:p-10">
+                <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mevcut Borç</p>
+                    <p id="payRemainDebt" class="text-4xl font-black text-red-600 italic tracking-tighter">₺0.00</p>
+                </div>
+
+                <div class="mb-8">
+                    <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3 text-left">Alınan Tahsilat (₺)</label>
+                    <input type="number" id="payInput" class="input-silk w-full !text-4xl !text-blue-600 !py-6 text-center" placeholder="0.00" oninput="calculateRemaining()">
+                </div>
+
+                <div id="calcBox" class="hidden mb-8 p-5 bg-blue-50 border border-blue-100 rounded-2xl text-center">
+                    <p class="text-[10px] font-black text-blue-400 uppercase mb-1">İŞLEM SONRASI KALACAK BAKİYE</p>
+                    <p id="calcNewDebt" class="text-2xl font-black text-blue-700 italic">₺0.00</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="closePayModal()" class="bg-slate-100 text-slate-400 py-5 rounded-2xl font-black text-[11px] uppercase">İPTAL</button>
+                    <button onclick="savePartialPayment()" class="bg-slate-900 text-white py-5 rounded-2xl font-black text-[11px] uppercase hover:bg-blue-600 transition-all">ÖDEMEYİ KAYDET</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6" onclick="if(event.target.id === 'editModal') closeEditModal()">
+        <div class="bg-white w-full max-w-md max-h-[90vh] flex flex-col rounded-[40px] overflow-hidden animate-pop shadow-3xl">
+            <div class="bg-blue-600 p-6 sm:p-10 text-white text-center flex-shrink-0">
+                <p class="text-[10px] font-black opacity-70 uppercase tracking-widest mb-2">Müşteri Düzenleme</p>
+                <h3 class="text-2xl sm:text-3xl font-black uppercase italic tracking-tighter leading-none">BİLGİLERİ GÜNCELLE</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-8">
+                <div class="mb-6">
+                    <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3">İsim Soyad</label>
+                    <input type="text" id="editName" class="input-silk w-full" placeholder="Yeni isim">
+                </div>
+                <div class="mb-6">
+                    <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3">Telefon</label>
+                    <input type="text" id="editPhone" class="input-silk w-full" placeholder="Yeni telefon">
+                </div>
+                <div class="mb-8">
+                    <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3">Tahsilat (Opsiyonel ₺)</label>
+                    <input type="number" id="editCollect" class="input-silk w-full !text-blue-600 !font-black" placeholder="0.00">
+                    <div class="mt-3">
+                        <label class="text-[9px] font-black text-slate-500 uppercase block mb-2 ml-1">Tahsilat Türü</label>
+                        <select id="editCollectType" class="input-silk w-full text-slate-700">
+                            <option value="nakit">💵 Nakit</option>
+                            <option value="eft">🏦 EFT</option>
+                            <option value="kk">💳 Kredi Kartı</option>
+                        </select>
+                    </div>
+                    <div class="mt-3">
+                        <label class="flex items-center gap-2 cursor-pointer mb-2">
+                            <input type="checkbox" id="editCollectFull" class="!w-5 !h-5">
+                            <span class="text-[9px] font-black text-slate-500 uppercase">Kalan borcu tamamı</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-black text-slate-500 uppercase block mb-2 ml-1">Not (Açıklama)</label>
+                        <textarea id="editCollectNote" class="input-silk w-full resize-none h-12" placeholder="Örn: Taksit, özel ödeme vb..."></textarea>
+                    </div>
+                </div>
+                <div class="mb-8">
+                    <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3">Borç Ekle (Opsiyonel ₺)</label>
+                    <input type="number" id="editAddDebt" class="input-silk w-full !text-red-600 !font-black" placeholder="0.00" min="0">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-500 uppercase block mb-2 ml-1 mt-3">Açıklama</label>
+                        <textarea id="editAddDebtNote" class="input-silk w-full resize-none h-12" placeholder="Örn: Yeni satış, ek borç vb..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border-t border-slate-100 p-4 sm:p-6 grid grid-cols-2 gap-3 flex-shrink-0">
+                <button onclick="closeEditModal()" class="bg-slate-100 text-slate-400 py-4 rounded-2xl font-black text-[10px] uppercase hover:bg-slate-200 transition-all">İPTAL</button>
+                <button onclick="saveEditCustomer()" class="bg-blue-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase hover:bg-blue-700 transition-all">KAYDET</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6" onclick="if(event.target.id === 'deleteModal') closeDeleteModal()">
+        <div class="bg-white w-full max-w-md rounded-[40px] overflow-hidden animate-pop shadow-3xl">
+            <div class="bg-red-600 p-6 sm:p-10 text-white text-center">
+                <p class="text-[10px] font-black opacity-70 uppercase tracking-widest mb-2">Müşteri Silme</p>
+                <h3 class="text-2xl sm:text-3xl font-black uppercase italic tracking-tighter leading-none">ONAY GEREKİYOR</h3>
+            </div>
+            <div class="p-4 sm:p-8">
+                <div class="bg-red-50 p-4 sm:p-6 rounded-2xl border border-red-100 mb-6 text-center">
+                    <p class="text-[12px] font-black text-red-600 uppercase tracking-widest mb-2">UYARI</p>
+                    <p class="text-sm font-bold text-slate-700 leading-relaxed">Bu müşterinin tüm satış kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz!</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="closeDeleteModal()" class="bg-slate-100 text-slate-400 py-4 rounded-2xl font-black text-[10px] uppercase hover:bg-slate-200 transition-all">VAZGEÇ</button>
+                    <button onclick="confirmDeleteCustomer()" class="bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase hover:bg-red-700 transition-all">SİL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="excelModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden animate-pop shadow-3xl">
+            <div class="p-5 sm:p-10">
+                <h3 class="text-3xl font-black uppercase italic tracking-tighter text-slate-800 mb-8">İSTİHBARAT RAPORU</h3>
+                <div class="space-y-8 text-left">
+                    <div>
+                        <p class="text-[11px] font-black text-slate-400 uppercase mb-4 tracking-widest">VERİ FİLTRELE:</p>
+                        <div class="flex gap-3">
+                            <div class="check-pill active" data-type="filter" data-val="all" onclick="togglePill(this)">TÜMÜ</div>
+                            <div class="check-pill" data-type="filter" data-val="debt" onclick="togglePill(this)">BORÇLULAR</div>
+                            <div class="check-pill" data-type="filter" data-val="vip" onclick="togglePill(this)">VIP'LER</div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-black text-slate-400 uppercase mb-4 tracking-widest">SÜTUNLARI SEÇ:</p>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="check-pill active" data-type="col" data-val="name" onclick="togglePill(this)">İSİM SOYAD</div>
+                            <div class="check-pill active" data-type="col" data-val="phone" onclick="togglePill(this)">TELEFON</div>
+                            <div class="check-pill" data-type="col" data-val="paid" onclick="togglePill(this)">NET CİRO</div>
+                            <div class="check-pill" data-type="col" data-val="debt" onclick="togglePill(this)">KALAN BORÇ</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-12 grid grid-cols-2 gap-4">
+                    <button onclick="closeExcelModal()" class="bg-slate-100 text-slate-400 py-5 rounded-2xl font-black text-[11px] uppercase">VAZGEÇ</button>
+                    <button onclick="executeExcelExport()" class="bg-blue-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase shadow-lg">DOSYAYI KAYDET (.CSV)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <aside id="historyPanel" class="no-scrollbar">
+        <div class="flex items-center justify-between mb-10 pb-5 border-b border-slate-100">
+            <div>
+                <p class="text-[9px] font-black text-blue-600 uppercase tracking-[3px]">Müşteri Portföy Arşivi</p>
+                <h2 id="histName" class="text-2xl font-black text-slate-800 uppercase italic tracking-tighter">-</h2>
+            </div>
+            <button onclick="closeHistory()" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center font-bold text-2xl hover:bg-red-50 hover:text-red-500 transition-all">&times;</button>
+        </div>
+        <div id="histContent" class="space-y-5"></div>
+    </aside>
+
+    <script>
+        let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+        let customers = [];
+        let promoQueue = [];
+        let currentQueueIndex = 0;
+        let promoMessageTemplate = "";
+        let currentSort = 'paid';
+        let blacklist = JSON.parse(localStorage.getItem('BiletPro_Blacklist')) || []; 
+
+        function notify(msg, color = "#2563EB") {
+            const container = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = "bg-white rounded-2xl p-6 shadow-2xl border-l-4 animate-pop flex items-center gap-4 border-l-["+color+"]";
+            t.style.borderLeftColor = color;
+            t.innerHTML = `<span class="text-[12px] font-black uppercase text-slate-800 tracking-wide">${msg}</span>`;
+            container.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-10px)'; t.style.transition = '0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        // VERİ TABANINI MÜŞTERİ BAZLI DERLE
+        function processData() {
+            const customerMap = {};
+            let totalPaid = 0; let totalDebt = 0;
+            events.forEach(ev => {
+                ev.categories?.forEach(cat => {
+                    cat.masalar?.forEach(m => {
+                        if(m.isSold && m.saleDetail) {
+                            const phone = m.saleDetail.phone || "0000";
+                            const paid = parseFloat(m.saleDetail.paid) || 0;
+                            const debt = parseFloat(m.saleDetail.debt) || 0;
+                            totalPaid += paid; totalDebt += debt;
+                            const key = `${phone}||${(m.soldTo||'').toLowerCase()}`;
+                            if(!customerMap[key]) {
+                                customerMap[key] = { name: m.soldTo, phone: phone, key: key, events: [], totalPaid: 0, totalDebt: 0, visitCount: 0, isBlacklisted: blacklist.includes(phone) };
+                            }
+                            customerMap[key].events.push({ eventTitle: ev.title, date: ev.date, masa: m.no, category: cat.name, paid: paid, debt: debt });
+                            customerMap[key].totalPaid += paid; customerMap[key].totalDebt += debt; customerMap[key].visitCount++;
+                        }
+                    });
+                });
+            });
+            customers = Object.values(customerMap);
+            sortData();
+            document.getElementById('statCustCount').innerText = customers.length;
+            document.getElementById('statTotalPaid').innerText = "₺" + totalPaid.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+            document.getElementById('statTotalDebt').innerText = "₺" + totalDebt.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+        }
+
+        function sortData() {
+            if(currentSort === 'debt') customers.sort((a,b) => b.totalDebt - a.totalDebt);
+            else customers.sort((a,b) => b.totalPaid - a.totalPaid);
+        }
+
+        function toggleSort(type) {
+            currentSort = type;
+            processData(); renderCustomers();
+            notify("TABLO SIRALAMASI GÜNCELLENDİ", "#6366f1");
+        }
+
+        function toggleSelectAll(master) {
+            document.querySelectorAll('.cust-check').forEach(c => c.checked = master.checked);
+        }
+
+        function renderCustomers() {
+            const search = document.getElementById('custSearch').value.toLowerCase();
+            const body = document.getElementById('customerTableBody'); body.innerHTML = "";
+            const filtered = customers.filter(c => c.name.toLowerCase().includes(search) || c.phone.includes(search) || c.events.some(e => e.eventTitle.toLowerCase().includes(search)));
+
+            filtered.forEach(c => {
+                const tr = document.createElement('tr');
+                const lastEv = c.events[c.events.length - 1];
+                const isVIP = c.totalPaid > 5000 || c.visitCount > 3;
+                const isBlacklisted = c.isBlacklisted;
+
+                tr.innerHTML = `
+                    <td class="px-6 text-center"><input type="checkbox" class="cust-check" data-phone="${c.phone}" data-name="${c.name}"></td>
+                    <td class="px-6">
+                        <div class="flex items-center gap-5">
+                            <div class="w-12 h-12 rounded-[18px] bg-slate-900 flex items-center justify-center font-black text-white text-xs">${c.name.substring(0,2).toUpperCase()}</div>
+                            <div>
+                                <p class="font-black text-[15px] uppercase text-slate-800 flex items-center">
+                                    ${c.totalDebt > 1 ? '<span class="pulse-red"></span>' : ''}
+                                    ${c.name}
+                                </p>
+                                <div class="flex gap-2 mt-1.5">
+                                    ${isVIP ? '<span class="badge badge-vip">VIP MÜŞTERİ</span>' : ''} 
+                                    ${c.totalDebt > 1 ? '<span class="badge badge-debt">BORÇLU</span>' : ''}
+                                    ${isBlacklisted ? '<span class="badge" style="background:#000;color:#fff;border:1px solid #000;">KARA LİSTE</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6"><p class="font-extrabold text-sm text-slate-500 tracking-tight">${c.phone}</p></td>
+                    <td class="px-6">
+                        <p class="font-bold text-xs text-slate-800 uppercase italic tracking-tighter">${lastEv.eventTitle}</p>
+                        <p class="text-[9px] text-slate-400 font-black uppercase mt-1">MASA ${lastEv.masa}</p>
+                    </td>
+                    <td class="px-6">
+                        <span class="text-[9px] font-black text-slate-300 uppercase mb-1 block">NET HARCAMA / BAKİYE</span>
+                        <p class="font-black text-sm text-slate-800 italic">₺${c.totalPaid.toLocaleString()} / <span class="${c.totalDebt > 0 ? 'text-red-500' : 'text-green-600'}">₺${c.totalDebt.toLocaleString()}</span></p>
+                    </td>
+                    <td class="px-6 text-right">
+                        <div class="flex justify-end gap-3">
+                            <button onclick="openHistory('${c.key}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
+                            <button onclick="editCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
+                            <button onclick="deleteCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>
+                            <button onclick="toggleBlacklist('${c.phone}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>
+                            ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${c.key}')" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        // --- KAMPANYA AUTO-PILOT MOTORU ---
+        function openPromoModal() {
+            const selected = Array.from(document.querySelectorAll('.cust-check:checked'));
+            if(selected.length === 0) return alert("Lütfen kampanya gönderilecek kişileri kutucuklardan seçin!");
+
+            document.getElementById('promoSelectedCount').innerText = selected.length;
+            document.getElementById('promoModal').classList.remove('hidden');
+        }
+
+        function closePromoModal() { document.getElementById('promoModal').classList.add('hidden'); }
+
+        function startAutoPilot() {
+            const msg = document.getElementById('promoText').value.trim();
+            if(!msg) return alert("Mesaj metni girmelisiniz!");
+
+            const selected = Array.from(document.querySelectorAll('.cust-check:checked'));
+            promoMessageTemplate = msg;
+            promoQueue = selected.map(c => ({ phone: c.getAttribute('data-phone'), name: c.getAttribute('data-name') }));
+            currentQueueIndex = 0;
+
+            closePromoModal();
+            document.getElementById('promoPilot').classList.remove('hidden');
+            updatePilotUI();
+            notify("KAMPANYA KUYRUĞU HAZIRLANDI", "#25D366");
+        }
+
+        function updatePilotUI() {
+            const progress = (currentQueueIndex / promoQueue.length) * 100;
+            document.getElementById('pilotBar').style.width = progress + "%";
+            document.getElementById('pilotStatus').innerText = `${currentQueueIndex} / ${promoQueue.length} Tamamlandı`;
+            
+            if(currentQueueIndex < promoQueue.length) {
+                const next = promoQueue[currentQueueIndex];
+                document.getElementById('nextPersonName').innerText = next.name;
+                document.getElementById('nextPersonPhone').innerText = next.phone;
+                document.getElementById('pilotFireBtn').querySelector('span').innerText = "WHATSAPP'A FIRLAT VE İLERLE";
+            } else {
+                document.getElementById('nextPersonName').innerText = "KAMPANYA TAMAMLANDI!";
+                document.getElementById('nextPersonPhone').innerText = "Tüm hedefler mühürlendi.";
+                document.getElementById('pilotFireBtn').innerHTML = "PİLOTU KAPAT";
+            }
+        }
+
+        function fireNextMessage() {
+            if(currentQueueIndex >= promoQueue.length) {
+                closePromoMode();
+                return;
+            }
+
+            const target = promoQueue[currentQueueIndex];
+            const cleanPhone = formatPhone(target.phone);
+            const firstName = target.name.split(' ')[0];
+            const fullMsg = `Merhaba ${firstName},\n\n${promoMessageTemplate}`;
+
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(fullMsg)}`, '_blank');
+
+            currentQueueIndex++;
+            updatePilotUI();
+            notify("SIRADAKİ HEDEF YÜKLENİYOR", "#16a34a");
+        }
+
+        function closePromoMode() {
+            document.getElementById('promoPilot').classList.add('hidden');
+            promoQueue = [];
+            currentQueueIndex = 0;
+            renderCustomers();
+        }
+
+        // --- TAHSİLAT YÖNETİMİ ---
+        let activePayRefPhone = null;
+        function openPaymentModal(key) {
+            const c = customers.find(x => x.key === key);
+            if(!c) return;
+            activePayRefPhone = c.phone;
+            document.getElementById('payCustName').innerText = c.name;
+            document.getElementById('payRemainDebt').innerText = "₺" + c.totalDebt.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+            document.getElementById('payInput').value = "";
+            document.getElementById('calcBox').classList.add('hidden');
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function calculateRemaining() {
+            const c = customers.find(x => x.phone === activePayRefPhone);
+            const input = parseFloat(document.getElementById('payInput').value) || 0;
+            const newDebt = Math.max(0, c.totalDebt - input);
+            if(input > 0) {
+                document.getElementById('calcBox').classList.remove('hidden');
+                document.getElementById('calcNewDebt').innerText = "₺" + newDebt.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+            } else document.getElementById('calcBox').classList.add('hidden');
+        }
+
+        function savePartialPayment() {
+            const c = customers.find(x => x.phone === activePayRefPhone);
+            const amountToPay = parseFloat(document.getElementById('payInput').value) || 0;
+            if(amountToPay <= 0 && !confirm("Borcun TAMAMI tahsil edildi mi?")) return;
+            
+            let pool = amountToPay > 0 ? amountToPay : c.totalDebt;
+            let remainingPool = pool;
+
+            events.forEach(ev => {
+                ev.categories?.forEach(cat => {
+                    cat.masalar?.forEach(m => {
+                        if(m.isSold && m.saleDetail && m.saleDetail.phone === activePayRefPhone && m.saleDetail.debt > 0) {
+                            let currentMasaDebt = m.saleDetail.debt;
+                            if(remainingPool >= currentMasaDebt) {
+                                m.saleDetail.paid += currentMasaDebt; remainingPool -= currentMasaDebt; m.saleDetail.debt = 0;
+                            } else {
+                                m.saleDetail.paid += remainingPool; m.saleDetail.debt -= remainingPool; remainingPool = 0;
+                            }
+                        }
+                    });
+                });
+            });
+
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            notify("TAHSİLAT BAŞARIYLA KAYDEDİLDİ", "#10b981");
+            closePayModal(); processData(); renderCustomers();
+        }
+
+        function closePayModal() { document.getElementById('paymentModal').classList.add('hidden'); }
+
+        // --- EXCEL MOTORU ---
+        function openExcelModal() { document.getElementById('excelModal').classList.remove('hidden'); }
+        function closeExcelModal() { document.getElementById('excelModal').classList.add('hidden'); }
+        function togglePill(el) { el.classList.toggle('active'); }
+
+        function executeExcelExport() {
+            const filterType = document.querySelector('[data-type="filter"].active').getAttribute('data-val');
+            const selectedCols = Array.from(document.querySelectorAll('[data-type="col"].active')).map(x => x.getAttribute('data-val'));
+            let filteredList = customers;
+            if(filterType === 'debt') filteredList = customers.filter(c => c.totalDebt > 0);
+            if(filterType === 'vip') filteredList = customers.filter(c => c.totalPaid > 5000);
+            let csvContent = "\uFEFF" + selectedCols.map(c => c.toUpperCase()).join(";") + "\n";
+            filteredList.forEach(cust => {
+                let row = [];
+                if(selectedCols.includes('name')) row.push(cust.name);
+                if(selectedCols.includes('phone')) row.push(cust.phone);
+                if(selectedCols.includes('paid')) row.push(cust.totalPaid);
+                if(selectedCols.includes('debt')) row.push(cust.totalDebt);
+                csvContent += row.join(";") + "\n";
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.download = `BiletPro_Istihbarat_${Date.now()}.csv`; link.click();
+            closeExcelModal(); notify("RAPOR BAŞARIYLA KAYDEDİLDİ", "#2563eb");
+        }
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        function formatPhone(p) {
+            let cp = p.replace(/\D/g, '');
+            while(cp.startsWith('0')) cp = cp.substring(1);
+            if(cp.length === 10) cp = '90' + cp;
+            return cp;
+        }
+
+        function copySelectedPhones() {
+            const selected = Array.from(document.querySelectorAll('.cust-check:checked')).map(c => formatPhone(c.getAttribute('data-phone')));
+            if(selected.length === 0) return alert("Müşteri seçilmedi!");
+            navigator.clipboard.writeText(selected.join(","));
+            notify("TÜM NUMARALAR PANOMA KAYDEDİLDİ", "#0f172a");
+        }
+
+        function openHistory(key) {
+            const c = customers.find(x => x.key === key);
+            if(!c) return;
+            document.getElementById('histName').innerText = c.name;
+            const container = document.getElementById('histContent'); container.innerHTML = "";
+            [...c.events].reverse().forEach(e => {
+                const div = document.createElement('div'); div.className = "bg-slate-50 p-6 rounded-3xl border border-slate-100";
+                div.innerHTML = `<div class="flex justify-between items-start mb-3"><p class="font-black text-xs uppercase text-slate-800 tracking-tighter">${e.eventTitle}</p><span class="text-[9px] font-bold text-slate-400">${e.date}</span></div><p class="text-[10px] font-bold text-blue-600 uppercase mb-4">${e.category} / MASA ${e.masa}</p><div class="flex justify-between border-t border-slate-200 pt-4"><p class="text-[9px] font-black text-slate-400 uppercase">Ödenen: ₺${e.paid}</p><p class="text-[9px] font-black ${e.debt > 0 ? 'text-red-500' : 'text-green-600'} uppercase">Kalan: ₺${e.debt}</p></div>`;
+                container.appendChild(div);
+            });
+            document.getElementById('historyPanel').classList.add('open');
+        }
+
+        function closeHistory() { document.getElementById('historyPanel').classList.remove('open'); }
+
+        // --- MÜŞTERİ DÜZENLEME, SİLME, KARA LİSTE ---
+        let editingCustomerKey = null;
+        let deletingCustomerKey = null;
+
+        function editCustomer(key) {
+            const c = customers.find(x => x.key === key);
+            if(!c) return;
+            editingCustomerKey = key;
+            document.getElementById('editName').value = c.name;
+            document.getElementById('editPhone').value = c.phone;
+            document.getElementById('editCollect').value = "";
+            document.getElementById('editCollectFull').checked = false;
+            document.getElementById('editCollectType').value = "nakit";
+            document.getElementById('editCollectNote').value = "";
+            document.getElementById('editAddDebt').value = "";
+            document.getElementById('editAddDebtNote').value = "";
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+        function saveEditCustomer() {
+            const newName = document.getElementById('editName').value.trim();
+            const newPhone = document.getElementById('editPhone').value.trim();
+            if(!newName || !newPhone) return alert("İsim ve telefon zorunlu!");
+
+            const c = customers.find(x => x.key === editingCustomerKey);
+            if(!c) return;
+
+            // TAHSILAT MANTIGI
+            const collectInput = parseFloat(document.getElementById('editCollect').value) || 0;
+            const collectFull = document.getElementById('editCollectFull').checked;
+            const collectType = document.getElementById('editCollectType').value || 'nakit';
+            const collectNote = document.getElementById('editCollectNote').value.trim();
+            
+            const typeLabel = {'nakit': '💵 Nakit', 'eft': '🏦 EFT', 'kk': '💳 Kredi Kartı'}[collectType];
+            
+            // BORÇ EKLEME MANTIGI
+            const addDebtInput = parseFloat(document.getElementById('editAddDebt').value) || 0;
+            const addDebtNote = document.getElementById('editAddDebtNote').value.trim();
+            
+            const totalDebt = parseFloat(c.totalDebt) || 0;
+            let collectAmount = collectFull ? totalDebt : collectInput;
+            if(collectAmount < 0) collectAmount = 0;
+            if(collectAmount > totalDebt) collectAmount = totalDebt;
+
+            let remainingPool = collectAmount;
+            let collected = 0;
+            let addedDebt = 0;
+
+            // Update all saleDetails for this customer
+            events.forEach(ev => {
+                ev.categories?.forEach(cat => {
+                    cat.masalar?.forEach(m => {
+                        if(m.isSold && m.saleDetail && m.saleDetail.phone === c.phone) {
+                            // Tahsilat işlemi (her zaman borçtan düşer)
+                            if(remainingPool > 0 && (parseFloat(m.saleDetail.debt) || 0) > 0) {
+                                const currentDebt = parseFloat(m.saleDetail.debt) || 0;
+                                const used = Math.min(currentDebt, remainingPool);
+                                m.saleDetail.paid = (parseFloat(m.saleDetail.paid) || 0) + used;
+                                m.saleDetail.debt = Math.max(0, currentDebt - used);
+                                remainingPool -= used;
+                                collected += used;
+                            }
+                            
+                            // Borç ekleme işlemi
+                            if(addDebtInput > 0) {
+                                m.saleDetail.debt = (parseFloat(m.saleDetail.debt) || 0) + addDebtInput;
+                                addedDebt += addDebtInput;
+                            }
+                            
+                            m.saleDetail.phone = newPhone;
+                            m.soldTo = newName;
+                        }
+                    });
+                });
+            });
+
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            
+            let notifyMsgs = [];
+            let auditLogs = [];
+            
+            // Tahsilat log
+            if(collectAmount > 0) {
+                notifyMsgs.push(`₺${collectAmount.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} TAHSİLAT (${typeLabel})`);
+                let auditDetail = `${newName} / ${newPhone}: ₺${collectAmount.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ${typeLabel}`;
+                if(collectNote) auditDetail += ` | ${collectNote}`;
+                auditLogs.push({module: 'Müşteri', action: 'Tahsilat Alındı', detail: auditDetail});
+            }
+            
+            // Borç ekleme log
+            if(addDebtInput > 0) {
+                notifyMsgs.push(`₺${addDebtInput.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} BORÇ EKLENDİ`);
+                let auditDetail = `${newName} / ${newPhone}: ₺${addDebtInput.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} borç eklendi`;
+                if(addDebtNote) auditDetail += ` | ${addDebtNote}`;
+                auditLogs.push({module: 'Müşteri', action: 'Borç Eklendi', detail: auditDetail});
+            }
+            
+            // Notify
+            if(notifyMsgs.length > 0) {
+                notify(notifyMsgs.join(' + '), "#10b981");
+            } else {
+                notify("MÜŞTERİ BİLGİLERİ GÜNCELLENDİ", "#2563eb");
+            }
+            
+            // Audit logs
+            auditLogs.forEach(log => {
+                if(typeof writeAuditEvent === 'function') {
+                    writeAuditEvent(log.module, log.action, log.detail);
+                }
+            });
+            
+            closeEditModal();
+            processData();
+            renderCustomers();
+        }
+
+        function deleteCustomer(key) {
+            const c = customers.find(x => x.key === key);
+            if(!c) return;
+            deletingCustomerKey = key;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
+
+        function confirmDeleteCustomer() {
+            const c = customers.find(x => x.key === deletingCustomerKey);
+            if(!c) return;
+
+            // Remove all saleDetails for this customer
+            events.forEach(ev => {
+                ev.categories?.forEach(cat => {
+                    cat.masalar?.forEach(m => {
+                        if(m.isSold && m.saleDetail && m.saleDetail.phone === c.phone) {
+                            m.isSold = false;
+                            delete m.saleDetail;
+                        }
+                    });
+                });
+            });
+
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            notify("MÜŞTERİ VE SATIŞLARI SİLİNDİ", "#ef4444");
+            closeDeleteModal();
+            processData();
+            renderCustomers();
+        }
+
+        function toggleBlacklist(phone) {
+            const index = blacklist.indexOf(phone);
+            if(index > -1) {
+                blacklist.splice(index, 1);
+                notify("MÜŞTERİ KARA LİSTEDEN ÇIKARILDI", "#10b981");
+            } else {
+                blacklist.push(phone);
+                notify("MÜŞTERİ KARA LİSTEYE EKLENDİ", "#ef4444");
+            }
+            localStorage.setItem('BiletPro_Blacklist', JSON.stringify(blacklist));
+            processData();
+            renderCustomers();
+        }
+
+        processData();
+        renderCustomers();
+        
+        // ESC tuşu ve dışarıya tıklanınca modal kapa
+        document.addEventListener('keydown', function(e) {
+            if(e.key === 'Escape') {
+                if(!document.getElementById('editModal').classList.contains('hidden')) closeEditModal();
+                else if(!document.getElementById('deleteModal').classList.contains('hidden')) closeDeleteModal();
+            }
+        });
+    </script>
+</body>
+</html>

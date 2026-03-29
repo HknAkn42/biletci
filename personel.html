@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BiletPro | Personel Komuta Merkezi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+        }
+
+        .input-silk {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 16px !important;
+            padding: 14px 20px !important;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .input-silk:focus { border-color: #2563eb !important; background: #fff !important; outline: none; }
+
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2563eb; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        
+        input:disabled + .slider { background-color: #94a3b8; cursor: not-allowed; opacity: 0.6; }
+        input:checked:disabled + .slider { background-color: #3b82f6; opacity: 0.8; }
+
+        .btn-mühür {
+            background: #2563eb; color: #fff; padding: 16px 32px;
+            border-radius: 20px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1px; transition: 0.3s;
+        }
+        .btn-mühür:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3); }
+        
+        .staff-row { transition: 0.2s; border-bottom: 1px solid #f1f5f9; }
+        .staff-row:hover { background: rgba(37, 99, 235, 0.03); }
+        
+        .row-passive { opacity: 0.5; filter: grayscale(100%); transition: 0.3s; }
+        .row-passive:hover { opacity: 0.8; filter: grayscale(50%); }
+        
+        .modal-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .log-item { border-left: 3px solid #e2e8f0; padding-left: 15px; margin-bottom: 15px; }
+        .log-item.critical { border-left-color: #ef4444; }
+        .log-item.sale { border-left-color: #10b981; }
+        .log-item.door { border-left-color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-[#f4f7fa]">
+
+    <main class="p-3 sm:p-5 lg:p-16 pl-[90px] lg:pl-[130px] w-full">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                <div>
+                    <h1 class="text-3xl font-black italic tracking-tighter uppercase">PERSONEL <span class="text-blue-600">KOMUTA</span></h1>
+                    <p class="text-slate-400 font-bold text-[10px] uppercase tracking-[3px] mt-2">Bağımsız SaaS Yetki Yönetimi</p>
+                </div>
+                <div class="flex flex-wrap gap-2 sm:gap-4 w-full md:w-auto">
+                    <button onclick="toggleLogModal()" class="bg-slate-900 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all tracking-widest">
+                        🛡️ GÜVENLİK LOGLARI
+                    </button>
+                    <button onclick="toggleModal()" class="btn-mühür flex items-center gap-3 text-xs px-4 sm:px-8 py-3 sm:py-4">
+                        <span>+</span> YENİ PERSONEL
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
+                <div class="xl:col-span-3 glass-card overflow-hidden">
+                    <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-white/50">
+                        <h2 class="font-bold text-slate-800 uppercase text-xs tracking-widest">Sistemdeki Personeller</h2>
+                        <div class="flex gap-2">
+                            <span id="staffCountActive" class="bg-green-100 text-green-600 px-4 py-1 rounded-full text-[10px] font-black italic">0 Aktif</span>
+                            <span id="staffCountTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full text-[10px] font-black italic">0 Toplam</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <tr>
+                                    <th class="p-6">AD SOYAD / USER</th>
+                                    <th class="p-6 text-center">ROL</th>
+                                    <th class="p-6 text-center">PIN</th>
+                                    <th class="p-6 text-right">DURUM</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffList"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-2 space-y-4">
+                    <div class="glass-card p-6 bg-white border-blue-100 border-2">
+                        <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mb-3 font-bold text-lg">!</div>
+                        <h3 class="font-bold text-xs uppercase mb-2">Yetki ve Güvenlik</h3>
+                        <p class="text-[10px] text-slate-500 leading-relaxed font-semibold uppercase">
+                            Personeller sistemden asla tam olarak silinmez. Pasife aldığınız personelin tüm yetkileri iptal edilir ancak geçmişte kestiği biletlerin ciro kayıtları güvende tutulur.
+                        </p>
+                        <p class="text-[9px] text-slate-400 font-bold bg-slate-50 p-2 rounded-lg border border-slate-100 mt-3">
+                            <strong>Not:</strong> "Sistem Yöneticisi" rolü atanan kişilerin tüm yetkileri otomatik açılır ve kısıtlanamaz.
+                        </p>
+                    </div>
+                    <div id="staffFinanceCard" class="glass-card p-6 bg-white border-green-100 border-2">
+                        <div class="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center mb-3 font-bold text-lg">₺</div>
+                        <h3 class="font-bold text-xs uppercase mb-2">Finansal Analiz</h3>
+                        <p class="text-[10px] text-slate-500 leading-relaxed font-semibold uppercase mb-3">
+                            Personelin ciro, satış iptali oranı ve hata paylarını detaylı görmek için rapor sayfasına geç.
+                        </p>
+                        <button onclick="window.location.href='rapor.html'" class="w-full text-xs font-black uppercase tracking-wide bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-all">
+                            📈 RAPOR SAYFASINA GİT
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="staffModal" class="fixed inset-0 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
+        <div class="glass-card w-full max-w-3xl p-8 max-h-[95vh] overflow-y-auto no-scrollbar shadow-2xl">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h2 class="text-xl font-black italic uppercase">YENİ <span class="text-blue-600">PERSONEL</span> MÜHÜRÜ</h2>
+                <button onclick="toggleModal()" class="text-3xl font-bold text-slate-300 hover:text-red-500">&times;</button>
+            </div>
+            
+            <form id="staffForm" class="space-y-6" autocomplete="off">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" id="sName" class="input-silk" placeholder="AD SOYAD" autocomplete="off" required>
+                    <input type="text" id="sUser" class="input-silk" placeholder="KULLANICI ADI" autocomplete="off" required>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="password" id="sPass" class="input-silk" placeholder="ŞİFRE" autocomplete="new-password" required>
+                    <select id="sRole" class="input-silk" onchange="handleRoleChange()">
+                        <option value="user">SAHA PERSONELİ (Kısıtlı)</option>
+                        <option value="admin">SİSTEM YÖNETİCİSİ (Tam Yetki)</option>
+                    </select>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                    <p class="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-3">Hızlı Yetki Profili</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button type="button" onclick="applyPermPreset('', 'sales')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Satışçı</button>
+                        <button type="button" onclick="applyPermPreset('', 'gate')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Kapı</button>
+                        <button type="button" onclick="applyPermPreset('', 'hybrid')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Satış+Kapı</button>
+                        <button type="button" onclick="applyPermPreset('', 'manager')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Operasyon</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-[28px] border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-100 p-4 border-b border-slate-200">
+                        <h4 class="text-[10px] font-black uppercase text-slate-600 tracking-[2px]">DETAYLI YETKİ MATRİSİ</h4>
+                    </div>
+                    
+                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                        
+                        <div class="space-y-4">
+                            <h5 class="text-[9px] font-bold text-blue-600 uppercase tracking-widest border-b border-slate-200 pb-1">SATIŞ VE KASA</h5>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">1. Temel Bilet Satışı</span>
+                                <label class="switch"><input type="checkbox" id="pSale" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">2. İndirim / İskonto Uygulama</span>
+                                <label class="switch"><input type="checkbox" id="pDiscount" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-red-600">3. Satış İptali (Boşa Çıkarma)</span>
+                                <label class="switch"><input type="checkbox" id="pCancel" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h5 class="text-[9px] font-bold text-amber-600 uppercase tracking-widest border-b border-slate-200 pb-1">KAPI VE CHECK-IN</h5>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">4. Kapı Kontrolü (Giriş/Çıkış)</span>
+                                <label class="switch"><input type="checkbox" id="pDoor" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">5. Kapıda Borç Tahsilatı</span>
+                                <label class="switch"><input type="checkbox" id="pDoorPay" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-red-600">6. İnisiyatifli Borçlu Geçiş</span>
+                                <label class="switch"><input type="checkbox" id="pDoorRisk" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 md:col-span-2 pt-2 border-t border-slate-200 mt-2">
+                            <h5 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-1 mb-3">YÖNETİM VE RAPORLAR</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Yeni Etkinlik / Mimari Yönetimi</span>
+                                    <label class="switch"><input type="checkbox" id="pManageEvents" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">8. Finans ve Gün Sonu Raporları</span>
+                                    <label class="switch"><input type="checkbox" id="pReports" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">9. Personel Ekleme / Çıkarma</span>
+                                    <label class="switch"><input type="checkbox" id="pManageStaff" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">10. Sistem Loglarını Görme</span>
+                                    <label class="switch"><input type="checkbox" id="pViewLogs" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8">
+                    <button type="button" onclick="toggleModal()" class="w-full sm:w-1/3 py-4 text-xs font-bold text-slate-400 uppercase hover:text-slate-800 transition-all">VAZGEÇ</button>
+                    <button type="submit" class="w-full sm:w-2/3 bg-blue-600 text-white rounded-2xl py-4 font-black uppercase text-xs shadow-xl hover:bg-slate-900 transition-all">SİSTEME KAYDET</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="editStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
+        <div class="glass-card w-full max-w-3xl p-8 max-h-[95vh] overflow-y-auto no-scrollbar shadow-2xl">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h2 class="text-xl font-black italic uppercase">PERSONEL <span class="text-blue-600">DÜZENLE</span></h2>
+                <button onclick="closeEditModal()" class="text-3xl font-bold text-slate-300 hover:text-red-500">&times;</button>
+            </div>
+            
+            <form id="editStaffForm" class="space-y-6" autocomplete="off">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" id="eName" class="input-silk" placeholder="AD SOYAD" autocomplete="off" required>
+                    <input type="text" id="eUser" class="input-silk" placeholder="KULLANICI ADI" autocomplete="off" required>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="password" id="ePass" class="input-silk" placeholder="YENİ ŞİFRE (Boş bırakılırsa değişmez)" autocomplete="new-password">
+                    <select id="eRole" class="input-silk" onchange="handleEditRoleChange()">
+                        <option value="user">SAHA PERSONELİ (Kısıtlı)</option>
+                        <option value="admin">SİSTEM YÖNETİCİSİ (Tam Yetki)</option>
+                    </select>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                    <p class="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-3">Hızlı Yetki Profili</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button type="button" onclick="applyPermPreset('e', 'sales')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Satışçı</button>
+                        <button type="button" onclick="applyPermPreset('e', 'gate')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Kapı</button>
+                        <button type="button" onclick="applyPermPreset('e', 'hybrid')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Satış+Kapı</button>
+                        <button type="button" onclick="applyPermPreset('e', 'manager')" class="bg-white border border-blue-200 text-blue-700 rounded-xl py-2 text-[10px] font-black uppercase">Operasyon</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-[28px] border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-100 p-4 border-b border-slate-200">
+                        <h4 class="text-[10px] font-black uppercase text-slate-600 tracking-[2px]">DETAYLI YETKİ MATRİSİ</h4>
+                    </div>
+                    
+                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                        
+                        <div class="space-y-4">
+                            <h5 class="text-[9px] font-bold text-blue-600 uppercase tracking-widest border-b border-slate-200 pb-1">SATIŞ VE KASA</h5>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">1. Temel Bilet Satışı</span>
+                                <label class="switch"><input type="checkbox" id="ePSale" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">2. İndirim / İskonto Uygulama</span>
+                                <label class="switch"><input type="checkbox" id="ePDiscount" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-red-600">3. Satış İptali (Boşa Çıkarma)</span>
+                                <label class="switch"><input type="checkbox" id="ePCancel" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h5 class="text-[9px] font-bold text-amber-600 uppercase tracking-widest border-b border-slate-200 pb-1">KAPI VE CHECK-IN</h5>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">4. Kapı Kontrolü (Giriş/Çıkış)</span>
+                                <label class="switch"><input type="checkbox" id="ePDoor" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-slate-700">5. Kapıda Borç Tahsilatı</span>
+                                <label class="switch"><input type="checkbox" id="ePDoorPay" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-bold uppercase text-red-600">6. İnisiyatifli Borçlu Geçiş</span>
+                                <label class="switch"><input type="checkbox" id="ePDoorRisk" class="perm-switch"><span class="slider"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 md:col-span-2 pt-2 border-t border-slate-200 mt-2">
+                            <h5 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-1 mb-3">YÖNETİM VE RAPORLAR</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Yeni Etkinlik / Mimari Yönetimi</span>
+                                    <label class="switch"><input type="checkbox" id="ePManageEvents" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">8. Finans ve Gün Sonu Raporları</span>
+                                    <label class="switch"><input type="checkbox" id="ePReports" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">9. Personel Ekleme / Çıkarma</span>
+                                    <label class="switch"><input type="checkbox" id="ePManageStaff" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">10. Sistem Loglarını Görme</span>
+                                    <label class="switch"><input type="checkbox" id="ePViewLogs" class="perm-switch"><span class="slider"></span></label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8">
+                    <button type="button" onclick="closeEditModal()" class="w-full sm:w-1/3 py-4 text-xs font-bold text-slate-400 uppercase hover:text-slate-800 transition-all">VAZGEÇ</button>
+                    <button type="submit" class="w-full sm:w-2/3 bg-blue-600 text-white rounded-2xl py-4 font-black uppercase text-xs shadow-xl hover:bg-slate-900 transition-all">GÜNCELLE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="deleteStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
+        <div class="glass-card w-full max-w-md p-8 shadow-2xl">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h2 class="text-xl font-black italic uppercase text-red-600">PERSONEL <span class="text-red-600">SİLME</span></h2>
+                <button onclick="closeDeleteModal()" class="text-3xl font-bold text-slate-300 hover:text-red-500">&times;</button>
+            </div>
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl text-red-600">⚠️</span>
+                </div>
+                <p class="text-sm font-bold text-slate-700 mb-4">Bu personel kalıcı olarak silinecek. Bu işlem geri alınamaz!</p>
+                <p class="text-xs font-bold text-slate-500 uppercase">Personelin geçmiş satış kayıtları korunacaktır.</p>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="closeDeleteModal()" class="w-1/2 py-4 text-xs font-bold text-slate-400 uppercase hover:text-slate-800 transition-all">VAZGEÇ</button>
+                <button onclick="confirmDeleteStaff()" class="w-1/2 bg-red-600 text-white rounded-2xl py-4 font-black uppercase text-xs shadow-xl hover:bg-red-700 transition-all">SİL</button>
+            </div>
+        </div>
+    </div>
+    <div id="logModal" class="fixed inset-0 hidden flex items-center justify-center p-6 modal-bg z-[3000]">
+        <div class="glass-card w-full max-w-4xl p-8 max-h-[90vh] flex flex-col shadow-2xl">
+            <div class="flex flex-wrap justify-between items-center mb-6 border-b border-slate-200 pb-4 shrink-0 gap-4">
+                <div>
+                    <h2 class="text-xl font-black italic uppercase">SİSTEM <span class="text-red-500">GÜVENLİK LOGLARI</span></h2>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Geri Dönülemez Denetim İzi (Audit Trail)</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <label for="logFilterSelect" class="font-black uppercase text-slate-500">Filtre:</label>
+                    <select id="logFilterSelect" onchange="applyLogFilter(this.value)" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700">
+                        <option value="all">Tümü</option>
+                        <option value="cancel">Satış İptalleri</option>
+                        <option value="debt">Borçlu Geçişler</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportAuditLogsCSV()" class="px-4 py-2 bg-blue-600 text-white text-xs font-black uppercase rounded-xl hover:bg-blue-700 transition-all">CSV İndir</button>
+                    <button onclick="toggleLogModal()" class="text-3xl font-bold text-slate-400 hover:text-red-500">&times;</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto no-scrollbar pr-4" id="auditLogContainer">
+                <div class="text-center py-20 text-slate-400 font-bold text-xs uppercase tracking-widest">Henüz sistem kaydı bulunmuyor.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+    <script>
+        injectMenu('personel');
+        
+        let staffData = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
+        let currentAuditFilter = 'all';
+
+        function applyLogFilter(value) {
+            currentAuditFilter = value;
+            renderAuditLogs();
+        }
+
+        function getAuditLogs() {
+            return JSON.parse(localStorage.getItem('BiletPro_AuditLogs')) || [];
+        }
+
+        function writeAuditLog(module, action, details) {
+            let logs = getAuditLogs();
+            let session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Merkez Kasa", role: "admin" };
+            
+            logs.unshift({
+                time: new Date().toLocaleString('tr-TR'),
+                actor: session.name,
+                role: session.role,
+                module: module,
+                action: action,
+                details: details
+            });
+            
+            if(logs.length > 500) logs = logs.slice(0, 500);
+            localStorage.setItem('BiletPro_AuditLogs', JSON.stringify(logs));
+        }
+
+        function toggleModal() {
+            const modal = document.getElementById('staffModal');
+            const isHidden = modal.classList.contains('hidden');
+            
+            if (isHidden) {
+                // Modal açılırken tertemiz bir form sun
+                document.getElementById('staffForm').reset();
+                document.getElementById('sRole').value = 'user';
+                
+                // Switchleri manuel olarak kapatıp kilitlerini kaldıralım
+                const switches = document.querySelectorAll('.perm-switch');
+                switches.forEach(sw => {
+                    sw.checked = false;
+                    sw.disabled = false;
+                });
+            }
+            
+            modal.classList.toggle('hidden');
+            
+            if(!modal.classList.contains('hidden')) {
+                handleRoleChange(); 
+            }
+        }
+        
+        function toggleLogModal() {
+            const session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const currentUser = staffData.find(s => (s.username || '').toLowerCase() === (session.username || '').toLowerCase());
+            const isAdmin = (session.role === 'admin') || ((session.username || '').toLowerCase() === 'hakan');
+            const canViewLogs = isAdmin || (currentUser && currentUser.perms && currentUser.perms.pViewLogs === true);
+            if(!canViewLogs) {
+                if(typeof showToast === 'function') showToast('Log görüntüleme yetkiniz yok.', 'error');
+                return;
+            }
+
+            const modal = document.getElementById('logModal');
+            modal.classList.toggle('hidden');
+            if(!modal.classList.contains('hidden')) {
+                renderAuditLogs();
+            }
+        }
+
+        function applyPermPreset(prefix = '', preset = 'sales') {
+            const roleId = `${prefix}Role`;
+            const roleEl = document.getElementById(roleId);
+            if(!roleEl) return;
+
+            if(roleEl.value === 'admin') {
+                if(typeof showToast === 'function') showToast('Admin kullanıcıda tüm yetkiler zaten açık.', 'info');
+                return;
+            }
+
+            const ids = {
+                sale: `${prefix}PSale`,
+                discount: `${prefix}PDiscount`,
+                cancel: `${prefix}PCancel`,
+                door: `${prefix}PDoor`,
+                doorPay: `${prefix}PDoorPay`,
+                doorRisk: `${prefix}PDoorRisk`,
+                manageEvents: `${prefix}PManageEvents`,
+                reports: `${prefix}PReports`,
+                manageStaff: `${prefix}PManageStaff`,
+                viewLogs: `${prefix}PViewLogs`
+            };
+
+            const allKeys = Object.keys(ids);
+            allKeys.forEach(k => {
+                const el = document.getElementById(ids[k]);
+                if(el && !el.disabled) el.checked = false;
+            });
+
+            const presets = {
+                sales: ['sale', 'discount'],
+                gate: ['door', 'doorPay'],
+                hybrid: ['sale', 'discount', 'door', 'doorPay'],
+                manager: ['sale', 'discount', 'cancel', 'door', 'doorPay', 'doorRisk', 'manageEvents', 'reports', 'viewLogs']
+            };
+
+            (presets[preset] || []).forEach(k => {
+                const el = document.getElementById(ids[k]);
+                if(el && !el.disabled) el.checked = true;
+            });
+
+            if(typeof showToast === 'function') showToast('Yetki profili uygulandı.', 'success');
+        }
+
+        function handleRoleChange() {
+            const role = document.getElementById('sRole').value;
+            const switches = document.querySelectorAll('.perm-switch');
+            
+            if(role === 'admin') {
+                switches.forEach(sw => {
+                    sw.checked = true;
+                    sw.disabled = true; 
+                });
+            } else {
+                switches.forEach(sw => {
+                    sw.disabled = false; 
+                });
+            }
+        }
+
+        function renderAuditLogs() {
+            const container = document.getElementById('auditLogContainer');
+            let logs = getAuditLogs();
+            
+            if(currentAuditFilter !== 'all') {
+                logs = logs.filter(log => {
+                    const action = log.action.toLowerCase();
+                    const details = (log.details || '').toLowerCase();
+                    if(currentAuditFilter === 'cancel') {
+                        return action.includes('iptal') || details.includes('iptal');
+                    }
+                    if(currentAuditFilter === 'debt') {
+                        return action.includes('borç') || action.includes('risk') || details.includes('borç') || details.includes('risk');
+                    }
+                    return true;
+                });
+            }
+
+            if(logs.length === 0) {
+                container.innerHTML = '<div class="text-center py-20 text-slate-400 font-bold text-xs uppercase tracking-widest">Seçili filtreye göre kayıt bulunamadı.</div>';
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => {
+                let typeClass = "";
+                let actionColor = "text-slate-800";
+                
+                const act = log.action.toLowerCase();
+                if(act.includes('iptal') || act.includes('risk') || act.includes('sil')) { typeClass = "critical"; actionColor = "text-red-500"; }
+                else if(act.includes('satış') || act.includes('tahsilat')) { typeClass = "sale"; actionColor = "text-green-600"; }
+                else if(act.includes('kapı') || act.includes('giriş')) { typeClass = "door"; actionColor = "text-blue-600"; }
+
+                return `
+                <div class="log-item ${typeClass} bg-slate-50/50 p-4 rounded-r-2xl border border-slate-100">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-slate-800 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest">${log.module}</span>
+                            <span class="text-[11px] font-black ${actionColor} uppercase">${log.action}</span>
+                        </div>
+                        <span class="text-[9px] font-bold text-slate-400 tracking-wider">${log.time}</span>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-600 mb-2">${log.details}</p>
+                    <div class="flex items-center gap-1 mt-2 border-t border-slate-200/60 pt-2">
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">İŞLEMİ YAPAN:</span>
+                        <span class="text-[10px] font-black text-slate-800 uppercase bg-slate-200/50 px-2 py-0.5 rounded">${log.actor} (${log.role})</span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function render() {
+            const list = document.getElementById('staffList');
+            let activeCount = 0;
+            
+            const sortedStaff = [...staffData].sort((a, b) => {
+                const aActive = a.isActive !== false;
+                const bActive = b.isActive !== false;
+                return (aActive === bActive) ? 0 : aActive ? -1 : 1;
+            });
+
+            list.innerHTML = sortedStaff.map((s) => {
+                const isActive = s.isActive !== false; 
+                if(isActive) activeCount++;
+                
+                const realIndex = staffData.findIndex(orig => orig.username === s.username);
+                const rowClass = isActive ? "staff-row" : "staff-row row-passive";
+                const badgeHtml = isActive ? "" : `<span class="bg-red-100 text-red-600 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ml-2">PASİF</span>`;
+
+                return `
+                <tr class="${rowClass}">
+                    <td class="p-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center font-black text-blue-600 text-sm italic">${s.name.charAt(0)}</div>
+                            <div>
+                                <div class="font-bold text-sm uppercase flex items-center">${s.name} ${badgeHtml}</div>
+                                <div class="text-[10px] font-bold text-slate-400 italic">@${s.username}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-6 text-center">
+                        <span class="text-[9px] font-black px-3 py-1 rounded-lg uppercase ${s.role==='admin'?'bg-amber-100 text-amber-600':'bg-blue-50 text-blue-500'}">
+                            ${s.role==='admin'?'Yönetici':'Saha'}
+                        </span>
+                    </td>
+                    <td class="p-6 text-center font-black text-slate-300 tracking-[4px] text-xs">${s.pin || '----'}</td>
+                    <td class="p-6 text-right">
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="editStaff(${realIndex})" class="px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all">DÜZENLE</button>
+                            <button onclick="toggleStaffStatus(${realIndex})" class="px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isActive ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-600 hover:bg-green-500 hover:text-white'}">
+                                ${isActive ? 'PASİF' : 'AKTİF'}
+                            </button>
+                            <button onclick="deleteStaff(${realIndex})" class="px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-gray-50 text-gray-600 hover:bg-gray-600 hover:text-white transition-all">SİL</button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+            
+            document.getElementById('staffCountTotal').innerText = staffData.length + " Toplam";
+            document.getElementById('staffCountActive').innerText = activeCount + " Aktif";
+            renderStaffFinancials();
+        }
+
+        function calculateStaffFinancials() {
+            let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            let logs = getAuditLogs();
+            let stats = {};
+
+            function ensure(name) {
+                if(!stats[name]) stats[name] = { name, revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0 };
+                return stats[name];
+            }
+
+            events.forEach(ev => {
+                ev.categories?.forEach(cat => {
+                    cat.masalar?.forEach(m => {
+                        if(m.isSold && m.saleDetail) {
+                            const seller = (m.saleDetail.soldBy || 'Merkez Kasa').trim();
+                            const paid = parseFloat(m.saleDetail.paid) || 0;
+                            const rec = ensure(seller);
+                            rec.revenue += paid;
+                            rec.sales += 1;
+                        }
+                    });
+                });
+            });
+
+            logs.forEach(log => {
+                const actor = (log.actor || 'Merkez Kasa').trim();
+                const rec = ensure(actor);
+                const action = (log.action || '').toLowerCase();
+                const detail = (log.details || '').toLowerCase();
+
+                if(action.includes('satış iptal') || detail.includes('satış iptal') || action.includes('iptal')) {
+                    rec.cancel += 1;
+                    rec.error += 1;
+                }
+                if(action.includes('borçlu') || detail.includes('borçlu') || action.includes('risk') || detail.includes('risk')) {
+                    rec.debtPass += 1;
+                    rec.error += 1;
+                }
+
+                if(action.includes('yeni satış') || action.includes('satış güncellendi') || action.includes('satış')) {
+                    // non_cancel salgılar, işlemi devam eden satış adedi
+                }
+            });
+
+            Object.values(stats).forEach(rec => {
+                const total = rec.sales || 1;
+                rec.cancelRate = total ? Math.min(100, (rec.cancel / total) * 100) : 0;
+                rec.errorRate = total ? Math.min(100, (rec.error / total) * 100) : 0;
+            });
+
+            return stats;
+        }
+
+        function renderStaffFinancials() {
+            const list = document.getElementById('staffFinanceList');
+            if(!list) return;
+            const stats = Object.values(calculateStaffFinancials()).sort((a,b) => b.revenue - a.revenue);
+
+            if(stats.length === 0) {
+                list.innerHTML = '<tr><td class="p-3 text-center text-slate-500" colspan="4">Satış verisi bulunamadı.</td></tr>';
+                return;
+            }
+
+            list.innerHTML = stats.map(rec => `
+                <tr class="border-t border-slate-100">
+                    <td class="p-3 font-black text-slate-800">${rec.name}</td>
+                    <td class="p-3 text-right text-green-600">₺${rec.revenue.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td class="p-3 text-right text-red-500">${rec.cancelRate.toFixed(2)}%</td>
+                    <td class="p-3 text-right text-amber-600">${rec.errorRate.toFixed(2)}%</td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('staffForm').onsubmit = (e) => {
+            e.preventDefault();
+            
+            const role = document.getElementById('sRole').value;
+            const perms = {
+                pSale: role === 'admin' ? true : document.getElementById('pSale').checked,
+                pDiscount: role === 'admin' ? true : document.getElementById('pDiscount').checked,
+                pCancel: role === 'admin' ? true : document.getElementById('pCancel').checked,
+                pDoor: role === 'admin' ? true : document.getElementById('pDoor').checked,
+                pDoorPay: role === 'admin' ? true : document.getElementById('pDoorPay').checked,
+                pDoorRisk: role === 'admin' ? true : document.getElementById('pDoorRisk').checked,
+                pManageEvents: role === 'admin' ? true : document.getElementById('pManageEvents').checked,
+                pReports: role === 'admin' ? true : document.getElementById('pReports').checked,
+                pManageStaff: role === 'admin' ? true : document.getElementById('pManageStaff').checked,
+                pViewLogs: role === 'admin' ? true : document.getElementById('pViewLogs').checked
+            };
+
+            const person = {
+                name: document.getElementById('sName').value,
+                username: document.getElementById('sUser').value,
+                password: document.getElementById('sPass').value,
+                role: role,
+                pin: null,
+                isActive: true,
+                perms: perms
+            };
+            
+            if(staffData.some(s => s.username === person.username)) {
+                if(typeof showToast === 'function') showToast("Bu kullanıcı adı zaten mevcut!", "error");
+                else alert("Bu kullanıcı adı zaten mevcut!");
+                return;
+            }
+
+            staffData.push(person);
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            
+            writeAuditLog("Personel Modülü", "YENİ PERSONEL EKLENDİ", `${person.name} (${person.role}) adlı kullanıcı sisteme dahil edildi.`);
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Yeni Personel Eklendi", `${person.name} (${person.role})`);
+            
+            toggleModal();
+            render();
+            e.target.reset();
+            
+            if(typeof showToast === 'function') showToast("Yeni personel eklendi.", "success");
+        }
+
+        function toggleStaffStatus(idx) {
+            const staff = staffData[idx];
+            const currentStatus = staff.isActive !== false;
+            const msg = currentStatus 
+                ? `${staff.name} adlı personelin tüm yetkileri iptal edilecek (Pasife alınacak). Onaylıyor musunuz?`
+                : `${staff.name} adlı personel tekrar aktif edilecek. Onaylıyor musunuz?`;
+                
+            if(confirm(msg)) {
+                staffData[idx].isActive = !currentStatus;
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+                
+                const actionText = currentStatus ? "PERSONEL PASİFE ALINDI" : "PERSONEL AKTİF EDİLDİ";
+                writeAuditLog("Personel Modülü", actionText, `${staff.name} adlı kullanıcının sistem yetkisi değiştirildi.`);
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", actionText, `${staff.name} durum: ${staffData[idx].isActive ? 'Aktif' : 'Pasif'}`);
+                
+                render();
+            }
+        }
+
+        function exportAuditLogsCSV() {
+            const logs = getAuditLogs();
+            if(!logs.length) {
+                if(typeof showToast === 'function') showToast('Audit log bulunamadı!', 'error');
+                return;
+            }
+            let csv = 'ZAMAN;MODÜL;EYLEM;DETAY;KİŞİ;ROL\n';
+            logs.slice().reverse().forEach(log => {
+                const row = [log.time, log.module, log.action, log.details, log.actor, log.role]
+                    .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';');
+                csv += row + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `BiletPro_AuditLogs_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            if(typeof showToast === 'function') showToast('Audit log CSV olarak indirildi.', 'success');
+        }
+
+        // --- PERSONEL DÜZENLEME, SİLME ---
+        let editingStaffIndex = null;
+        let deletingStaffIndex = null;
+
+        function editStaff(idx) {
+            const staff = staffData[idx];
+            if(!staff) return;
+            editingStaffIndex = idx;
+            document.getElementById('eName').value = staff.name;
+            document.getElementById('eUser').value = staff.username;
+            document.getElementById('ePass').value = '';
+            document.getElementById('eRole').value = staff.role;
+            
+            // Yetkileri yükle
+            document.getElementById('ePSale').checked = staff.perms.pSale;
+            document.getElementById('ePDiscount').checked = staff.perms.pDiscount;
+            document.getElementById('ePCancel').checked = staff.perms.pCancel;
+            document.getElementById('ePDoor').checked = staff.perms.pDoor;
+            document.getElementById('ePDoorPay').checked = staff.perms.pDoorPay;
+            document.getElementById('ePDoorRisk').checked = staff.perms.pDoorRisk;
+            document.getElementById('ePManageEvents').checked = staff.perms.pManageEvents;
+            document.getElementById('ePReports').checked = staff.perms.pReports;
+            document.getElementById('ePManageStaff').checked = staff.perms.pManageStaff;
+            document.getElementById('ePViewLogs').checked = staff.perms.pViewLogs;
+            
+            handleEditRoleChange();
+            document.getElementById('editStaffModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() { document.getElementById('editStaffModal').classList.add('hidden'); }
+
+        function handleEditRoleChange() {
+            const role = document.getElementById('eRole').value;
+            const switches = document.querySelectorAll('#editStaffModal .perm-switch');
+            
+            if(role === 'admin') {
+                switches.forEach(sw => {
+                    sw.checked = true;
+                    sw.disabled = true; 
+                });
+            } else {
+                switches.forEach(sw => {
+                    sw.disabled = false; 
+                });
+            }
+        }
+
+        document.getElementById('editStaffForm').onsubmit = (e) => {
+            e.preventDefault();
+            
+            const role = document.getElementById('eRole').value;
+            const newPass = document.getElementById('ePass').value.trim();
+            const perms = {
+                pSale: role === 'admin' ? true : document.getElementById('ePSale').checked,
+                pDiscount: role === 'admin' ? true : document.getElementById('ePDiscount').checked,
+                pCancel: role === 'admin' ? true : document.getElementById('ePCancel').checked,
+                pDoor: role === 'admin' ? true : document.getElementById('ePDoor').checked,
+                pDoorPay: role === 'admin' ? true : document.getElementById('ePDoorPay').checked,
+                pDoorRisk: role === 'admin' ? true : document.getElementById('ePDoorRisk').checked,
+                pManageEvents: role === 'admin' ? true : document.getElementById('ePManageEvents').checked,
+                pReports: role === 'admin' ? true : document.getElementById('ePReports').checked,
+                pManageStaff: role === 'admin' ? true : document.getElementById('ePManageStaff').checked,
+                pViewLogs: role === 'admin' ? true : document.getElementById('ePViewLogs').checked
+            };
+
+            const staff = staffData[editingStaffIndex];
+            staff.name = document.getElementById('eName').value;
+            staff.username = document.getElementById('eUser').value;
+            staff.role = role;
+            staff.perms = perms;
+            if(newPass) staff.password = newPass;
+            
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            
+            writeAuditLog("Personel Modülü", "PERSONEL GÜNCELLENDİ", `${staff.name} (${staff.role}) adlı personelin bilgileri güncellendi.`);
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Personel Güncellendi", `${staff.name} bilgileri değiştirildi.`);
+            
+            closeEditModal();
+            render();
+            
+            if(typeof showToast === 'function') showToast("Personel bilgileri güncellendi.", "success");
+        }
+
+        function deleteStaff(idx) {
+            const staff = staffData[idx];
+            if(!staff) return;
+            deletingStaffIndex = idx;
+            document.getElementById('deleteStaffModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() { document.getElementById('deleteStaffModal').classList.add('hidden'); }
+
+        function confirmDeleteStaff() {
+            const staff = staffData[deletingStaffIndex];
+            if(!staff) return;
+
+            staffData.splice(deletingStaffIndex, 1);
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            
+            writeAuditLog("Personel Modülü", "PERSONEL SİLİNDİ", `${staff.name} (${staff.role}) adlı personel sistemden kaldırıldı.`);
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Personel Silindi", `${staff.name} sistemden çıkarıldı.`);
+            
+            closeDeleteModal();
+            render();
+            
+            if(typeof showToast === 'function') showToast("Personel silindi.", "error");
+        }
+        
+        render();
+    </script>
+</body>
+</html>

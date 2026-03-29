@@ -1,0 +1,52 @@
+/* theme.css | Crystal Silk Global Core v11.2 */
+
+:root { 
+    --main: #0f172a; 
+    --blue: #2563eb; 
+    --bg: #f4f7fa; 
+    --border: #e2e8f0; 
+}
+
+/* TÜM SAYFALAR İÇİN SCROLL GİZLEME (TEMİZ GÖRÜNÜM) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* MASTER MENÜ BUTONU (SOL ÜST KÖŞE ZIRHI) */
+.menu-btn {
+    position: fixed; top: 25px; left: 35px; z-index: 9100;
+    width: 50px; height: 50px; border-radius: 16px;
+    background: var(--main); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25); 
+    transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-btn:hover { 
+    transform: scale(1.08); 
+    background: var(--blue); 
+    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.3); 
+}
+
+/* YAN NAVİGASYON PANELİ (CAM EFEKTLİ SLIDER) */
+#menuPanel {
+    position: fixed; top: 0; left: -320px; width: 300px; height: 100vh;
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border); z-index: 9000;
+    transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 50px 40px;
+}
+#menuPanel.open { 
+    left: 0; 
+    box-shadow: 40px 0 100px rgba(0,0,0,0.08); 
+}
+
+/* MENÜ LİNKLERİ */
+.nav-link {
+    display: flex; align-items: center; gap: 15px; padding: 16px 24px;
+    border-radius: 16px; color: #64748b; font-weight: 800; font-size: 11px;
+    text-transform: uppercase; text-decoration: none; margin-bottom: 8px; 
+    transition: 0.3s; letter-spacing: 0.5px;
+}
+.nav-link:hover { 
+    background: #f8fafc; color: var(--main); transform: translateX(5px); 
+}
+.nav-link.active { 
+    background: #eff6ff; color: var(--blue); 
+}

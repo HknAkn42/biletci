@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EventPro | Kontrol Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="theme.css">
+
+    <style>
+        .event-card {
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 42px;
+            overflow: hidden; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            position: relative;
+        }
+        .event-card:hover { 
+            transform: translateY(-12px); border-color: #2563eb; 
+            box-shadow: 0 40px 80px rgba(37, 99, 235, 0.1); 
+        }
+        
+        .logo-mühür {
+            position: absolute; bottom: -35px; left: 35px; width: 90px; height: 90px;
+            border-radius: 28px; background: #fff; border: 5px solid #fff;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.12); z-index: 10; overflow: hidden;
+            transition: 0.3s;
+        }
+
+        .input-silk { 
+            background: #f8fafc !important; border: 1px solid #e2e8f0 !important; 
+            border-radius: 18px !important; padding: 1.1rem !important; 
+            color: #0f172a !important; font-weight: 700; width: 100%; 
+            margin-bottom: 15px; font-size: 0.9rem; transition: 0.3s;
+        }
+        .input-silk:focus { 
+            border-color: #2563eb !important; background: #cf3f3f !important; 
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.1); outline: none;
+        }
+
+        .modal-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); }
+        .animate-pop { animation: pop 0.4s forwards; }
+        @keyframes pop { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .is-passive .cover-img { filter: grayscale(80%); opacity: 0.6; }
+        .is-passive .logo-mühür { filter: grayscale(100%); opacity: 0.8; }
+        .btn-disabled { opacity: 0.4; cursor: not-allowed !important; pointer-events: none; }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+
+    <script src="menu.js"></script>
+    <script>injectMenu('dashboard');</script>
+
+    <div class="flex flex-col h-screen">
+        <header class="h-[80px] sm:h-[90px] px-3 sm:px-5 lg:px-[60px] pl-[90px] lg:pl-[130px] flex items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div>
+                <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Operasyonel Sistem</p>
+                <h1 class="text-2xl font-black italic uppercase tracking-tighter text-slate-800">Kontrol Paneli</h1>
+            </div>
+            <button onclick="openModal()" class="bg-slate-900 text-white px-4 sm:px-6 lg:px-10 py-3 sm:py-4 lg:py-5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase shadow-xl hover:scale-105 transition-all whitespace-nowrap">+ YENİ ETKİNLİK</button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pl-[90px] lg:pl-[130px] pb-24 lg:pb-[150px] no-scrollbar">
+            <div class="mb-6 bg-blue-50 p-6 rounded-[24px] border border-blue-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px] mb-1">⚡ PARALEL TEST</p>
+                        <p class="text-sm text-blue-700">Demo etkinlik ve bilet oluştur, sonra Satış sekmesinde QR'ı test et</p>
+                    </div>
+                    <button onclick="createDemoEventAndTicket()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-blue-700 transition-all">DEMO BAŞLAT</button>
+                </div>
+            </div>
+            <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
+            </div>
+
+            <!-- SÖN İŞLEMLER (AUDIT LOG) BÖLÜMÜ -->
+            <div class="mt-[60px] pt-[40px] border-t-2 border-slate-200 max-w-[1850px]">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[4px] mb-2">SİSTEM AUDİTİ</p>
+                        <h3 class="text-xl font-black uppercase text-slate-800 tracking-tight">Son İşlemler</h3>
+                    </div>
+                    <a href="rapor.html" class="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all">TÜM LOGLAR →</a>
+                </div>
+                <div id="dashboardAuditLogs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Loglar buraya gelecek -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="evModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-[650px] p-[50px] rounded-[45px] shadow-2xl animate-pop max-h-[95vh] overflow-y-auto no-scrollbar">
+            <h3 id="modalTitle" class="text-2xl font-black text-slate-800 uppercase mb-10 italic tracking-tight">ETKİNLİK MÜHÜRÜ</h3>
+            
+            <div class="grid grid-cols-2 gap-x-6">
+                <div class="col-span-2">
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Etkinlik Adı</span>
+                    <input id="evTitle" type="text" placeholder="Örn: Serdar Ortaç Konseri" class="input-silk">
+                </div>
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Organizasyon Firma</span>
+                    <input id="evCompany" type="text" class="input-silk">
+                </div>
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Etkinlik Tarihi</span>
+                    <input id="evDate" type="date" class="input-silk">
+                </div>
+                
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Mekan / Salon</span>
+                    <input id="evVenue" type="text" placeholder="Mekan Bilgisi" class="input-silk">
+                </div>
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Şehir</span>
+                    <input id="evCity" type="text" placeholder="İl" class="input-silk">
+                </div>
+                <div class="col-span-2">
+                    <button onclick="autoScanAddress()" id="scanBtn" class="bg-slate-900 text-white w-full py-5 rounded-[18px] font-black text-[10px] uppercase mb-4 transition-all hover:bg-blue-600 shadow-lg">İnternette Ara ve Adresi Mühürle</button>
+                    <input id="evFullAddr" type="text" class="input-silk bg-slate-50 text-slate-500" readonly placeholder="Tam adres internetten çekilip buraya yazılacak...">
+                </div>
+
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Kapı Açılış</span>
+                    <input id="evDoorTime" type="time" class="input-silk">
+                </div>
+                <div>
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Başlangıç</span>
+                    <input id="evStartTime" type="time" class="input-silk">
+                </div>
+
+                <div class="col-span-2">
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Mekan / Etkinlik Logosu (JPEG/PNG)</span>
+                    <div class="border-2 border-dashed border-slate-300 rounded-[24px] bg-slate-50 p-8 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all mb-4 mt-1" onclick="document.getElementById('fileInput').click()">
+                        <p id="uploadStatus" class="text-[11px] font-black text-slate-500 uppercase tracking-widest">TIKLA VE GÖRSEL DOSYASI SEÇ</p>
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="processFile(this)">
+                    </div>
+                </div>
+                <div class="col-span-2">
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Kapak Görseli URL (Boş bırakılırsa sistem otomatik atar)</span>
+                    <input id="evImg" type="text" placeholder="https://..." class="input-silk">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100">
+                <button onclick="closeModal()" class="py-5 font-bold text-slate-400 uppercase text-xs hover:text-slate-800 transition-all">VAZGEÇ</button>
+                <button id="saveBtn" onclick="saveEvent()" class="bg-blue-600 py-5 rounded-[20px] font-black text-white uppercase text-xs shadow-xl hover:bg-slate-900 transition-all">VERİYİ KAYDET</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+        let tempLogo = "";
+        let editEventId = null;
+
+        function getFinanceArchive() {
+            return JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+        }
+
+        function saveFinanceArchive(list) {
+            localStorage.setItem('BiletPro_FinanceArchive', JSON.stringify(list));
+        }
+
+        function buildEventFinanceSnapshot(eventData) {
+            let totalRevenue = 0;
+            let totalDebt = 0;
+            let totalSales = 0;
+
+            const debtorMap = {};
+            const staffMap = {};
+
+            (eventData.categories || []).forEach(cat => {
+                (cat.masalar || []).forEach(m => {
+                    if(!m.isSold || !m.saleDetail) return;
+
+                    const sd = m.saleDetail;
+                    const paid = parseFloat(sd.paid) || 0;
+                    const debt = parseFloat(sd.debt) || 0;
+                    const seller = (sd.soldBy || 'Merkez Kasa').trim();
+
+                    totalSales += 1;
+                    totalRevenue += paid;
+                    totalDebt += debt;
+
+                    if(!staffMap[seller]) {
+                        staffMap[seller] = {
+                            name: seller,
+                            revenue: 0,
+                            sales: 0,
+                            overdueAmount: 0,
+                            overdueCount: 0,
+                            maxOverdueDays: 0
+                        };
+                    }
+
+                    staffMap[seller].revenue += paid;
+                    staffMap[seller].sales += 1;
+                    if(debt > 0) {
+                        staffMap[seller].overdueAmount += debt;
+                        staffMap[seller].overdueCount += 1;
+                    }
+
+                    if(debt > 0) {
+                        const key = `${(m.soldTo || 'Bilinmiyor').toLowerCase()}||${sd.phone || '0000'}`;
+                        if(!debtorMap[key]) {
+                            debtorMap[key] = {
+                                customer: m.soldTo || 'Bilinmiyor',
+                                phone: sd.phone || '',
+                                seller,
+                                debt: 0,
+                                tables: [],
+                                dueDate: sd.dueDate || null
+                            };
+                        }
+                        debtorMap[key].debt += debt;
+                        debtorMap[key].tables.push(m.no);
+                    }
+                });
+            });
+
+            return {
+                id: `arc_${Date.now()}`,
+                eventId: String(eventData.id),
+                eventTitle: eventData.title || 'Etkinlik',
+                eventDate: eventData.date || null,
+                deletedAt: new Date().toISOString(),
+                deletedBy: (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name) || 'Sistem',
+                totalRevenue,
+                totalDebt,
+                totalSales,
+                debtors: Object.values(debtorMap),
+                staffSummary: Object.values(staffMap)
+            };
+        }
+
+        // MODAL KONTROLLERİ
+        function openModal(isEdit = false) { 
+            if(!isEdit) {
+                editEventId = null;
+                tempLogo = ""; 
+                ['evTitle','evCompany','evVenue','evCity','evDate','evDoorTime','evStartTime','evImg','evFullAddr'].forEach(id => document.getElementById(id).value = ""); 
+                document.getElementById('uploadStatus').innerText = "TIKLA VE GÖRSEL DOSYASI SEÇ"; 
+                document.getElementById('uploadStatus').style.color = "#64748b";
+                document.getElementById('modalTitle').innerText = "ETKİNLİK MÜHÜRÜ";
+                document.getElementById('saveBtn').innerText = "VERİYİ KAYDET";
+            }
+            document.getElementById('evModal').classList.remove('hidden'); 
+        }
+        
+        function closeModal() { document.getElementById('evModal').classList.add('hidden'); }
+
+        // DÜZENLEME MODUNU BAŞLAT
+        function editEvent(id) {
+            const ev = events.find(e => String(e.id) === String(id));
+            if(!ev) return;
+
+            editEventId = id;
+            document.getElementById('evTitle').value = ev.title || "";
+            document.getElementById('evCompany').value = ev.company || "";
+            document.getElementById('evDate').value = ev.date || "";
+            document.getElementById('evVenue').value = ev.venue || "";
+            document.getElementById('evCity').value = ev.city || "";
+            document.getElementById('evFullAddr').value = ev.fullAddress || "";
+            document.getElementById('evDoorTime').value = ev.doorTime || "";
+            document.getElementById('evStartTime').value = ev.startTime || "";
+            document.getElementById('evImg').value = ev.cover || "";
+
+            tempLogo = ev.logo || "";
+            if(tempLogo) {
+                document.getElementById('uploadStatus').innerText = "GÖRSEL MEVCUT (DEĞİŞTİRMEK İÇİN TIKLA)"; 
+                document.getElementById('uploadStatus').style.color = "#10b981";
+            }
+
+            document.getElementById('modalTitle').innerText = "ETKİNLİĞİ DÜZENLE";
+            document.getElementById('saveBtn').innerText = "GÜNCELLEMEYİ MÜHÜRLE";
+
+            openModal(true);
+        }
+
+        // AKTİF/PASİF DEĞİŞTİRME FONKSİYONU
+        function toggleStatus(id) {
+            const idx = events.findIndex(e => String(e.id) === String(id));
+            if(idx > -1) {
+                // Eğer isActive tanımlı değilse varsayılan true'dur, terse çeviriyoruz
+                events[idx].isActive = events[idx].isActive === false ? true : false;
+                localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+                render();
+                
+                if(typeof showToast === 'function') {
+                    const msg = events[idx].isActive ? "Etkinlik AKTİF edildi!" : "Etkinlik PASİFE alındı! Satış ve Kapı durduruldu.";
+                    showToast(msg, events[idx].isActive ? "success" : "info");
+                }
+            }
+        }
+
+        // LOGO BASE64 ÇEVİRİCİ
+        function processFile(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => { 
+                    tempLogo = e.target.result; 
+                    document.getElementById('uploadStatus').innerText = "GÖRSEL HAZIR: " + file.name; 
+                    document.getElementById('uploadStatus').style.color = "#10b981"; 
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // AKILLI ADRES MOTORU
+        async function autoScanAddress() {
+            const v = document.getElementById('evVenue').value; const c = document.getElementById('evCity').value;
+            if(!v || !c) {
+                if(typeof showToast === 'function') showToast("Mekan ve Şehir girin!", "error");
+                else alert("Mekan ve Şehir girin!");
+                return;
+            }
+            const btn = document.getElementById('scanBtn'); btn.innerText = "İSTİHBARAT TOPLANIYOR...";
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(v + " " + c)}&limit=1`);
+                const data = await res.json();
+                if(data[0]) { 
+                    document.getElementById('evFullAddr').value = data[0].display_name; 
+                    btn.style.background = "#10b981"; btn.innerText = "ADRES DOĞRULANDI"; 
+                } else { 
+                    document.getElementById('evFullAddr').value = `${v}, ${c}`; 
+                    btn.innerText = "ADRES TAM BULUNAMADI, MANUEL EKLENDİ";
+                }
+            } catch (e) { console.error(e); }
+            setTimeout(() => { btn.innerText = "İnternette Ara ve Adresi Mühürle"; btn.style.background = "#0f172a"; }, 3500);
+        }
+
+        // KARTLARI EKRANA BASTIRMA (TARİHE GÖRE SIRALAMALI)
+        function render() {
+            const container = document.getElementById('eventGrid'); 
+            container.innerHTML = "";
+            
+            // TARİHE GÖRE SIRALAMA (En yakın/ileri tarih en üstte)
+            const sortedEvents = [...events].sort((a, b) => {
+                const dateA = a.date ? new Date(a.date).getTime() : 0;
+                const dateB = b.date ? new Date(b.date).getTime() : 0;
+                return dateB - dateA; // Yeniden eskiye sıralama
+            });
+
+            sortedEvents.forEach(ev => {
+                const cover = ev.cover || `https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000&auto=format&fit=crop`;
+                
+                // Aktiflik Durumu
+                const isActive = ev.isActive !== false; // Varsayılan true
+                const passiveClass = isActive ? "" : "is-passive";
+                const badgeHtml = isActive 
+                    ? `<div class="absolute top-6 left-6 bg-green-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg z-20 tracking-widest">AKTİF</div>`
+                    : `<div class="absolute top-6 left-6 bg-slate-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg z-20 tracking-widest">PASİF</div>`;
+                
+                const btnStateClass = isActive ? "" : "btn-disabled";
+
+                const card = document.createElement('div');
+                card.className = `event-card animate-pop ${passiveClass}`;
+                card.innerHTML = `
+                    <div class="h-[260px] relative overflow-hidden bg-slate-50">
+                        ${badgeHtml}
+                        <img src="${cover}" class="cover-img w-full h-full object-cover transition-all duration-500">
+                        <div class="logo-mühür">
+                            <img src="${ev.logo || 'https://via.placeholder.com/150/f8fafc/94a3b8?text=LOGO'}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <div class="absolute top-6 right-6 flex gap-2 z-20">
+                            <button onclick="toggleStatus('${ev.id}')" class="bg-white/90 px-4 py-2 rounded-xl ${isActive ? 'text-amber-500 hover:bg-amber-500' : 'text-green-600 hover:bg-green-500'} hover:text-white font-black text-[10px] uppercase shadow-lg transition-all">${isActive ? 'DURDUR' : 'BAŞLAT'}</button>
+                            <button onclick="editEvent('${ev.id}')" class="bg-white/90 px-4 py-2 rounded-xl text-blue-600 font-black text-[10px] uppercase shadow-lg hover:bg-blue-600 hover:text-white transition-all">DÜZENLE</button>
+                            <button onclick="deleteEvent('${ev.id}')" class="bg-white/90 px-4 py-2 rounded-xl text-red-500 font-black text-[10px] uppercase shadow-lg hover:bg-red-500 hover:text-white transition-all">SİL</button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-[55px] px-[35px] pb-[35px] flex-1 flex flex-col relative z-20">
+                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 block">${ev.company || 'GENEL OPERASYON'}</span>
+                        <h2 class="text-3xl font-black text-slate-800 uppercase leading-[1.1] mb-5 tracking-tighter">${ev.title}</h2>
+                        
+                        <div class="grid grid-cols-2 gap-5 pt-6 border-t border-slate-100 mt-auto">
+                            <div><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">LOKASYON</span><p class="text-[12px] font-bold text-slate-700 truncate mt-1">📍 ${ev.venue || 'Belirsiz'}</p></div>
+                            <div class="text-right"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">TARİH</span><p class="text-[13px] font-black text-slate-800 mt-1">${ev.date || '-'}</p></div>
+                        </div>
+                        
+                        <div class="flex gap-4 mt-5 p-5 bg-slate-50 rounded-[24px] border border-slate-100">
+                            <div class="flex-1"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">KAPI AÇILIŞ</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${ev.doorTime || '--:--'}</p></div>
+                            <div class="flex-1 border-l border-slate-200 pl-4"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">BAŞLAMA</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${ev.startTime || '--:--'}</p></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-3 mt-8">
+                            <button onclick="location.href='gise.html?id=${ev.id}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>
+                            <button onclick="location.href='satis.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>
+                            <button onclick="location.href='checkin.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+            
+            // Audit logları da güncelle
+            renderAuditLogs();
+        }
+
+        // DASHBOARD AUDIT LOG GÖSTERİCİ
+        function renderAuditLogs() {
+            const logs = JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
+            const container = document.getElementById('dashboardAuditLogs');
+            const recentLogs = logs.slice(0, 6); // Son 6 işlem
+            
+            if(!recentLogs.length) {
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-sm">Henüz kayıtlı işlem yok.</div>';
+                return;
+            }
+            
+            container.innerHTML = recentLogs.map(log => {
+                const time = log.time ? log.time.split(' ')[1] : 'N/A'; // Saat:dakika
+                const roleColor = {
+                    'admin': 'bg-red-100 text-red-700',
+                    'staff': 'bg-blue-100 text-blue-700',
+                    'guest': 'bg-slate-100 text-slate-700'
+                }[log.role] || 'bg-slate-100 text-slate-700';
+                
+                const moduleColor = {
+                    'Satış': 'border-l-4 border-green-500',
+                    'Müşteri': 'border-l-4 border-orange-500',
+                    'Kapı': 'border-l-4 border-blue-500',
+                    'Arşiv': 'border-l-4 border-purple-500',
+                    'Sistem': 'border-l-4 border-slate-500'
+                }[log.module] || 'border-l-4 border-slate-300';
+                
+                return `<div class="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all ${moduleColor}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <p class="text-xs font-black text-slate-800 uppercase">${log.module}</p>
+                            <p class="text-sm font-bold text-slate-700 mt-1">${log.action}</p>
+                        </div>
+                        <span class="text-[10px] font-black ${roleColor} px-2 py-1 rounded">${log.role}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-2">${log.actor}</p>
+                    <div class="text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">${log.details || '-'}</div>
+                    <p class="text-[9px] text-slate-400 mt-2">${time}</p>
+                </div>`;
+            }).join('');
+        }
+
+        // VERİTABANINA KAYIT VE GÜNCELLEME
+        function saveEvent() {
+            const title = document.getElementById('evTitle').value; 
+            if(!title) {
+                if(typeof showToast === 'function') showToast("Etkinlik Başlığı zorunludur!", "error");
+                else alert("Etkinlik Başlığı zorunludur!");
+                return;
+            }
+            
+            if (editEventId) {
+                // GÜNCELLEME MODU
+                const idx = events.findIndex(e => String(e.id) === String(editEventId));
+                if(idx > -1) {
+                    events[idx].title = title;
+                    events[idx].company = document.getElementById('evCompany').value;
+                    events[idx].venue = document.getElementById('evVenue').value;
+                    events[idx].city = document.getElementById('evCity').value;
+                    events[idx].fullAddress = document.getElementById('evFullAddr').value;
+                    events[idx].date = document.getElementById('evDate').value;
+                    events[idx].doorTime = document.getElementById('evDoorTime').value;
+                    events[idx].startTime = document.getElementById('evStartTime').value;
+                    events[idx].cover = document.getElementById('evImg').value;
+                    if(tempLogo) events[idx].logo = tempLogo;
+                }
+                if(typeof showToast === 'function') showToast("Etkinlik güncellendi!", "success");
+            } else {
+                // YENİ KAYIT MODU
+                const data = { 
+                    id: Date.now().toString(), title, 
+                    company: document.getElementById('evCompany').value, 
+                    venue: document.getElementById('evVenue').value, 
+                    city: document.getElementById('evCity').value, 
+                    fullAddress: document.getElementById('evFullAddr').value, 
+                    date: document.getElementById('evDate').value, 
+                    doorTime: document.getElementById('evDoorTime').value, 
+                    startTime: document.getElementById('evStartTime').value, 
+                    cover: document.getElementById('evImg').value, 
+                    logo: tempLogo, categories: [],
+                    isActive: true
+                };
+                events.push(data); 
+                if(typeof showToast === 'function') showToast("Yeni etkinlik mühürlendi!", "success");
+            }
+            
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+            render(); closeModal();
+        }
+
+        function deleteEvent(id) { 
+            const msg = "Etkinlik/bilet/kapı verileri silinecek. Ciro ve borçlular finans arşive taşınacak. Onaylıyor musunuz?";
+            
+            if(typeof showConfirm === 'function') {
+                showConfirm("SİLME ONAYI", msg, () => {
+                    const target = events.find(e => String(e.id) === String(id));
+                    if(target) {
+                        const snapshot = buildEventFinanceSnapshot(target);
+                        const archive = getFinanceArchive();
+                        archive.unshift(snapshot);
+                        saveFinanceArchive(archive);
+                    }
+
+                    events = events.filter(e => String(e.id) !== String(id)); 
+                    localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+
+                    // Operasyonel kapı logları da silinir
+                    localStorage.removeItem('BiletPro_CLog_' + id);
+
+                    if(typeof window.writeAuditEvent === 'function') {
+                        writeAuditEvent('Dashboard', 'Etkinlik Silindi ve Arşivlendi', `Etkinlik ID ${id} silindi, finans arşive alındı.`);
+                    }
+
+                    render(); 
+                    showToast("Etkinlik silindi, finans arşive taşındı.", "info");
+                });
+            } else {
+                if(confirm(msg)) { 
+                    const target = events.find(e => String(e.id) === String(id));
+                    if(target) {
+                        const snapshot = buildEventFinanceSnapshot(target);
+                        const archive = getFinanceArchive();
+                        archive.unshift(snapshot);
+                        saveFinanceArchive(archive);
+                    }
+
+                    events = events.filter(e => String(e.id) !== String(id)); 
+                    localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+                    localStorage.removeItem('BiletPro_CLog_' + id);
+                    render(); 
+                }
+            }
+        }
+        
+        // DEMO ETKİNLİK + BİLET OLUŞTUR (Paralel Test için)
+        function createDemoEventAndTicket() {
+            // 1. Demo etkinlik oluştur
+            const eventId = 'DEMO_' + Date.now().toString();
+            const demoEvent = {
+                id: eventId,
+                title: "🎉 DEMO ETKİNLİĞİ - Paralel Test",
+                company: "Test Şirketi",
+                venue: "Test Salonu",
+                city: "İstanbul",
+                fullAddress: "Test Adresi No:1",
+                date: new Date().toISOString().split('T')[0],
+                doorTime: "18:00",
+                startTime: "19:00",
+                cover: "",
+                logo: "",
+                categories: [{
+                    name: "VIP",
+                    masalar: [{
+                        no: "1",
+                        isSold: false,
+                        soldTo: null
+                    }]
+                }],
+                isActive: true
+            };
+
+            events.push(demoEvent);
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+
+            if(typeof showToast === 'function') {
+                showToast("✅ Demo etkinliği oluşturuldu!", "success");
+            } else {
+                alert("✅ Demo etkinliği oluşturuldu!");
+            }
+
+            setTimeout(() => {
+                window.location.href = 'satis.html?id=' + eventId;
+            }, 500);
+        }
+        
+        // BAŞLANGIÇ RENDER
+        render();
+    </script>
+</body>
+</html>

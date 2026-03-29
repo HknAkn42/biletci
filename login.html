@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BiletPro | Akıllı Erişim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="menu.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+            color: #fff;
+        }
+        .glass-terminal {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 50px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+        }
+        .input-premium {
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            border-radius: 20px !important;
+            padding: 1.2rem !important;
+            color: #fff !important;
+            width: 100%;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: lowercase; /* Görsel olarak da küçük harfe zorlar */
+            transition: 0.3s;
+        }
+        .input-premium:focus { border-color: #3b82f6 !important; background: rgba(255,255,255,0.1) !important; outline: none; }
+        
+        .pin-dot { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; transition: 0.3s; }
+        .pin-dot.active { background: #3b82f6; border-color: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+        
+        .num-btn {
+            width: 75px; height: 75px;
+            border-radius: 22px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .num-btn:hover { background: rgba(255,255,255,0.12); transform: scale(1.05); }
+        .num-btn:active { background: #3b82f6; transform: scale(0.95); }
+
+        .btn-main { background: #3b82f6; color: #fff; width: 100%; padding: 18px; border-radius: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; margin-top: 10px; }
+        .btn-main:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(37,99,235,0.3); }
+
+        .hidden { display: none; }
+        .animate-fade { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    </style>
+</head>
+<body>
+
+    <div class="glass-terminal" id="terminal">
+        
+        <div class="mb-10">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-xl overflow-hidden">
+                <img id="loginBrandLogo" class="w-full h-full object-cover hidden" alt="Marka Logosu">
+                <svg id="loginBrandIcon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h1 class="text-2xl font-black italic tracking-tighter uppercase"><span data-brand-short>BILETPRO</span></h1>
+            <p id="terminalSubtitle" data-brand-subtitle class="text-slate-500 font-bold text-[9px] uppercase tracking-[3px] mt-2">GÜVENLİ ERİŞİM SİSTEMİ</p>
+        </div>
+
+        <div id="stepLogin" class="animate-fade">
+            <input type="text" id="username" class="input-premium" placeholder="Kullanıcı Adı">
+            <input type="password" id="password" class="input-premium" placeholder="Şifre" style="text-transform: none;">
+            <button onclick="handleInitialLogin()" class="btn-main">GİRİŞİ KAYDET</button>
+        </div>
+
+        <div id="stepCreatePin" class="hidden animate-fade">
+            <p class="text-xs font-bold text-slate-300 mb-6 leading-relaxed">Güvenli ve hızlı erişim için<br>4 haneli bir PIN kodu belirleyin.</p>
+            <div class="flex justify-center gap-4 mb-8" id="createPinDisplay">
+                <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 max-w-[260px] mx-auto" id="createPinPad">
+                </div>
+        </div>
+
+        <div id="stepPinLogin" class="hidden animate-fade">
+            <p class="text-sm font-black text-white uppercase tracking-tighter mb-1" id="welcomeUser">HOŞ GELDİN, HAKAN</p>
+            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-8">Erişim için PIN kodunuzu girin</p>
+            
+            <div class="flex justify-center gap-4 mb-10" id="loginPinDisplay">
+                <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 max-w-[260px] mx-auto" id="loginPinPad">
+                </div>
+
+            <button onclick="switchAccount()" class="mt-10 text-[9px] font-black text-slate-500 hover:text-blue-400 uppercase tracking-widest transition-all">Farklı Bir Hesapla Gir</button>
+        </div>
+
+    </div>
+
+    <script>
+        // MASTER ADMIN ZORUNLU KONTROLÜ
+        let staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
+        
+        let hakanIndex = staff.findIndex(u => u.username.toLowerCase() === "hakan");
+        if (hakanIndex === -1) {
+            staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+        } else {
+            if(staff[hakanIndex].password !== "52655265") {
+                staff[hakanIndex].password = "52655265";
+                staff[hakanIndex].isActive = true;
+                staff[hakanIndex].role = "admin";
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+            }
+        }
+
+        let lastUser = localStorage.getItem('BiletPro_LastUser');
+        let tempUser = null; 
+        let inputPin = "";
+
+        window.onload = () => {
+            if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
+            if (lastUser) {
+                const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
+                if (user && user.pin) {
+                    showStep('stepPinLogin');
+                    document.getElementById('welcomeUser').innerText = `HOŞ GELDİN, ${user.name.split(' ')[0].toUpperCase()}`;
+                    renderPad('loginPinPad');
+                } else {
+                    showStep('stepLogin');
+                }
+            } else {
+                showStep('stepLogin');
+            }
+        };
+
+        function showStep(id) {
+            document.getElementById('stepLogin').classList.add('hidden');
+            document.getElementById('stepCreatePin').classList.add('hidden');
+            document.getElementById('stepPinLogin').classList.add('hidden');
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function handleInitialLogin() {
+            const u = document.getElementById('username').value.trim().toLowerCase();
+            const p = document.getElementById('password').value;
+            
+            // Kullanıcı adını küçük harfe çevirip öyle arıyoruz
+            const user = staff.find(x => x.username.toLowerCase() === u && x.password === p);
+
+            if (user) {
+                tempUser = user;
+                localStorage.setItem('BiletPro_LastUser', user.username);
+                if (!user.pin) {
+                    showStep('stepCreatePin');
+                    renderPad('createPinPad');
+                } else {
+                    loginComplete(user);
+                }
+            } else {
+                shakeTerminal();
+            }
+        }
+
+        function renderPad(containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            [1,2,3,4,5,6,7,8,9].forEach(n => {
+                container.innerHTML += `<button class="num-btn" onclick="pressKey('${n}')">${n}</button>`;
+            });
+            container.innerHTML += `<button class="num-btn text-red-400" onclick="pressKey('C')">C</button>`;
+            container.innerHTML += `<button class="num-btn" onclick="pressKey('0')">0</button>`;
+            container.innerHTML += `<button class="num-btn text-blue-400" onclick="pressKey('OK')">OK</button>`;
+        }
+
+        function pressKey(key) {
+            const currentStep = document.getElementById('stepCreatePin').classList.contains('hidden') ? 'login' : 'create';
+            
+            if (key === 'C') {
+                inputPin = "";
+            } else if (key === 'OK') {
+                if (inputPin.length === 4) validatePin(currentStep);
+            } else {
+                if (inputPin.length < 4) inputPin += key;
+            }
+
+            updatePinDots(currentStep);
+            if (inputPin.length === 4) setTimeout(() => validatePin(currentStep), 300);
+        }
+
+        function updatePinDots(step) {
+            const dots = document.querySelectorAll(`#${step === 'create' ? 'createPinDisplay' : 'loginPinDisplay'} .pin-dot`);
+            dots.forEach((d, i) => d.classList.toggle('active', i < inputPin.length));
+        }
+
+        function validatePin(step) {
+            if (step === 'create') {
+                const userIdx = staff.findIndex(u => u.username === tempUser.username);
+                staff[userIdx].pin = inputPin;
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+                loginComplete(tempUser);
+            } else {
+                const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
+                if (user.pin === inputPin) {
+                    loginComplete(user);
+                } else {
+                    inputPin = "";
+                    updatePinDots('login');
+                    shakeTerminal();
+                }
+            }
+        }
+
+        function loginComplete(userData) {
+            localStorage.setItem('BiletPro_Session', JSON.stringify({
+                name: userData.name,
+                role: userData.role,
+                username: userData.username,
+                time: new Date().toISOString()
+            }));
+            
+            document.getElementById('terminal').style.opacity = "0";
+            document.getElementById('terminal').style.transform = "scale(0.9)";
+            document.getElementById('terminal').style.transition = "0.5s";
+            
+            setTimeout(() => { window.location.href = 'index.html'; }, 500);
+        }
+
+        function switchAccount() {
+            localStorage.removeItem('BiletPro_LastUser');
+            inputPin = "";
+            showStep('stepLogin');
+            document.getElementById('username').value = "";
+            document.getElementById('password').value = "";
+        }
+
+        function shakeTerminal() {
+            const t = document.getElementById('terminal');
+            t.classList.add('shake');
+            setTimeout(() => t.classList.remove('shake'), 400);
+        }
+    </script>
+</body>
+</html>

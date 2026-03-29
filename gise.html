@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EventPro | Mimari Gişe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        .silk-card { 
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 40px; 
+            padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
+        }
+        
+        .input-silk { 
+            background: #f8fafc !important; border: 1px solid #e2e8f0 !important; 
+            border-radius: 18px !important; padding: 1.1rem !important; 
+            color: #0f172a !important; font-weight: 700; width: 100%; 
+            margin-bottom: 15px; font-size: 0.9rem; transition: 0.3s;
+        }
+        .input-silk:focus { 
+            border-color: #2563eb !important; background: #ffffff !important; 
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.1); outline: none;
+        }
+        
+        .label-mini { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; margin-left: 8px; display: block; letter-spacing: 1px; }
+
+        /* KATEGORİ & AKORDEON YAPISI */
+        .category-shell { 
+            background: #fff; border-radius: 42px; border: 1px solid #e2e8f0; 
+            margin-bottom: 25px; overflow: hidden; transition: 0.3s; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.02);
+        }
+        .cat-header { 
+            padding: 30px 40px; border-bottom: 1px solid #f1f5f9; 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #fcfdfe; cursor: pointer; user-select: none; transition: 0.2s;
+        }
+        .cat-header:hover { background: #f8fafc; }
+        .masalar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 20px; padding: 35px 40px; }
+        .category-shell.collapsed .masalar-grid { display: none; }
+        .chevron { transition: 0.3s; }
+        .collapsed .chevron { transform: rotate(-90deg); }
+
+        /* MASA (BİRİM) KARTLARI */
+        .unit-silk { 
+            background: #fff; border: 1px solid #edf2f7; border-radius: 26px; 
+            padding: 25px 10px; text-align: center; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            cursor: pointer; position: relative; 
+        }
+        .unit-silk:hover { border-color: #2563eb; transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.03); }
+        .unit-silk.sold { background: #f8fafc; border-style: dashed; opacity: 0.8; }
+        .unit-silk.deleted { background: #f1f5f9; border: 2px dashed #cbd5e1; opacity: 0.4; }
+        
+        /* SONRADAN EKLENEN (EK) MASA TASARIMI */
+        .unit-silk.extra {
+            border: 2px dashed #fbbf24;
+            background: linear-gradient(145deg, #ffffff, #fffbeb);
+        }
+        .extra-badge {
+            position: absolute; top: -8px; left: -8px;
+            background: #fbbf24; color: #fff;
+            font-size: 8px; font-weight: 900; padding: 4px 8px;
+            border-radius: 8px; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(251, 191, 36, 0.3);
+            z-index: 10;
+        }
+
+        /* SİLME BUTONU GİZLE/GÖSTER */
+        .unit-delete-btn { 
+            position: absolute; top: -10px; right: -10px; width: 28px; height: 28px; 
+            border-radius: 10px; background: #ef4444; color: #fff; display: flex; 
+            align-items: center; justify-content: center; font-size: 16px; font-weight: bold; 
+            opacity: 0; transition: 0.2s; z-index: 20; box-shadow: 0 5px 10px rgba(239, 68, 68, 0.3);
+        }
+        .unit-silk:hover .unit-delete-btn { opacity: 1; }
+        .unit-silk.deleted:hover .unit-delete-btn { display: none; }
+
+        .btn-elite { 
+            padding: 14px 28px; border-radius: 16px; font-weight: 800; font-size: 11px; 
+            text-transform: uppercase; transition: 0.3s; 
+        }
+        .btn-elite.edit { background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; }
+        .btn-elite.edit:hover { background: #e2e8f0; }
+        .btn-elite.add-single { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .btn-elite.add-single:hover { background: #dbeafe; transform: scale(1.02); }
+        .btn-elite.add { background: #0f172a; color: #fff; }
+        .btn-elite.add:hover { background: #2563eb; transform: scale(1.02); }
+        .btn-elite.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .btn-elite.danger:hover { background: #ef4444; color: #fff; }
+
+        .modal-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); }
+        .animate-pop { animation: pop 0.4s forwards; }
+        @keyframes pop { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        @media (max-width: 1023px) {
+            .silk-card { padding: 22px; border-radius: 24px; }
+            .cat-header { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+            .cat-header > div:last-child { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+            .btn-elite { padding: 10px 10px; font-size: 9px; text-align: center; }
+            .masalar-grid { padding: 20px; gap: 12px; }
+        }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+
+    <script src="menu.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        injectMenu('gise', eventId);
+    </script>
+
+    <div class="flex flex-col h-screen">
+        <header class="h-[80px] sm:h-[90px] px-3 sm:px-5 lg:px-[60px] pl-[90px] lg:pl-[130px] flex items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="flex items-center gap-5">
+                <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white">
+                    <img id="headLogo" class="w-full h-full object-cover">
+                </div>
+                <div class="flex flex-col">
+                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Architectural Studio</p>
+                    <h1 id="headTitle" class="text-xl font-black text-slate-800 tracking-tighter uppercase">MİMARİ YAPI</h1>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-2xl border border-slate-100 text-center">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Toplam Kapasite</span>
+                <span id="totalKapUI" class="text-2xl font-black italic text-blue-600">0</span>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pl-[90px] lg:pl-[130px] pb-24 lg:pb-[150px] no-scrollbar">
+            <div class="grid grid-cols-1 xl:grid-cols-[440px_1fr] gap-5 lg:gap-[45px] items-start w-full max-w-[1850px]">
+                
+                <aside class="space-y-6">
+                    <div class="silk-card animate-pop xl:sticky xl:top-0">
+                        <div class="mb-10 text-center">
+                            <h3 id="panelTitle" class="text-lg font-extrabold uppercase tracking-tight text-slate-800">Kategori Oluştur</h3>
+                            <div class="w-12 h-1.5 bg-blue-600 rounded-full mt-2 mx-auto"></div>
+                        </div>
+
+                        <div class="space-y-5">
+                            <div>
+                                <span class="label-mini">Sınıf Tanımı</span>
+                                <input id="catName" type="text" placeholder="VIP, Normal, Loca..." class="input-silk">
+                                <span class="label-mini">Kişi Başı Fiyat (₺)</span>
+                                <input id="catPrice" type="number" placeholder="0.00" class="input-silk">
+                            </div>
+
+                            <div>
+                                <span class="label-mini">Bölge Rengi</span>
+                                <div class="flex gap-4 items-center">
+                                    <div class="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 relative shrink-0 shadow-sm">
+                                        <input type="color" id="catColor" value="#2563eb" class="absolute -inset-4 w-24 h-24 cursor-pointer">
+                                    </div>
+                                    <button id="mainCatBtn" onclick="addCategory()" class="bg-slate-900 text-white flex-1 h-16 rounded-[18px] font-black text-[11px] uppercase shadow-xl hover:bg-blue-600 transition-all">Mühürle</button>
+                                </div>
+                                <button id="cancelEditBtn" onclick="cancelCatEdit()" class="hidden w-full mt-4 py-3 text-[10px] font-black uppercase text-slate-400 hover:text-slate-800 transition-all">Düzenlemeyi İptal Et</button>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <section id="masterList" class="space-y-8"></section>
+            </div>
+        </main>
+    </div>
+
+    <div id="addMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-[450px] p-[45px] rounded-[45px] shadow-2xl animate-pop">
+            <h3 class="text-center font-black text-slate-800 text-xl uppercase mb-10 italic">TOPLU BİRİM ÜRETİMİ</h3>
+            <div class="space-y-6">
+                <div><span class="label-mini">BAŞLANGIÇ NUMARASI</span><input id="startNoInput" type="number" class="input-silk text-center text-xl font-bold"></div>
+                <div><span class="label-mini">ÜRETİLECEK ADET</span><input id="addCountInput" type="number" value="10" class="input-silk text-center"></div>
+                <div><span class="label-mini">STANDART KAPASİTE (KİŞİ)</span><input id="addKapInput" type="number" value="4" class="input-silk text-center"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-12">
+                <button onclick="closeAddMasaModal()" class="py-5 font-bold text-slate-400 uppercase text-xs hover:text-slate-800 transition-all">İPTAL</button>
+                <button onclick="confirmAddMasalar()" class="bg-blue-600 text-white rounded-[20px] py-5 font-black text-xs uppercase shadow-xl hover:bg-slate-900 transition-all">ÜRETİMİ BAŞLAT</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-[450px] p-[45px] rounded-[45px] shadow-2xl animate-pop">
+            <h3 class="text-center font-black text-slate-800 text-xl uppercase mb-10 italic">MASA REVİZYONU</h3>
+            <div class="space-y-6">
+                <div><span class="label-mini">MASA NUMARASI</span><input id="editMasaNo" type="number" class="input-silk text-center text-xl font-bold"></div>
+                <div><span class="label-mini">KİŞİ KAPASİTESİ</span><input id="editMasaKap" type="number" class="input-silk text-center"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-12">
+                <button onclick="closeEditMasaModal()" class="py-5 font-bold text-slate-400 uppercase text-xs hover:text-slate-800 transition-all">VAZGEÇ</button>
+                <button onclick="saveMasaEdit()" class="bg-slate-900 text-white rounded-[20px] py-5 font-black text-xs uppercase shadow-xl hover:bg-blue-600 transition-all">MÜHÜRLE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+        let ev = events.find(e => e.id == eventId);
+        let currentAddCatId = null, editingCatId = null, editingMasaRef = null;
+
+        if(!ev) window.location.href = 'index.html';
+        
+        document.getElementById('headLogo').src = ev.logo || 'https://via.placeholder.com/150';
+        document.getElementById('headTitle').innerText = ev.title + " | MİMARİ";
+
+        // KATEGORİ YÖNETİMİ
+        function addCategory() {
+            const n = document.getElementById('catName').value.trim();
+            const p = document.getElementById('catPrice').value;
+            const c = document.getElementById('catColor').value;
+            
+            // YENİ: showToast kullanımı
+            if(!n || !p) return showToast("Eksik veri: Sınıf Tanımı ve Fiyat girilmelidir!", "error");
+
+            if(editingCatId) {
+                const cat = ev.categories.find(k => k.id === editingCatId);
+                cat.name = n; cat.pricePerPerson = parseFloat(p); cat.color = c;
+                cancelCatEdit();
+                showToast("Kategori başarıyla güncellendi.", "success");
+            } else {
+                if(!ev.categories) ev.categories = [];
+                ev.categories.push({ id: Date.now(), name: n, pricePerPerson: parseFloat(p), color: c, masalar: [], isOpen: true });
+                showToast("Yeni kategori oluşturuldu.", "success");
+            }
+            saveAndRender(); clearInputs();
+        }
+
+        function editCategory(id) {
+            const cat = ev.categories.find(c => c.id === id);
+            editingCatId = id;
+            document.getElementById('catName').value = cat.name;
+            document.getElementById('catPrice').value = cat.pricePerPerson;
+            document.getElementById('catColor').value = cat.color;
+            document.getElementById('panelTitle').innerText = "Kategoriyi Düzenle";
+            document.getElementById('mainCatBtn').innerText = "Değişikliği Kaydet";
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelCatEdit() { 
+            editingCatId = null; clearInputs(); 
+            document.getElementById('panelTitle').innerText = "Kategori Oluştur"; 
+            document.getElementById('mainCatBtn').innerText = "Mühürle"; 
+            document.getElementById('cancelEditBtn').classList.add('hidden'); 
+        }
+
+        function deleteCategory(id) { 
+            // YENİ: showConfirm kullanımı
+            showConfirm("KATEGORİYİ SİL", "Tüm kategori ve içindeki masalar kalıcı olarak silinecek. Onaylıyor musunuz?", () => {
+                ev.categories = ev.categories.filter(c => c.id !== id); 
+                saveAndRender(); 
+                showToast("Kategori tamamen silindi.", "success");
+            });
+        }
+
+        function toggleCategory(catId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            cat.isOpen = (cat.isOpen === undefined) ? false : !cat.isOpen;
+            saveAndRender();
+        }
+
+        // TEKİL HIZLI MASA EKLEME (+1 MASA)
+        function addSingleMasa(catId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            
+            let maxNo = 0;
+            ev.categories.forEach(c => c.masalar.forEach(m => { 
+                if(m.no > maxNo) maxNo = m.no; 
+            }));
+            
+            const newNo = maxNo + 1;
+            
+            cat.masalar.push({ 
+                id: Date.now(), 
+                no: newNo, 
+                kapasite: 4, 
+                isSold: false, 
+                isDeleted: false,
+                isExtra: true 
+            });
+            
+            saveAndRender();
+            showToast(`Masa ${newNo} eklendi.`, "success");
+        }
+
+        // ÇOKLU MASA ÜRETİMİ
+        function addMasalar(catId) { 
+            currentAddCatId = catId; 
+            let max = 0; 
+            ev.categories.forEach(c => c.masalar.forEach(m => { if(m.no > max) max = m.no; })); 
+            document.getElementById('startNoInput').value = max + 1; 
+            document.getElementById('addMasaModal').classList.remove('hidden'); 
+        }
+
+        function confirmAddMasalar() {
+            const cat = ev.categories.find(c => c.id === currentAddCatId);
+            let start = parseInt(document.getElementById('startNoInput').value) || 1;
+            let count = parseInt(document.getElementById('addCountInput').value) || 1;
+            let kap = parseInt(document.getElementById('addKapInput').value) || 1;
+            
+            for(let i=0; i<count; i++) { 
+                if(!ev.categories.some(c => c.masalar.some(m => m.no === start))) { 
+                    cat.masalar.push({ 
+                        id: Date.now() + Math.random(), 
+                        no: start, 
+                        kapasite: kap, 
+                        isSold: false, 
+                        isDeleted: false,
+                        isExtra: (start > 1)
+                    }); 
+                } else { 
+                    i--; 
+                } 
+                start++; 
+            }
+            saveAndRender(); closeAddMasaModal();
+            showToast(`${count} adet masa başarıyla üretildi.`, "success");
+        }
+
+        // TEKİL MASA DÜZENLEME & SİLME
+        function openMasaEdit(catId, masaId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            const masa = cat.masalar.find(m => m.id === masaId);
+            
+            if(masa.isDeleted) { 
+                // YENİ: showConfirm kullanımı
+                showConfirm("BİRİMİ AKTİFLEŞTİR", "Bu masayı tekrar aktif etmek istiyor musunuz?", () => {
+                    masa.isDeleted = false; saveAndRender(); showToast("Masa aktif edildi.", "success");
+                });
+                return; 
+            }
+            if(masa.isSold) { 
+                // YENİ: showConfirm kullanımı
+                showConfirm("SATIŞI İPTAL ET", "DİKKAT: Satılmış birimi boşa düşürmek istiyor musunuz? Tüm satış verileri silinir.", () => {
+                    masa.isSold = false; delete masa.soldTo; delete masa.saleDetail; saveAndRender(); showToast("Birim boşa düşürüldü.", "success");
+                });
+                return; 
+            }
+            
+            editingMasaRef = { catId, masaId };
+            document.getElementById('editMasaNo').value = masa.no;
+            document.getElementById('editMasaKap').value = masa.kapasite;
+            document.getElementById('editMasaModal').classList.remove('hidden');
+        }
+
+        function saveMasaEdit() {
+            const cat = ev.categories.find(c => c.id === editingMasaRef.catId);
+            const masa = cat.masalar.find(m => m.id === editingMasaRef.masaId);
+            const newNo = parseInt(document.getElementById('editMasaNo').value);
+            
+            // YENİ: showToast kullanımı
+            if(newNo !== masa.no && ev.categories.some(c => c.masalar.some(m => m.no === newNo))) {
+                return showToast("Bu masa numarası zaten kullanımda!", "error");
+            }
+            
+            masa.no = newNo; 
+            masa.kapasite = parseInt(document.getElementById('editMasaKap').value);
+            saveAndRender(); closeEditMasaModal();
+            showToast("Birim revizyonu kaydedildi.", "success");
+        }
+
+        function softDeleteMasa(catId, masaId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            const masa = cat.masalar.find(m => m.id === masaId);
+            
+            // YENİ: showToast ve showConfirm kullanımı
+            if(masa.isSold) return showToast("Önce satışı iptal etmelisiniz!", "error");
+            
+            showConfirm("BİRİMİ PASİFE AL", "Masa pasif duruma getirilecek. Numara nizamı bozulmayacak. Onaylıyor musunuz?", () => {
+                masa.isDeleted = true; saveAndRender(); showToast("Birim pasife alındı.", "info");
+            });
+        }
+
+        // YARDIMCI FONKSİYONLAR
+        function saveAndRender() { const idx = events.findIndex(e => e.id == eventId); events[idx] = ev; localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); render(); }
+        function closeAddMasaModal() { document.getElementById('addMasaModal').classList.add('hidden'); }
+        function closeEditMasaModal() { document.getElementById('editMasaModal').classList.add('hidden'); editingMasaRef = null; }
+        function clearInputs() { document.getElementById('catName').value = ""; document.getElementById('catPrice').value = ""; }
+
+        // EKRANA BASMA (RENDER)
+        function render() {
+            const container = document.getElementById('masterList'); container.innerHTML = "";
+            let tK = 0; if(!ev.categories) return;
+            
+            ev.categories.forEach(cat => {
+                const isCollapsed = (cat.isOpen === false);
+                const section = document.createElement('div'); 
+                section.className = `category-shell animate-pop ${isCollapsed ? 'collapsed' : ''}`;
+                
+                const activeMasalar = cat.masalar.filter(m => !m.isDeleted).length;
+
+                section.innerHTML = `
+                    <div class="cat-header" onclick="toggleCategory(${cat.id})">
+                        <div class="flex items-center gap-5">
+                            <div class="chevron text-slate-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"></path></svg></div>
+                            <div class="w-5 h-5 rounded-full shadow-lg" style="background:${cat.color}"></div>
+                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${cat.name} <span class="ml-2 text-slate-400 font-bold">(${activeMasalar} Masa)</span></h3>
+                        </div>
+                        <div class="flex items-center gap-3" onclick="event.stopPropagation()">
+                            <button onclick="editCategory(${cat.id})" class="btn-elite edit">DÜZENLE</button>
+                            <button onclick="addSingleMasa(${cat.id})" class="btn-elite add-single">+1 EK MASA</button>
+                            <button onclick="addMasalar(${cat.id})" class="btn-elite add">+ TOPLU ÜRET</button>
+                            <button onclick="deleteCategory(${cat.id})" class="btn-elite danger">SİL</button>
+                        </div>
+                    </div>
+                    <div class="masalar-grid">${cat.masalar.sort((a,b)=>a.no-b.no).map(m => {
+                        if(!m.isDeleted) tK += m.kapasite;
+                        return `
+                            <div class="unit-silk ${m.isSold ? 'sold' : ''} ${m.isDeleted ? 'deleted' : ''} ${m.isExtra && !m.isDeleted && !m.isSold ? 'extra' : ''}" onclick="openMasaEdit(${cat.id}, ${m.id})">
+                                ${m.isExtra && !m.isDeleted && !m.isSold ? '<div class="extra-badge">EK</div>' : ''}
+                                <p class="m-no text-[10px] font-black text-slate-400 uppercase tracking-widest">${m.isDeleted ? 'PASİF' : 'MASA'}</p>
+                                <p class="m-kap text-2xl font-black italic text-slate-800 my-1">${m.isDeleted ? 'X' : (m.isSold ? 'DOLU' : m.no)}</p>
+                                <p class="text-[9px] font-bold text-slate-500 uppercase">${m.isDeleted ? 'BOŞALTILMIŞ' : m.kapasite + ' KİŞİ'}</p>
+                                <div class="unit-delete-btn" onclick="event.stopPropagation(); softDeleteMasa(${cat.id}, ${m.id})">×</div>
+                                <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${m.isDeleted ? '#cbd5e1' : cat.color}; opacity: 0.4"></div>
+                            </div>`;
+                    }).join('')}</div>`;
+                container.appendChild(section);
+            });
+            document.getElementById('totalKapUI').innerText = tK.toLocaleString();
+        }
+        
+        render();
+    </script>
+</body>
+</html>

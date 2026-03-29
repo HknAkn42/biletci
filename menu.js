@@ -1,0 +1,620 @@
+/**
+ * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
+ * MASTER ADMIN: Hakan | ŞİFRE: 52655265
+ */
+
+(function() {
+    function safeJSONParse(raw, fallback = null) {
+        try { return JSON.parse(raw); } catch(_) { return fallback; }
+    }
+
+    function hasRequiredPermission(user, page) {
+        if(!user) return false;
+        const username = (user.username || '').toLowerCase();
+        const isAdmin = user.role === 'admin' || username === 'hakan';
+        if(isAdmin) return true;
+
+        const perms = user.perms || {};
+        const pagePermMap = {
+            'index.html': 'pManageEvents',
+            'gise.html': 'pManageEvents',
+            'satis.html': 'pSale',
+            'musteriler.html': 'pSale',
+            'checkin.html': 'pDoor',
+            'personel.html': 'pManageStaff',
+            'rapor.html': 'pReports',
+            'settings.html': 'pManageStaff'
+        };
+
+        const requiredPerm = pagePermMap[page];
+        if(!requiredPerm) return true;
+        return perms[requiredPerm] === true;
+    }
+
+    // 1. MASTER VERİ TANIMI
+    const MASTER_USER = {
+        name: "Hakan",
+        username: "Hakan",
+        password: "52655265",
+        role: "admin",
+        isActive: true,
+        perms: {
+            pSale: true,
+            pDiscount: true,
+            pCancel: true,
+            pDoor: true,
+            pDoorPay: true,
+            pDoorRisk: true,
+            pManageEvents: true,
+            pReports: true,
+            pManageStaff: true,
+            pViewLogs: true
+        }
+    };
+
+    // 2. OTURUM KONTROLÜ
+    let session = safeJSONParse(localStorage.getItem('BiletPro_Session'));
+    const path = window.location.pathname;
+    const currentPage = path.split("/").pop();
+
+    if (!session && currentPage !== 'login.html' && currentPage !== '') {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // 3. PERSONEL VERİTABANINA HAKAN'I ÇAK
+    let staffData = safeJSONParse(localStorage.getItem('BiletPro_Staff'), []) || [];
+    if (!staffData.find(s => s.username.toLowerCase() === MASTER_USER.username.toLowerCase())) {
+        staffData.push(MASTER_USER);
+        localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+    }
+
+    // 4. OTURUM KULLANICISI GERÇEKTEN VAR MI / AKTİF Mİ / YETKİLİ Mİ?
+    if (session && currentPage !== 'login.html') {
+        const sessionUsername = (session.username || '').toLowerCase();
+        const currentUser = staffData.find(
+            s => (s.username || '').toLowerCase() === sessionUsername
+        );
+
+        // Hakan (admin) her zaman geç
+        if (sessionUsername === 'hakan') {
+            // OK, Hakan admin'dir
+        } else {
+            const isAllowed = currentUser && currentUser.isActive !== false && hasRequiredPermission(currentUser, currentPage);
+            if (!isAllowed) {
+                localStorage.removeItem('BiletPro_Session');
+                window.location.href = 'login.html';
+                return;
+            }
+        }
+    }
+})();
+
+/* ==========================================
+   GLOBAL CONFIG CORE (TEK NOKTADAN YÖNETİM)
+   ========================================== */
+const BILETPRO_DEFAULT_CONFIG = {
+    brand: {
+        appName: 'BiletPro',
+        shortName: 'BILETPRO',
+        subtitle: 'GÜVENLİ ERİŞİM SİSTEMİ',
+        logoUrl: '',
+        primaryColor: '#2563eb'
+    },
+    online: {
+        enabled: false, // ← KAPATILI (Test için local mode)
+        provider: 'supabase',
+        supabaseUrl: 'https://iisjexomwopcxwqeabei.supabase.co',
+        supabaseAnonKey: 'sb_publishable_jWJDGWClbtosoQeO_gebxQ_P-o24Ne2',
+        projectRef: 'iisjexomwopcxwqeabei'
+    },
+    menuLabels: {
+        dashboard: 'DASHBOARD',
+        gise: 'GİŞE & MİMARİ',
+        satis: 'BİLET SATIŞ',
+        musteriler: 'MÜŞTERİLER',
+        checkin: 'KAPI KONTROL',
+        personel: 'PERSONEL',
+        report: 'RAPORLAR',
+        settings: 'SİSTEM AYARLARI'
+    },
+    menuVisibility: {
+        dashboard: true,
+        gise: true,
+        satis: true,
+        musteriler: true,
+        checkin: true,
+        personel: true,
+        report: true,
+        settings: true
+    }
+};
+
+function safeJSON(raw, fallback = null) {
+    try { return JSON.parse(raw); } catch(_) { return fallback; }
+}
+
+function mergeDeep(base, override) {
+    const output = Array.isArray(base) ? [...base] : { ...base };
+    if(!override || typeof override !== 'object') return output;
+    Object.keys(override).forEach(key => {
+        const bv = output[key];
+        const ov = override[key];
+        if(bv && typeof bv === 'object' && !Array.isArray(bv) && ov && typeof ov === 'object' && !Array.isArray(ov)) {
+            output[key] = mergeDeep(bv, ov);
+        } else {
+            output[key] = ov;
+        }
+    });
+    return output;
+}
+
+window.BiletProCore = {
+    getConfig() {
+        const raw = safeJSON(localStorage.getItem('BiletPro_Config'), {});
+        return mergeDeep(BILETPRO_DEFAULT_CONFIG, raw || {});
+    },
+    saveConfig(newConfig) {
+        const merged = mergeDeep(BILETPRO_DEFAULT_CONFIG, newConfig || {});
+        localStorage.setItem('BiletPro_Config', JSON.stringify(merged));
+        return merged;
+    },
+    resetConfig() {
+        localStorage.removeItem('BiletPro_Config');
+        return mergeDeep({}, BILETPRO_DEFAULT_CONFIG);
+    }
+};
+
+window.applyGlobalConfig = function() {
+    const cfg = window.BiletProCore.getConfig();
+    const brand = cfg.brand || {};
+
+    const root = document.documentElement;
+    if(root && brand.primaryColor) root.style.setProperty('--biletpro-primary', brand.primaryColor);
+
+    if(document.title && document.title.includes('|')) {
+        const right = document.title.split('|').slice(1).join('|').trim();
+        document.title = `${brand.appName || 'BiletPro'} | ${right}`;
+    }
+
+    document.querySelectorAll('[data-brand-name]').forEach(el => {
+        el.textContent = brand.appName || 'BiletPro';
+    });
+    document.querySelectorAll('[data-brand-short]').forEach(el => {
+        el.textContent = brand.shortName || 'BILETPRO';
+    });
+    document.querySelectorAll('[data-brand-subtitle]').forEach(el => {
+        el.textContent = brand.subtitle || 'GÜVENLİ ERİŞİM SİSTEMİ';
+    });
+
+    const logoTargets = ['headLogo', 'tkEventLogo', 'loginBrandLogo'];
+    logoTargets.forEach(id => {
+        const img = document.getElementById(id);
+        if(!img) return;
+        if(brand.logoUrl) {
+            img.src = brand.logoUrl;
+            img.classList.remove('hidden');
+            const icon = document.getElementById('loginBrandIcon');
+            if(icon) icon.classList.add('hidden');
+        }
+    });
+};
+
+/* ==========================================
+   GLOBAL UI: TOAST & CONFIRM (PREMIUM UYARILAR)
+   ========================================== */
+const uiStyles = document.createElement('style');
+uiStyles.innerHTML = `
+    /* Toast Bildirimleri (Sağ üstten kayarak gelir) */
+    .toast-container { position: fixed; top: 30px; right: 30px; z-index: 9999999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+    .toast-silk { 
+        background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(226, 232, 240, 0.8); 
+        padding: 16px 24px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.08); 
+        display: flex; align-items: center; gap: 14px; transform: translateX(120%); opacity: 0; 
+        transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .toast-silk.show { transform: translateX(0); opacity: 1; }
+    .toast-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; }
+    .toast-success .toast-icon { background: #dcfce7; color: #16a34a; }
+    .toast-error .toast-icon { background: #fee2e2; color: #ef4444; }
+    .toast-info .toast-icon { background: #e0e7ff; color: #4f46e5; }
+    .toast-text { font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;}
+
+    /* Confirm Kutusu (Ekranın ortasında cam efektli) */
+    .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); z-index: 9999999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; pointer-events: none; }
+    .confirm-overlay.show { opacity: 1; pointer-events: all; }
+    .confirm-box { background: #fff; border-radius: 36px; padding: 45px 35px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); font-family: 'Plus Jakarta Sans', sans-serif; }
+    .confirm-overlay.show .confirm-box { transform: scale(1); }
+    .confirm-icon { width: 65px; height: 65px; background: #fee2e2; color: #ef4444; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 25px; font-weight: bold;}
+    .confirm-title { font-size: 20px; font-weight: 900; color: #0f172a; margin-bottom: 12px; text-transform: uppercase; tracking-tight; }
+    .confirm-desc { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 35px; line-height: 1.6; }
+    .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .btn-c-cancel { padding: 16px; border-radius: 18px; background: #f1f5f9; color: #475569; font-weight: 800; font-size: 11px; text-transform: uppercase; border: none; cursor: pointer; transition: 0.2s; }
+    .btn-c-cancel:hover { background: #e2e8f0; }
+    .btn-c-confirm { padding: 16px; border-radius: 18px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; text-transform: uppercase; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.25); }
+    .btn-c-confirm:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(239, 68, 68, 0.4); }
+`;
+document.head.appendChild(uiStyles);
+
+window.addEventListener('DOMContentLoaded', () => {
+    const toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    toastContainer.id = 'globalToastContainer';
+    document.body.appendChild(toastContainer);
+
+    if(typeof applyGlobalConfig === 'function') {
+        applyGlobalConfig();
+    }
+});
+
+// KULLANIM: showToast("İşlem Başarılı", "success") veya "error" / "info"
+window.showToast = function(message, type = 'info') {
+    const container = document.getElementById('globalToastContainer');
+    if(!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-silk toast-${type}`;
+    let iconHtml = 'i';
+    if(type === 'success') iconHtml = '✓';
+    if(type === 'error') iconHtml = '!';
+
+    toast.innerHTML = `<div class="toast-icon">${iconHtml}</div><div class="toast-text">${message}</div>`;
+    container.appendChild(toast);
+    
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+    }, 3500);
+}
+
+// KULLANIM: showConfirm("SİL?", "Emin misin?", () => { silme_kodları_buraya })
+window.showConfirm = function(title, description, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+        <div class="confirm-box">
+            <div class="confirm-icon">!</div>
+            <div class="confirm-title">${title}</div>
+            <div class="confirm-desc">${description}</div>
+            <div class="confirm-actions">
+                <button class="btn-c-cancel" onclick="this.closest('.confirm-overlay').remove()">VAZGEÇ</button>
+                <button class="btn-c-confirm" id="confirmBtnAction">ONAYLA VE SİL</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    requestAnimationFrame(() => overlay.classList.add('show'));
+
+    document.getElementById('confirmBtnAction').onclick = () => {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+            overlay.remove();
+            if(onConfirm) onConfirm();
+        }, 300);
+    };
+}
+
+// SYSTEM AUDIT LOG (GLOBAL)
+window.writeAuditEvent = function(module, action, details) {
+    const logs = JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
+    const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: 'anon', role: 'guest', username: 'guest' };
+    logs.unshift({
+        time: new Date().toLocaleString('tr-TR'),
+        actor: session.name,
+        username: session.username,
+        role: session.role,
+        module: module,
+        action: action,
+        details: details
+    });
+    if(logs.length > 1000) logs.splice(1000);
+    localStorage.setItem('BiletPro_AuditLogs', JSON.stringify(logs));
+
+    // Online mod açıksa merkezi audit tablosuna da yaz
+    if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.writeAudit === 'function') {
+        (async () => {
+            try {
+                if(window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() === 'online') {
+                    await window.BiletProOnlineStore.writeAudit(module, action, details, session);
+                }
+            } catch (err) {
+                console.warn('[BiletPro] online audit yazımı başarısız:', err);
+            }
+        })();
+    }
+}
+
+/* ==========================================
+   SOL MENÜ ENJEKSİYONU (SQUEEZE YAPISI)
+   ========================================== */
+function injectMenu(active = 'dashboard', eventId = null) {
+    try {
+        const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Misafir", role: "user" };
+        const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+        
+        // BiletProCore hazır mı diye kontrol et
+        if (!window.BiletProCore || typeof window.BiletProCore.getConfig !== 'function') {
+            console.warn('[injectMenu] BiletProCore not ready, using defaults');
+            var cfg = { menuLabels: {}, menuVisibility: {} };
+        } else {
+            var cfg = window.BiletProCore.getConfig();
+        }
+        
+        const labels = cfg.menuLabels || {};
+        const visibility = cfg.menuVisibility || {};
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        :root { --sb-c: 95px; --sb-e: 280px; --silk-accent: #2563eb; --silk-text: #0f172a; }
+        html, body { height: 100%; margin: 0; padding: 0 !important; overflow: hidden; background: #f4f7fa; }
+
+        /* ÖNEMLİ DEĞİŞİKLİK: flex-row body yapısında içerik alanı doğru genişliği alsın */
+        body { display: flex !important; flex-direction: row !important; font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+        /* Sidebar'ın yanındaki tüm doğrudan body çocukları (sidebar hariç) flex-1 olsun */
+        body > *:not(.sidebar-silk) { flex: 1; min-width: 0; overflow: hidden; }
+
+        .sidebar-silk { width: var(--sb-c); height: 100vh; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(40px); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; padding: 40px 0; z-index: 100000; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; overflow: hidden; position: relative; }
+        .sidebar-silk.expanded { width: var(--sb-e); align-items: flex-start; overflow-y: auto; overflow-x: hidden; }
+        .menu-btn { position: absolute; top: 40px; width: 56px; height: 56px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 10; }
+        .sidebar-silk.expanded .menu-btn { left: 20px; transform: none; }
+        .sidebar-silk:not(.expanded) .menu-btn { left: 50%; transform: translateX(-50%); }
+        .m-line { width: 22px; height: 2.5px; background: var(--silk-text); border-radius: 5px; transition: 0.3s; }
+        .expanded .l1 { transform: translateY(7.5px) rotate(45deg); }
+        .expanded .l2 { opacity: 0; }
+        .expanded .l3 { transform: translateY(-7.5px) rotate(-45deg); }
+        .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 80px; }
+        .nav-link { width: 100%; display: flex; align-items: center; padding: 6px 35px; color: #64748b; text-decoration: none; transition: 0.2s; position: relative; white-space: nowrap; }
+        .nav-link i { font-size: 20px; min-width: 22px; text-align: center; font-style: normal; }
+        .nav-txt { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 18px; letter-spacing: 1.2px; color: var(--silk-text); opacity: 0; visibility: hidden; transition: 0.3s; }
+        .expanded .nav-txt { opacity: 1; visibility: visible; }
+        .nav-link.active { color: var(--silk-accent); background: rgba(37, 99, 235, 0.04); }
+        .nav-link.active::before { content: ''; position: absolute; left: 0; top: 15%; bottom: 15%; width: 5px; background: var(--silk-accent); border-radius: 0 5px 5px 0; }
+        main, .main-content { flex: 1; height: 100vh; overflow-y: auto; background: #f4f7fa; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
+        .u-sec { width: 100%; padding: 20px; border-top: 1px solid #e2e8f0; opacity: 0; visibility: hidden; transition: 0.3s; background: #f8fafc; display: none; max-height: 42vh; overflow-y: auto; }
+        .expanded .u-sec { opacity: 1; visibility: visible; display: block; }
+        .u-n { font-size: 12px; font-weight: 800; color: var(--silk-text); text-transform: uppercase; display: block; margin-bottom: 8px; }
+        .out-btn { width: 100%; background: #fff; color: #ef4444; border: 1px solid #fee2e2; padding: 10px; border-radius: 14px; cursor: pointer; font-weight: 900; font-size: 9px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; }
+        .quick-actions { width: 100%; padding: 12px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: center; }
+        .quick-logout { width: 56px; height: 42px; border-radius: 14px; background: #fff; border: 1px solid #fee2e2; color: #ef4444; font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.04); transition: 0.2s; }
+        .quick-logout:hover { transform: translateY(-2px); background: #fff1f2; }
+        .sidebar-silk.expanded .quick-actions { display: none; }
+
+        @media (max-width: 1023px) {
+            :root { --sb-c: 76px; }
+            .sidebar-silk { padding: 18px 0; }
+            .menu-btn { top: 16px; }
+            .nav-list { padding-top: 64px; }
+            .sidebar-silk.expanded {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: min(86vw, 320px);
+                box-shadow: 20px 0 50px rgba(0,0,0,0.12);
+            }
+            .u-sec { max-height: 52vh; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    const eventParams = eventId ? `?id=${eventId}` : '';
+    
+    const menuItems = [
+        { id: 'dashboard', label: labels.dashboard || 'DASHBOARD', icon: '📊', url: 'index.html', show: visibility.dashboard !== false },
+        { id: 'gise', label: labels.gise || 'GİŞE & MİMARİ', icon: '🎫', url: `gise.html${eventParams}`, show: visibility.gise !== false },
+        { id: 'satis', label: labels.satis || 'BİLET SATIŞ', icon: '💰', url: `satis.html${eventParams}`, show: visibility.satis !== false },
+        { id: 'musteriler', label: labels.musteriler || 'MÜŞTERİLER', icon: '👥', url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false },
+        { id: 'checkin', label: labels.checkin || 'KAPI KONTROL', icon: '🛡️', url: `checkin.html${eventParams}`, show: visibility.checkin !== false },
+        { id: 'personel', label: labels.personel || 'PERSONEL', icon: '🔑', url: 'personel.html', show: isAdmin && visibility.personel !== false },
+        { id: 'report', label: labels.report || 'RAPORLAR', icon: '📈', url: 'rapor.html', show: isAdmin && visibility.report !== false },
+        { id: 'settings', label: labels.settings || 'SİSTEM AYARLARI', icon: '⚙️', url: 'settings.html', show: isAdmin && visibility.settings !== false }
+    ];
+
+    let html = `
+        <nav class="sidebar-silk" id="proSidebar">
+            <div class="menu-btn" onclick="toggleProSidebar()">
+                <div class="m-line l1"></div><div class="m-line l2"></div><div class="m-line l3"></div>
+            </div>
+            <div class="nav-list">
+                ${menuItems.filter(i => i.show).map(i => `
+                    <a href="${i.url}" class="nav-link ${active === i.id ? 'active' : ''}">
+                        <i>${i.icon}</i><span class="nav-txt">${i.label}</span>
+                    </a>
+                `).join('')}
+            </div>
+            <div class="u-sec">
+                <span class="u-n">${session.name}</span>
+                <button onclick="logout()" class="out-btn"><i>🚪</i> ÇIKIŞ</button>
+                <button onclick="openGuide()" class="out-btn" style="background:#0f172a;color:#fff;"><i>📘</i> KILAVUZ</button>
+                <button onclick="openSystemSettings()" class="out-btn" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;"><i>⚙️</i> AYARLAR</button>
+                <button onclick="backupAllData()" class="out-btn"><i>💾</i> YEDEK AL</button>
+                <button onclick="triggerRestoreDialog()" class="out-btn"><i>📥</i> GERİ YÜKLE</button>
+                <button onclick="resetDemoData()" class="out-btn" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;"><i>🧪</i> DEMO SIFIRLA</button>
+            </div>
+            <div class="quick-actions">
+                <button onclick="logout()" class="quick-logout" title="ÇIKIŞ">🚪</button>
+            </div>
+        </nav>
+    `;
+    document.body.insertAdjacentHTML('afterbegin', html);
+
+    if(!document.getElementById('restoreInput')) {
+        const restoreInput = document.createElement('input');
+        restoreInput.type = 'file';
+        restoreInput.id = 'restoreInput';
+        restoreInput.accept = '.json';
+        restoreInput.className = 'hidden';
+        restoreInput.onchange = (e) => restoreAllData(e.target.files && e.target.files[0]);
+        document.body.appendChild(restoreInput);
+    }
+
+    if(!document.getElementById('guideModal')) {
+        const guideHtml = `
+            <div id="guideModal" class="fixed inset-0 hidden z-[99999] bg-slate-900/70 flex items-center justify-center p-6">
+                <div class="bg-white w-full max-w-2xl p-7 rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-black uppercase">BiletPro Kullanım Kılavuzu</h2>
+                        <button onclick="closeGuide()" class="text-xl font-black">&times;</button>
+                    </div>
+                    <ol class="pl-4 list-decimal text-xs text-slate-700 leading-6">
+                        <li><strong>Dashboard</strong>: Etkinlik ekle, düzenle, sil, pasif/aktif geçiş yap.</li>
+                        <li><strong>Gişe</strong>: Kategori ve masa üretimi, masayı sat veya iptal işlemleri.</li>
+                        <li><strong>Satış</strong>: Müşteri seç, masa seç, indirim uygula (izin varsa), tahsilat kaydet.</li>
+                        <li><strong>Kapı</strong>: QR okut ve "Kaç kişi giriyor?" sorusunu kullan. Borçlu geçiş için yetki gereklidir.</li>
+                        <li><strong>Müşteriler</strong>: CRM verilerini izle; aynı numara + farklı isim ayrı müşteri olur.</li>
+                        <li><strong>Personel</strong>: Yetki matrisi ataması (Satış, İndirim, İptal, Kapı, Tahsilat, Risk vb).</li>
+                        <li><strong>Audit</strong>: Her işlem otomatik kaydedilir; açılan pencereden CSV indirilebilir.</li>
+                        <li><strong>Çıkış</strong>: Güvenli oturum kapatma.</li>
+                    </ol>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', guideHtml);
+    }
+}
+
+window.openGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.remove('hidden'); }
+window.closeGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.add('hidden'); }
+window.openSystemSettings = function() { window.location.href = 'settings.html'; }
+
+window.toggleProSidebar = function() { document.getElementById('proSidebar').classList.toggle('expanded'); }
+
+window.getBackupKeys = function() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if(key && (key.startsWith('BiletPro_') || key.startsWith('EventPro_'))) {
+            keys.push(key);
+        }
+    }
+    return keys;
+}
+
+window.backupAllData = function() {
+    const keys = getBackupKeys();
+    if(!keys.length) {
+        if(typeof showToast === 'function') showToast('Yedeklenecek veri bulunamadı.', 'error');
+        return;
+    }
+
+    const payload = {
+        meta: {
+            app: 'BiletPro',
+            exportedAt: new Date().toISOString(),
+            version: '19.0'
+        },
+        data: {}
+    };
+
+    keys.forEach(k => {
+        const raw = localStorage.getItem(k);
+        try {
+            payload.data[k] = JSON.parse(raw);
+        } catch(_) {
+            payload.data[k] = raw;
+        }
+    });
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[.:]/g, '-');
+    link.href = URL.createObjectURL(blob);
+    link.download = `BiletPro_Backup_${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    if(typeof writeAuditEvent === 'function') writeAuditEvent('Sistem', 'Yedek Alındı', `${keys.length} anahtar dışa aktarıldı.`);
+    if(typeof showToast === 'function') showToast('Yedek dosyası indirildi.', 'success');
+}
+
+window.triggerRestoreDialog = function() {
+    const input = document.getElementById('restoreInput');
+    if(!input) return;
+    input.value = '';
+    input.click();
+}
+
+window.restoreAllData = function(file) {
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        let parsed;
+        try {
+            parsed = JSON.parse(reader.result);
+        } catch(_) {
+            if(typeof showToast === 'function') showToast('Yedek dosyası geçersiz.', 'error');
+            return;
+        }
+
+        const backupData = parsed && parsed.data ? parsed.data : null;
+        if(!backupData || typeof backupData !== 'object') {
+            if(typeof showToast === 'function') showToast('Yedek içeriği okunamadı.', 'error');
+            return;
+        }
+
+        showConfirm('VERİ GERİ YÜKLE', 'Mevcut veriler yedek ile değiştirilecek. Devam edilsin mi?', () => {
+            const keys = Object.keys(backupData).filter(k => k.startsWith('BiletPro_') || k.startsWith('EventPro_'));
+            if(!keys.length) {
+                if(typeof showToast === 'function') showToast('Yedekte geri yüklenecek veri yok.', 'error');
+                return;
+            }
+
+            getBackupKeys().forEach(k => localStorage.removeItem(k));
+
+            keys.forEach(k => {
+                const value = backupData[k];
+                if(typeof value === 'string') localStorage.setItem(k, value);
+                else localStorage.setItem(k, JSON.stringify(value));
+            });
+
+            if(typeof writeAuditEvent === 'function') writeAuditEvent('Sistem', 'Yedek Geri Yüklendi', `${keys.length} anahtar geri yüklendi.`);
+            if(typeof showToast === 'function') showToast('Geri yükleme tamamlandı. Sayfa yenileniyor...', 'success');
+            setTimeout(() => window.location.reload(), 700);
+        });
+    };
+    reader.readAsText(file, 'utf-8');
+}
+
+window.resetDemoData = function() {
+    showConfirm('DEMO SIFIRLAMA', 'Tüm etkinlik/satış/log verileri silinecek. Bu işlem geri alınamaz. Onaylıyor musunuz?', () => {
+        const keys = getBackupKeys();
+        keys.forEach(k => localStorage.removeItem(k));
+
+        if(typeof writeAuditEvent === 'function') {
+            // Temizlemeden sonra log anahtarı yoksa bu satır çalışmayabilir, sorun değil.
+            writeAuditEvent('Sistem', 'Demo Sıfırlandı', 'Sistem verileri sıfırlandı.');
+        }
+
+        if(typeof showToast === 'function') showToast('Demo verileri temizlendi. Giriş sayfasına yönlendiriliyorsunuz...', 'info');
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 800);
+    });
+}
+
+window.logout = function() {
+    showConfirm("ÇIKIŞ YAPILIYOR", "Güvenli çıkış yapılsın mı?", () => {
+        localStorage.removeItem('BiletPro_Session');
+        window.location.href = 'login.html';
+    });
+}
+
+// ONLINE STORE KÖPRÜSÜ (çoklu cihaz altyapısı için)
+(function ensureOnlineStoreLoaded() {
+    if (window.__BiletProOnlineStoreScriptLoaded) return;
+    window.__BiletProOnlineStoreScriptLoaded = true;
+
+    const script = document.createElement('script');
+    script.src = 'online-store.js';
+    script.defer = true;
+    script.onerror = () => {
+        console.warn('[BiletPro] online-store.js yüklenemedi; local modda devam ediliyor.');
+    };
+    document.head.appendChild(script);
+})();
