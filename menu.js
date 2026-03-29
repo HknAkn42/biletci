@@ -571,7 +571,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
             </div>
             <div class="nav-list">
                 ${menuItems.filter(i => i.show).map(i => `
-                    <a href="${i.url}" class="nav-link ${active === i.id ? 'active' : ''}">
+                    <a href="${i.id === 'settings' ? '#' : i.url}" ${i.id === 'settings' ? 'onclick="event.preventDefault(); openSystemSettings();"' : ''} class="nav-link ${active === i.id ? 'active' : ''}">
                         <i>${i.icon}</i><span class="nav-txt">${i.label}</span>
                     </a>
                 `).join('')}

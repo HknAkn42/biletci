@@ -131,13 +131,18 @@
         const __bpSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
         const __bpIsAdmin = __bpSession.role === 'admin' || String(__bpSession.username || '').toLowerCase() === 'hakan';
         const __bpHasPinAccess = (parseInt(sessionStorage.getItem(SETTINGS_PIN_SESSION_KEY) || '0', 10) || 0) > Date.now();
-        if(!__bpIsAdmin || !__bpHasPinAccess) {
-            if(!__bpIsAdmin) {
-                localStorage.removeItem('BiletPro_Session');
-                window.location.href = 'login.html';
-            } else {
-                window.location.href = 'index.html';
-            }
+        if(!__bpIsAdmin) {
+            localStorage.removeItem('BiletPro_Session');
+            window.location.href = 'login.html';
+        }
+        if(__bpIsAdmin && !__bpHasPinAccess && typeof window.requestSettingsPinModal === 'function') {
+            window.requestSettingsPinModal().then((ok) => {
+                if(ok) {
+                    window.location.reload();
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
         }
 
         const menuKeys = [
