@@ -247,38 +247,9 @@
             });
 
             if (!ticketRows.length) {
-                const { error: clearErr } = await this.client
-                    .from('tickets')
-                    .delete()
-                    .eq('event_id', eventDbId);
-                if (clearErr) {
-                    console.warn('[BiletPro OnlineStore] no tickets but delete old tickets failed:', clearErr);
-                }
+                // Çoklu kullanıcıda yanlışlıkla diğer cihaz satışlarını silmemek için
+                // "boş geldi -> hepsini sil" davranışı kaldırıldı.
                 return { ok: true, reason: 'event_synced_no_tickets', eventId: eventDbId };
-            }
-
-            const hashesNow = ticketRows.map((t) => t.ticket_hash);
-
-            const { data: existingTickets, error: existingErr } = await this.client
-                .from('tickets')
-                .select('ticket_hash')
-                .eq('event_id', eventDbId);
-
-            if (existingErr) {
-                console.warn('[BiletPro OnlineStore] existing ticket fetch failed:', existingErr);
-            }
-
-            const existingHashes = (existingTickets || []).map((r) => r.ticket_hash);
-            const staleHashes = existingHashes.filter((h) => !hashesNow.includes(h));
-
-            if (staleHashes.length) {
-                const { error: staleDeleteErr } = await this.client
-                    .from('tickets')
-                    .delete()
-                    .in('ticket_hash', staleHashes);
-                if (staleDeleteErr) {
-                    console.warn('[BiletPro OnlineStore] stale ticket delete failed:', staleDeleteErr);
-                }
             }
 
             const { error: ticketErr } = await this.client
@@ -290,7 +261,7 @@
                 return { ok: false, reason: 'ticket_upsert_failed' };
             }
 
-            return { ok: true, reason: 'event_and_tickets_synced', eventId: eventDbId, ticketCount: ticketRows.length };
+            return { ok: true, reason: 'event_and_tickets_upserted', eventId: eventDbId, ticketCount: ticketRows.length };
         },
 
         // Aşama 2 için: Supabase RPC (ticket_checkin_atomic)
