@@ -465,7 +465,8 @@ function injectMenu(active = 'dashboard', eventId = null) {
             left: auto;
             right: auto;
             z-index: auto;
-            margin-right: 10px;
+            margin-left: auto;
+            margin-right: 12px;
             flex-shrink: 0;
         }
         .bp-top-avatar {
@@ -521,6 +522,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 gap: 8px;
             }
             .bp-top-meta.inline-mode {
+                margin-left: auto;
                 margin-right: 8px;
             }
             .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
