@@ -766,6 +766,36 @@ window.BiletProAutoSync = {
 
         // Arka planda periyodik emniyet sync
         setInterval(() => this.schedule('interval', 0), 45000);
+
+        // Supabase Realtime: events ve app_config tablosu değişince anında sync
+        this._startRealtime();
+    },
+
+    _startRealtime() {
+        const tryConnect = () => {
+            // BiletProOnlineStore hazır ve online modda olana kadar bekle
+            if (!window.BiletProOnlineStore || !window.BiletProOnlineStore.client || window.BiletProOnlineStore.mode !== 'online') {
+                setTimeout(tryConnect, 2000);
+                return;
+            }
+            try {
+                const channel = window.BiletProOnlineStore.client
+                    .channel('biletpro-realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+                        this.schedule('realtime_events', 300);
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => {
+                        this.schedule('realtime_staff', 300);
+                    })
+                    .subscribe((status) => {
+                        console.info('[BiletPro Realtime]', status);
+                    });
+                this._realtimeChannel = channel;
+            } catch (e) {
+                console.warn('[BiletPro Realtime] bağlantı kurulamadı:', e);
+            }
+        };
+        setTimeout(tryConnect, 3000);
     }
 };
 
