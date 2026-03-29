@@ -61,16 +61,8 @@
     const path = window.location.pathname;
     const rawPage = path.split("/").pop();
     const currentPage = rawPage && rawPage.trim() ? rawPage.trim() : 'index.html';
-    const tabLoggedIn = sessionStorage.getItem('BiletPro_LoggedInTab') === '1';
 
     if (!session && currentPage !== 'login.html') {
-        window.location.href = 'login.html';
-        return;
-    }
-
-    // Eski localStorage oturumu ile yeni sekmede panelin direkt açılmasını engelle
-    if (session && currentPage !== 'login.html' && !tabLoggedIn) {
-        localStorage.removeItem('BiletPro_Session');
         window.location.href = 'login.html';
         return;
     }
@@ -275,13 +267,6 @@ window.addEventListener('DOMContentLoaded', () => {
     toastContainer.className = 'toast-container';
     toastContainer.id = 'globalToastContainer';
     document.body.appendChild(toastContainer);
-
-    // Gerçek kullanıcı etkileşimi olmadan kritik aksiyonları (örn: logout) çalıştırma.
-    window.__bpUserInteracted = false;
-    const markInteracted = () => { window.__bpUserInteracted = true; };
-    window.addEventListener('pointerdown', markInteracted, { once: true, capture: true });
-    window.addEventListener('keydown', markInteracted, { once: true, capture: true });
-    window.addEventListener('touchstart', markInteracted, { once: true, capture: true });
 
     if(typeof applyGlobalConfig === 'function') {
         applyGlobalConfig();
@@ -631,12 +616,6 @@ window.resetDemoData = function() {
 }
 
 window.logout = function() {
-    // Açılışta otomatik/sahte tetiklemeleri engelle
-    if (!window.__bpUserInteracted) {
-        console.warn('[BiletPro] logout otomatik tetikleme engellendi.');
-        return;
-    }
-
     showConfirm("ÇIKIŞ YAPILIYOR", "Güvenli çıkış yapılsın mı?", () => {
         localStorage.removeItem('BiletPro_Session');
         window.location.href = 'login.html';
