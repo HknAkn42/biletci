@@ -120,18 +120,17 @@
     <script>
         // MASTER ADMIN ZORUNLU KONTROLÜ
         let staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
-        
-        let hakanIndex = staff.findIndex(u => u.username.toLowerCase() === "hakan");
+        const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
+
+        let hakanIndex = staff.findIndex(u => normalizeUsername(u && u.username) === "hakan");
         if (hakanIndex === -1) {
             staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
         } else {
-            if(staff[hakanIndex].password !== "52655265") {
-                staff[hakanIndex].password = "52655265";
-                staff[hakanIndex].isActive = true;
-                staff[hakanIndex].role = "admin";
-                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
-            }
+            staff[hakanIndex].password = "52655265";
+            staff[hakanIndex].isActive = true;
+            staff[hakanIndex].role = "admin";
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
         }
 
         let lastUser = localStorage.getItem('BiletPro_LastUser');
@@ -142,11 +141,13 @@
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
             if (lastUser) {
                 const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
-                if (user && user.pin) {
+                if (user && user.pin && user.isActive !== false) {
                     showStep('stepPinLogin');
                     document.getElementById('welcomeUser').innerText = `HOŞ GELDİN, ${user.name.split(' ')[0].toUpperCase()}`;
                     renderPad('loginPinPad');
                 } else {
+                    localStorage.removeItem('BiletPro_LastUser');
+                    lastUser = null;
                     showStep('stepLogin');
                 }
             } else {
@@ -221,7 +222,7 @@
                 loginComplete(tempUser);
             } else {
                 const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
-                if (user.pin === inputPin) {
+                if (user && user.isActive !== false && user.pin === inputPin) {
                     loginComplete(user);
                 } else {
                     inputPin = "";

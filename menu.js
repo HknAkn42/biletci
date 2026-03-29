@@ -8,6 +8,10 @@
         try { return JSON.parse(raw); } catch(_) { return fallback; }
     }
 
+    function normalizeUsername(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
     function hasRequiredPermission(user, page) {
         if(!user) return false;
         const username = (user.username || '').toLowerCase();
@@ -64,22 +68,36 @@
 
     // 3. PERSONEL VERİTABANINA HAKAN'I ÇAK
     let staffData = safeJSONParse(localStorage.getItem('BiletPro_Staff'), []) || [];
-    if (!staffData.find(s => s.username.toLowerCase() === MASTER_USER.username.toLowerCase())) {
-        staffData.push(MASTER_USER);
+    const masterIdx = staffData.findIndex(
+        s => normalizeUsername(s && s.username) === normalizeUsername(MASTER_USER.username)
+    );
+    if (masterIdx === -1) {
+        staffData.push({ ...MASTER_USER });
+        localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+    } else {
+        const existing = staffData[masterIdx] || {};
+        staffData[masterIdx] = {
+            ...existing,
+            password: MASTER_USER.password,
+            role: 'admin',
+            isActive: true,
+            perms: { ...(existing.perms || {}), ...(MASTER_USER.perms || {}) }
+        };
         localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
     }
 
     // 4. OTURUM KULLANICISI GERÇEKTEN VAR MI / AKTİF Mİ / YETKİLİ Mİ?
     if (session && currentPage !== 'login.html') {
-        const sessionUsername = (session.username || '').toLowerCase();
+        const sessionUsername = normalizeUsername(session.username);
+        const sessionRole = String(session.role || '').trim().toLowerCase();
         const currentUser = staffData.find(
-            s => (s.username || '').toLowerCase() === sessionUsername
+            s => normalizeUsername(s && s.username) === sessionUsername
         );
 
-        // Hakan (admin) her zaman geç
-        if (sessionUsername === 'hakan') {
-            // OK, Hakan admin'dir
-        } else {
+        const currentUserRole = String((currentUser && currentUser.role) || '').trim().toLowerCase();
+        const isSessionAdmin = sessionRole === 'admin' || currentUserRole === 'admin' || sessionUsername === 'hakan';
+
+        if (!isSessionAdmin) {
             const isAllowed = currentUser && currentUser.isActive !== false && hasRequiredPermission(currentUser, currentPage);
             if (!isAllowed) {
                 localStorage.removeItem('BiletPro_Session');
