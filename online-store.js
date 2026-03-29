@@ -343,6 +343,60 @@
                 return { ok: false, reason: 'already_sold', tables: soldTables, soldTo: alreadySold };
             }
             return { ok: true };
+        },
+
+        // Personel verisini Supabase'e push et
+        async pushStaffToOnline(staffArray) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            if (!Array.isArray(staffArray)) return { ok: false, reason: 'invalid_data' };
+
+            const { error } = await this.client
+                .from('app_config')
+                .upsert({ key: 'BiletPro_Staff', value: staffArray }, { onConflict: 'key' });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] pushStaffToOnline error:', error);
+                return { ok: false, reason: error.message };
+            }
+            return { ok: true };
+        },
+
+        // Personel verisini Supabase'den çek ve localStorage'a yaz
+        async pullStaffFromOnline() {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode', changed: false };
+
+            const { data, error } = await this.client
+                .from('app_config')
+                .select('value')
+                .eq('key', 'BiletPro_Staff')
+                .single();
+
+            if (error || !data?.value) return { ok: false, reason: 'no_staff_data', changed: false };
+
+            const onlineStaff = data.value;
+            if (!Array.isArray(onlineStaff)) return { ok: false, reason: 'invalid_staff_data', changed: false };
+
+            // Master kullanıcıyı online veriden silme
+            const currentRaw = localStorage.getItem('BiletPro_Staff') || '[]';
+            const localStaff = JSON.parse(currentRaw);
+            const masterLocal = localStaff.find(s => s.username && s.username.toLowerCase() === 'hakan');
+
+            // Online listede hakan varsa local master ile güncelle (şifre koruması)
+            const merged = onlineStaff.map(s => {
+                if (s.username && s.username.toLowerCase() === 'hakan' && masterLocal) {
+                    return { ...s, password: masterLocal.password, role: 'admin', isActive: true };
+                }
+                return s;
+            });
+            // Online'da hakan yoksa local master'ı ekle
+            if (!merged.find(s => s.username && s.username.toLowerCase() === 'hakan') && masterLocal) {
+                merged.push(masterLocal);
+            }
+
+            const nextRaw = JSON.stringify(merged);
+            const changed = currentRaw !== nextRaw;
+            if (changed) localStorage.setItem('BiletPro_Staff', nextRaw);
+            return { ok: true, changed, count: merged.length };
         }
     };
 

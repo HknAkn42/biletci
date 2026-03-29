@@ -727,6 +727,7 @@
 
             staffData.push(person);
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') window.BiletProOnlineStore.pushStaffToOnline(staffData);
             
             writeAuditLog("Personel Modülü", "YENİ PERSONEL EKLENDİ", `${person.name} (${person.role}) adlı kullanıcı sisteme dahil edildi.`);
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Yeni Personel Eklendi", `${person.name} (${person.role})`);
@@ -748,6 +749,7 @@
             if(confirm(msg)) {
                 staffData[idx].isActive = !currentStatus;
                 localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+                if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') window.BiletProOnlineStore.pushStaffToOnline(staffData);
                 
                 const actionText = currentStatus ? "PERSONEL PASİFE ALINDI" : "PERSONEL AKTİF EDİLDİ";
                 writeAuditLog("Personel Modülü", actionText, `${staff.name} adlı kullanıcının sistem yetkisi değiştirildi.`);
@@ -852,6 +854,7 @@
             if(newPass) staff.password = newPass;
             
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') window.BiletProOnlineStore.pushStaffToOnline(staffData);
             
             writeAuditLog("Personel Modülü", "PERSONEL GÜNCELLENDİ", `${staff.name} (${staff.role}) adlı personelin bilgileri güncellendi.`);
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Personel Güncellendi", `${staff.name} bilgileri değiştirildi.`);
@@ -877,6 +880,7 @@
 
             staffData.splice(deletingStaffIndex, 1);
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') window.BiletProOnlineStore.pushStaffToOnline(staffData);
             
             writeAuditLog("Personel Modülü", "PERSONEL SİLİNDİ", `${staff.name} (${staff.role}) adlı personel sistemden kaldırıldı.`);
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Personel", "Personel Silindi", `${staff.name} sistemden çıkarıldı.`);

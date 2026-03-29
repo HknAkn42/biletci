@@ -706,6 +706,11 @@ window.BiletProAutoSync = {
                 pullRes = await window.BiletProOnlineStore.pullOnlineToLocal();
             }
 
+            // 3) Personel verisini online'dan çek
+            if (typeof window.BiletProOnlineStore.pullStaffFromOnline === 'function') {
+                await window.BiletProOnlineStore.pullStaffFromOnline();
+            }
+
             const ok = failed === 0 && (pullRes.ok !== false);
             this.saveStatus({
                 ok,
