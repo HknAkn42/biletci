@@ -680,6 +680,52 @@
             const changed = currentRaw !== nextRaw;
             if (changed) localStorage.setItem('BiletPro_Staff', nextRaw);
             return { ok: true, changed, count: merged.length };
+        },
+
+        // Sistem konfigürasyonunu Supabase'e push et
+        async pushConfigToOnline(configObject) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            if (!configObject || typeof configObject !== 'object') return { ok: false, reason: 'invalid_data' };
+
+            const { error } = await this.client
+                .from('app_config')
+                .upsert({ key: 'BiletPro_Config', value: configObject }, { onConflict: 'key' });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] pushConfigToOnline error:', error);
+                return { ok: false, reason: error.message || 'upsert_failed' };
+            }
+            return { ok: true };
+        },
+
+        // Sistem konfigürasyonunu Supabase'den çek ve localStorage'a yaz
+        async pullConfigFromOnline() {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode', changed: false };
+
+            const { data, error } = await this.client
+                .from('app_config')
+                .select('value')
+                .eq('key', 'BiletPro_Config')
+                .maybeSingle();
+
+            if (error || !data?.value || typeof data.value !== 'object') {
+                return { ok: false, reason: 'no_config_data', changed: false };
+            }
+
+            const currentRaw = localStorage.getItem('BiletPro_Config') || '{}';
+            const nextRaw = JSON.stringify(data.value);
+            const changed = currentRaw !== nextRaw;
+
+            if (changed) {
+                window.__bpSkipConfigPush = true;
+                try {
+                    localStorage.setItem('BiletPro_Config', nextRaw);
+                } finally {
+                    window.__bpSkipConfigPush = false;
+                }
+            }
+
+            return { ok: true, changed };
         }
     };
 

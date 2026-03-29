@@ -113,6 +113,13 @@
     </main>
 
     <script>
+        const __bpSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+        const __bpIsAdmin = __bpSession.role === 'admin' || String(__bpSession.username || '').toLowerCase() === 'hakan';
+        if(!__bpIsAdmin) {
+            localStorage.removeItem('BiletPro_Session');
+            window.location.href = 'login.html';
+        }
+
         const menuKeys = [
             { key: 'dashboard', label: 'Dashboard' },
             { key: 'gise', label: 'Gişe & Mimari' },
@@ -202,10 +209,18 @@
             if(typeof showToast === 'function') showToast('Önizleme güncellendi.', 'info');
         }
 
-        function saveConfig() {
+        async function saveConfig() {
             const base = window.BiletProCore.getConfig();
             const cfg = readFormToConfig(base);
             window.BiletProCore.saveConfig(cfg);
+            try {
+                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.pushConfigToOnline === 'function') {
+                        await window.BiletProOnlineStore.pushConfigToOnline(cfg);
+                    }
+                }
+            } catch(_) {}
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
             if(typeof showToast === 'function') showToast('Ayarlar kaydedildi. Tüm sayfalara uygulanacak.', 'success');
             setTimeout(() => window.location.reload(), 600);
@@ -220,8 +235,19 @@
             });
         }
 
-        const initialConfig = window.BiletProCore.getConfig();
-        fillForm(initialConfig);
+        (async () => {
+            try {
+                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.pullConfigFromOnline === 'function') {
+                        await window.BiletProOnlineStore.pullConfigFromOnline();
+                    }
+                }
+            } catch(_) {}
+
+            const initialConfig = window.BiletProCore.getConfig();
+            fillForm(initialConfig);
+        })();
 
         document.getElementById('cfgLogoFile').addEventListener('change', (e) => {
             const file = e.target.files && e.target.files[0];

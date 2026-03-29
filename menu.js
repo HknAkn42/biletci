@@ -3,7 +3,7 @@
  * MASTER ADMIN: Hakan | ŞİFRE: 52655265
  */
 
-// localStorage intercept: EventPro_DB_Ultimate_Final yazılınca anında Supabase push tetikle
+// localStorage intercept: kritik anahtarlar yazılınca anında Supabase push tetikle
 (function() {
     const _origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value) {
@@ -40,6 +40,20 @@
                 } catch(e) {}
             }, 400);
         }
+
+        if (key === 'BiletPro_Config') {
+            if (window.__bpSkipConfigPush) return;
+            if ((prevValue || '') === (value || '')) return;
+            clearTimeout(window.__bpConfigSyncTimer);
+            window.__bpConfigSyncTimer = setTimeout(() => {
+                try {
+                    if (window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online' && typeof window.BiletProOnlineStore.pushConfigToOnline === 'function') {
+                        const cfg = JSON.parse(value || '{}');
+                        window.BiletProOnlineStore.pushConfigToOnline(cfg).catch(() => {});
+                    }
+                } catch(_) {}
+            }, 250);
+        }
     };
 })();
 
@@ -54,6 +68,7 @@
 
     function hasRequiredPermission(user, page) {
         if(!user) return false;
+        if(page === 'settings.html') return false; // settings yalnızca admin
         const username = (user.username || '').toLowerCase();
         const isAdmin = user.role === 'admin' || username === 'hakan';
         if(isAdmin) return true;
@@ -562,7 +577,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 <span class="u-n">${session.name}</span>
                 <button onclick="logout(event)" class="out-btn"><i>🚪</i> ÇIKIŞ</button>
                 <button onclick="openGuide()" class="out-btn" style="background:#0f172a;color:#fff;"><i>📘</i> KILAVUZ</button>
-                <button onclick="openSystemSettings()" class="out-btn" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;"><i>⚙️</i> AYARLAR</button>
+                ${isAdmin ? '<button onclick="openSystemSettings()" class="out-btn" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;"><i>⚙️</i> AYARLAR</button>' : ''}
                 <button onclick="backupAllData()" class="out-btn"><i>💾</i> YEDEK AL</button>
                 <button onclick="triggerRestoreDialog()" class="out-btn"><i>📥</i> GERİ YÜKLE</button>
                 <button onclick="resetDemoData()" class="out-btn" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;"><i>🧪</i> DEMO SIFIRLA</button>
@@ -650,7 +665,15 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
 window.openGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.remove('hidden'); }
 window.closeGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.add('hidden'); }
-window.openSystemSettings = function() { window.location.href = 'settings.html'; }
+window.openSystemSettings = function() {
+    const session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+    const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+    if (!isAdmin) {
+        if (typeof showToast === 'function') showToast('Sistem ayarları sadece yöneticiye açıktır.', 'error');
+        return;
+    }
+    window.location.href = 'settings.html';
+}
 
 window.toggleProSidebar = function() { document.getElementById('proSidebar').classList.toggle('expanded'); }
 
@@ -862,6 +885,11 @@ window.BiletProAutoSync = {
             // 3) Personel verisini online'dan çek
             if (typeof window.BiletProOnlineStore.pullStaffFromOnline === 'function') {
                 await window.BiletProOnlineStore.pullStaffFromOnline();
+            }
+
+            // 4) Sistem ayarlarını online'dan çek
+            if (typeof window.BiletProOnlineStore.pullConfigFromOnline === 'function') {
+                await window.BiletProOnlineStore.pullConfigFromOnline();
             }
 
             const ok = failed === 0 && (pullRes.ok !== false);
