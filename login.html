@@ -192,6 +192,9 @@
             const user = staff.find(x => normalizeUsername(x && x.username) === u && String(x && x.password) === String(p));
 
             if (user) {
+                if(typeof window.writeAuditEvent === 'function') {
+                    window.writeAuditEvent('Güvenlik', 'Giriş Başarılı (Şifre)', `${user.name || user.username} kullanıcı adı/şifre doğrulaması geçti.`);
+                }
                 tempUser = user;
                 if (!user.pin) {
                     showStep('stepCreatePin');
@@ -200,6 +203,9 @@
                     loginComplete(user);
                 }
             } else {
+                if(typeof window.writeAuditEvent === 'function') {
+                    window.writeAuditEvent('Güvenlik', 'Giriş Başarısız (Şifre)', `Kullanıcı: ${u || 'boş'} için hatalı giriş denemesi.`);
+                }
                 shakeTerminal();
             }
         }
@@ -251,12 +257,18 @@
                 if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') {
                     window.BiletProOnlineStore.pushStaffToOnline(staff).catch(() => {});
                 }
+                if(typeof window.writeAuditEvent === 'function') {
+                    window.writeAuditEvent('Güvenlik', 'PIN Oluşturuldu', `${staff[userIdx].name || staff[userIdx].username} için yeni PIN tanımlandı.`);
+                }
                 loginComplete(tempUser);
             } else {
                 const user = staff.find(u => normalizeUsername(u && u.username) === normalizeUsername(lastUser));
                 if (user && user.isActive !== false && user.pin === inputPin) {
                     loginComplete(user);
                 } else {
+                    if(typeof window.writeAuditEvent === 'function') {
+                        window.writeAuditEvent('Güvenlik', 'PIN Hatası', `${lastUser || 'bilinmeyen'} hesabında hatalı PIN denemesi.`);
+                    }
                     inputPin = "";
                     pinSubmitLock = false;
                     updatePinDots('login');
@@ -272,6 +284,11 @@
                 username: userData.username,
                 time: new Date().toISOString()
             }));
+
+            if(typeof window.writeAuditEvent === 'function') {
+                window.writeAuditEvent('Güvenlik', 'Oturum Açıldı', `${userData.name || userData.username} sisteme giriş yaptı.`);
+            }
+
             sessionStorage.setItem('BiletPro_LoggedInTab', '1');
             
             document.getElementById('terminal').style.opacity = "0";

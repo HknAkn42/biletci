@@ -382,6 +382,71 @@ window.showConfirm = function(title, description, onConfirm) {
 }
 
 // SYSTEM AUDIT LOG (GLOBAL)
+const BILETPRO_AUDIT_QUEUE_KEY = 'BiletPro_AuditQueue';
+
+function getAuditQueue() {
+    try {
+        const raw = localStorage.getItem(BILETPRO_AUDIT_QUEUE_KEY) || '[]';
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function setAuditQueue(list) {
+    try {
+        localStorage.setItem(BILETPRO_AUDIT_QUEUE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+    } catch (_) {}
+}
+
+window.flushAuditQueue = async function() {
+    if (window.__bpAuditFlushRunning) return { ok: false, reason: 'busy' };
+    if (!window.BiletProOnlineStore || typeof window.BiletProOnlineStore.writeAudit !== 'function') return { ok: false, reason: 'store_missing' };
+
+    try {
+        const initRes = (typeof window.BiletProOnlineStore.init === 'function')
+            ? await window.BiletProOnlineStore.init()
+            : { mode: window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() };
+        if (!initRes || initRes.mode !== 'online') return { ok: false, reason: 'offline' };
+    } catch (_) {
+        return { ok: false, reason: 'init_failed' };
+    }
+
+    window.__bpAuditFlushRunning = true;
+    try {
+        let queue = getAuditQueue();
+        if (!queue.length) return { ok: true, flushed: 0, left: 0 };
+
+        let flushed = 0;
+        for (let i = 0; i < queue.length; i++) {
+            const item = queue[i];
+            if (!item || !item.module || !item.action) continue;
+
+            const ok = await window.BiletProOnlineStore.writeAudit(
+                item.module,
+                item.action,
+                item.details || '',
+                item.actor || { name: 'anon', username: 'anon', role: 'guest' }
+            );
+
+            if (!ok) break;
+            flushed++;
+        }
+
+        if (flushed > 0) {
+            queue = queue.slice(flushed);
+            setAuditQueue(queue);
+        }
+
+        return { ok: true, flushed, left: queue.length };
+    } catch (_) {
+        return { ok: false, reason: 'flush_exception' };
+    } finally {
+        window.__bpAuditFlushRunning = false;
+    }
+}
+
 window.writeAuditEvent = function(module, action, details) {
     const logs = JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
     const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: 'anon', role: 'guest', username: 'guest' };
@@ -397,19 +462,273 @@ window.writeAuditEvent = function(module, action, details) {
     if(logs.length > 1000) logs.splice(1000);
     localStorage.setItem('BiletPro_AuditLogs', JSON.stringify(logs));
 
-    // Online mod açıksa merkezi audit tablosuna da yaz
-    if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.writeAudit === 'function') {
-        (async () => {
-            try {
-                if(window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() === 'online') {
-                    await window.BiletProOnlineStore.writeAudit(module, action, details, session);
-                }
-            } catch (err) {
-                console.warn('[BiletPro] online audit yazımı başarısız:', err);
-            }
-        })();
+    const queue = getAuditQueue();
+    queue.push({
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: new Date().toISOString(),
+        module,
+        action,
+        details: details || '',
+        actor: {
+            name: session.name || 'anon',
+            username: session.username || 'anon',
+            role: session.role || 'guest'
+        }
+    });
+    if (queue.length > 3000) queue.splice(0, queue.length - 3000);
+    setAuditQueue(queue);
+
+    // Online mod açıksa kuyrukta birikenleri merkeze bas
+    if(typeof window.flushAuditQueue === 'function') {
+        window.flushAuditQueue().catch(() => {});
     }
 }
+
+window.addEventListener('online', () => {
+    if(typeof window.flushAuditQueue === 'function') window.flushAuditQueue().catch(() => {});
+});
+
+document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && typeof window.flushAuditQueue === 'function') {
+        window.flushAuditQueue().catch(() => {});
+    }
+});
+
+window.addEventListener('biletpro:audit-updated', () => {
+    try {
+        if (typeof window.renderAuditLogs === 'function') window.renderAuditLogs();
+    } catch (_) {}
+    try {
+        if (typeof window.renderStaffPerformance === 'function') window.renderStaffPerformance();
+    } catch (_) {}
+});
+
+window.BiletProActionAudit = {
+    parseEvents(raw) {
+        try {
+            const parsed = JSON.parse(raw || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    },
+
+    mapById(list) {
+        const out = {};
+        (Array.isArray(list) ? list : []).forEach((item) => {
+            if (!item || item.id === undefined || item.id === null) return;
+            out[String(item.id)] = item;
+        });
+        return out;
+    },
+
+    eventLabel(ev) {
+        const title = String(ev?.title || 'Etkinlik').trim() || 'Etkinlik';
+        const id = String(ev?.id || '-');
+        return `${title} (#${id})`;
+    },
+
+    push(entries, seen, module, action, details) {
+        const sig = `${module}|${action}|${details}`;
+        if (seen.has(sig)) return;
+        seen.add(sig);
+        if (entries.length < 250) entries.push({ module, action, details });
+    },
+
+    diffEventPayloads(prevRaw, nextRaw) {
+        const entries = [];
+        const seen = new Set();
+
+        const prevEvents = this.parseEvents(prevRaw);
+        const nextEvents = this.parseEvents(nextRaw);
+
+        const prevMap = this.mapById(prevEvents);
+        const nextMap = this.mapById(nextEvents);
+
+        // Event create/delete
+        Object.keys(nextMap).forEach((id) => {
+            if (!prevMap[id]) {
+                const ev = nextMap[id];
+                this.push(entries, seen, 'Dashboard', 'Etkinlik Oluşturuldu', `${this.eventLabel(ev)} oluşturuldu.`);
+            }
+        });
+        Object.keys(prevMap).forEach((id) => {
+            if (!nextMap[id]) {
+                const ev = prevMap[id];
+                this.push(entries, seen, 'Dashboard', 'Etkinlik Silindi', `${this.eventLabel(ev)} silindi.`);
+            }
+        });
+
+        // Event-level deep changes
+        Object.keys(nextMap).forEach((id) => {
+            const prevEv = prevMap[id];
+            const nextEv = nextMap[id];
+            if (!prevEv || !nextEv) return;
+
+            const label = this.eventLabel(nextEv);
+
+            if (
+                String(prevEv.title || '') !== String(nextEv.title || '') ||
+                String(prevEv.date || '') !== String(nextEv.date || '') ||
+                String(prevEv.venue || '') !== String(nextEv.venue || '') ||
+                String(prevEv.city || '') !== String(nextEv.city || '') ||
+                String(prevEv.fullAddress || '') !== String(nextEv.fullAddress || '') ||
+                String(prevEv.startTime || '') !== String(nextEv.startTime || '') ||
+                String(prevEv.doorTime || '') !== String(nextEv.doorTime || '') ||
+                String(prevEv.isActive !== false) !== String(nextEv.isActive !== false)
+            ) {
+                this.push(entries, seen, 'Dashboard', 'Etkinlik Güncellendi', `${label} bilgileri güncellendi.`);
+            }
+
+            const prevCats = this.mapById(prevEv.categories || []);
+            const nextCats = this.mapById(nextEv.categories || []);
+
+            Object.keys(nextCats).forEach((catId) => {
+                if (!prevCats[catId]) {
+                    const c = nextCats[catId];
+                    this.push(entries, seen, 'Gişe', 'Kategori Eklendi', `${label} için "${c?.name || 'Kategori'}" kategorisi eklendi.`);
+                }
+            });
+            Object.keys(prevCats).forEach((catId) => {
+                if (!nextCats[catId]) {
+                    const c = prevCats[catId];
+                    this.push(entries, seen, 'Gişe', 'Kategori Silindi', `${label} için "${c?.name || 'Kategori'}" kategorisi silindi.`);
+                }
+            });
+
+            Object.keys(nextCats).forEach((catId) => {
+                const prevCat = prevCats[catId];
+                const nextCat = nextCats[catId];
+                if (!prevCat || !nextCat) return;
+
+                const catName = String(nextCat.name || prevCat.name || 'Kategori');
+
+                if (
+                    String(prevCat.name || '') !== String(nextCat.name || '') ||
+                    Number(prevCat.pricePerPerson || 0) !== Number(nextCat.pricePerPerson || 0) ||
+                    String(prevCat.color || '') !== String(nextCat.color || '')
+                ) {
+                    this.push(entries, seen, 'Gişe', 'Kategori Güncellendi', `${label} / ${catName} bilgileri değiştirildi.`);
+                }
+
+                const prevMas = this.mapById(prevCat.masalar || []);
+                const nextMas = this.mapById(nextCat.masalar || []);
+
+                Object.keys(nextMas).forEach((mId) => {
+                    if (!prevMas[mId]) {
+                        const m = nextMas[mId];
+                        this.push(entries, seen, 'Gişe', 'Masa Eklendi', `${label} / ${catName} -> Masa ${m?.no || '-'} eklendi (${m?.kapasite || 0} kişilik).`);
+                    }
+                });
+                Object.keys(prevMas).forEach((mId) => {
+                    if (!nextMas[mId]) {
+                        const m = prevMas[mId];
+                        this.push(entries, seen, 'Gişe', 'Masa Silindi', `${label} / ${catName} -> Masa ${m?.no || '-'} kaldırıldı.`);
+                    }
+                });
+
+                Object.keys(nextMas).forEach((mId) => {
+                    const pm = prevMas[mId];
+                    const nm = nextMas[mId];
+                    if (!pm || !nm) return;
+
+                    const masaNo = nm?.no || pm?.no || '-';
+
+                    if (!!pm.isDeleted !== !!nm.isDeleted) {
+                        this.push(entries, seen, 'Gişe', nm.isDeleted ? 'Masa Pasife Alındı' : 'Masa Aktifleştirildi', `${label} / ${catName} -> Masa ${masaNo} ${nm.isDeleted ? 'pasife alındı' : 'aktif edildi'}.`);
+                    }
+
+                    if (
+                        Number(pm.no || 0) !== Number(nm.no || 0) ||
+                        Number(pm.kapasite || 0) !== Number(nm.kapasite || 0)
+                    ) {
+                        this.push(entries, seen, 'Gişe', 'Masa Güncellendi', `${label} / ${catName} -> Masa ${pm.no || '-'} bilgileri ${nm.no || '-'} olarak güncellendi.`);
+                    }
+
+                    const wasSold = !!pm.isSold;
+                    const isSold = !!nm.isSold;
+
+                    if (!wasSold && isSold) {
+                        const sd = nm.saleDetail || {};
+                        this.push(entries, seen, 'Satış', 'Yeni Satış', `${label} / ${catName} -> Masa ${masaNo} satıldı (${nm.soldTo || 'Müşteri'}). Tahsilat: ₺${Number(sd.paid || 0).toLocaleString('tr-TR')} | Borç: ₺${Number(sd.debt || 0).toLocaleString('tr-TR')}`);
+                        return;
+                    }
+
+                    if (wasSold && !isSold) {
+                        this.push(entries, seen, 'Satış', 'Satış İptal/Silme', `${label} / ${catName} -> Masa ${masaNo} satışı iptal edildi.`);
+                        return;
+                    }
+
+                    if (wasSold && isSold) {
+                        const ps = pm.saleDetail || {};
+                        const ns = nm.saleDetail || {};
+
+                        if (
+                            String(pm.soldTo || '') !== String(nm.soldTo || '') ||
+                            String(ps.phone || '') !== String(ns.phone || '') ||
+                            String(ps.paymentType || '') !== String(ns.paymentType || '') ||
+                            Number(ps.people || 0) !== Number(ns.people || 0)
+                        ) {
+                            this.push(entries, seen, 'Satış', 'Satış Güncellendi', `${label} / ${catName} -> Masa ${masaNo} müşteri/satış bilgileri güncellendi.`);
+                        }
+
+                        const paidDiff = Number(ns.paid || 0) - Number(ps.paid || 0);
+                        if (Math.abs(paidDiff) >= 0.01) {
+                            this.push(entries, seen, 'Finans', paidDiff > 0 ? 'Tahsilat Arttı' : 'Tahsilat Azaltıldı', `${label} / ${catName} -> Masa ${masaNo} tahsilat ${paidDiff > 0 ? '+' : ''}₺${paidDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} değişti.`);
+                        }
+
+                        const debtDiff = Number(ns.debt || 0) - Number(ps.debt || 0);
+                        if (Math.abs(debtDiff) >= 0.01) {
+                            this.push(entries, seen, 'Finans', debtDiff > 0 ? 'Borç Eklendi' : 'Borç Azaldı/Silindi', `${label} / ${catName} -> Masa ${masaNo} borç ${debtDiff > 0 ? '+' : ''}₺${debtDiff.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} değişti.`);
+                        }
+
+                        if (String(ps.status || '') !== String(ns.status || '')) {
+                            this.push(entries, seen, 'KAPI', 'Kapı Durumu Değişti', `${label} / ${catName} -> Masa ${masaNo} durum: ${ps.status || 'READY'} -> ${ns.status || 'READY'}`);
+                        }
+
+                        if (Number(ps.insideCount || 0) !== Number(ns.insideCount || 0)) {
+                            this.push(entries, seen, 'KAPI', 'Giriş Sayısı Güncellendi', `${label} / ${catName} -> Masa ${masaNo} içerideki kişi: ${Number(ps.insideCount || 0)} -> ${Number(ns.insideCount || 0)}`);
+                        }
+                    }
+                });
+            });
+        });
+
+        return entries;
+    }
+};
+
+(function installAutomaticActionLogger() {
+    if (window.__bpAutomaticActionLoggerInstalled) return;
+    window.__bpAutomaticActionLoggerInstalled = true;
+
+    const _setItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        const prevRaw = (key === 'EventPro_DB_Ultimate_Final') ? (localStorage.getItem(key) || '[]') : null;
+        _setItem(key, value);
+
+        if (key !== 'EventPro_DB_Ultimate_Final') return;
+        if ((prevRaw || '') === (value || '')) return;
+        if (window.__bpSkipAutoAudit === true || window.__bpSkipAutoPush === true) return;
+        if (window.__bpAutoAuditGuard === true) return;
+
+        try {
+            const entries = window.BiletProActionAudit.diffEventPayloads(prevRaw, value || '[]');
+            if (!entries.length) return;
+
+            window.__bpAutoAuditGuard = true;
+            entries.forEach((entry) => {
+                if (typeof window.writeAuditEvent === 'function') {
+                    window.writeAuditEvent(entry.module, entry.action, entry.details);
+                }
+            });
+        } catch (e) {
+            console.warn('[BiletPro] Otomatik aksiyon logu üretilemedi:', e);
+        } finally {
+            window.__bpAutoAuditGuard = false;
+        }
+    };
+})();
 
 /* ==========================================
    SOL MENÜ ENJEKSİYONU (SQUEEZE YAPISI)
@@ -980,6 +1299,18 @@ window.BiletProAutoSync = {
             }
 
             const anyChanged = !!(pullRes.changed || staffPullRes.changed || configPullRes.changed || auditPullRes.changed || cLogResetRes.changed);
+            const requiresReload = !!(pullRes.changed || staffPullRes.changed || configPullRes.changed || cLogResetRes.changed);
+
+            if (auditPullRes.changed) {
+                try {
+                    window.dispatchEvent(new CustomEvent('biletpro:audit-updated', {
+                        detail: {
+                            trigger,
+                            changed: true
+                        }
+                    }));
+                } catch (_) {}
+            }
 
             const ok = failed === 0 && (pullRes.ok !== false);
             this.saveStatus({
@@ -1000,7 +1331,7 @@ window.BiletProAutoSync = {
             // Veri değiştiyse sayfayı yenile
             // Realtime tetiklemelerinde flag kontrolü yok (her değişiklikte reload)
             // Startup/interval tetiklemelerinde ilk reload'dan sonra tekrar etme
-            if (anyChanged) {
+            if (anyChanged && requiresReload) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
@@ -1047,6 +1378,11 @@ window.BiletProAutoSync = {
         // Arka planda periyodik emniyet sync
         setInterval(() => this.schedule('interval', 0), 45000);
 
+        // Kuyruktaki audit kayıtlarını da periyodik flush et
+        setInterval(() => {
+            if (typeof window.flushAuditQueue === 'function') window.flushAuditQueue().catch(() => {});
+        }, 12000);
+
         // Supabase Realtime: events ve app_config tablosu değişince anında sync
         this._startRealtime();
     },
@@ -1067,6 +1403,9 @@ window.BiletProAutoSync = {
                     })
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => {
                         this.schedule('realtime_staff', 300);
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => {
+                        this.schedule('realtime_audit', 300);
                     })
                     .subscribe((status) => {
                         console.info('[BiletPro Realtime]', status);
