@@ -723,12 +723,17 @@ window.BiletProAutoSync = {
                 changed: !!pullRes.changed
             });
 
-            // Yeni cihazda veri çekildiyse, ekrandaki sayfalar local cache'i yeniden okusun
+            // Veri değiştiyse sayfayı yenile
+            // Realtime tetiklemelerinde flag kontrolü yok (her değişiklikte reload)
+            // Startup/interval tetiklemelerinde ilk reload'dan sonra tekrar etme
             if (pullRes.changed) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
-                if (page !== 'login.html' && sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
-                    sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
-                    setTimeout(() => window.location.reload(), 250);
+                if (page !== 'login.html') {
+                    const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
+                    if (isRealtime || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
+                        if (!isRealtime) sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
+                        setTimeout(() => window.location.reload(), 300);
+                    }
                 }
             }
 
