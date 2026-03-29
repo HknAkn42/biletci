@@ -86,6 +86,7 @@
     const OnlineStore = {
         client: null,
         mode: 'local',
+        _initPromise: null,
 
         normalizeEventDate(raw) {
             if (!raw) return null;
@@ -95,6 +96,12 @@
         },
 
         async init() {
+            if (this.client && this.mode === 'online') {
+                return { ok: true, mode: this.mode, reason: 'already_initialized' };
+            }
+            if (this._initPromise) return this._initPromise;
+
+            this._initPromise = (async () => {
             const onlineCfg = getOnlineConfig();
             if (!isSupabaseReady(onlineCfg)) {
                 this.mode = 'local';
@@ -108,9 +115,18 @@
             }
 
             try {
-                this.client = window.supabase.createClient(onlineCfg.supabaseUrl, onlineCfg.supabaseAnonKey, {
-                    auth: { persistSession: false }
-                });
+                if (window.__BiletProSupabaseClient) {
+                    this.client = window.__BiletProSupabaseClient;
+                } else {
+                    this.client = window.supabase.createClient(onlineCfg.supabaseUrl, onlineCfg.supabaseAnonKey, {
+                        auth: {
+                            persistSession: false,
+                            autoRefreshToken: false,
+                            detectSessionInUrl: false
+                        }
+                    });
+                    window.__BiletProSupabaseClient = this.client;
+                }
                 this.mode = 'online';
                 localStorage.setItem(ONLINE_CACHE_KEY, JSON.stringify({ mode: this.mode, lastInit: new Date().toISOString() }));
                 return { ok: true, mode: this.mode };
@@ -118,6 +134,13 @@
                 console.error('[BiletPro OnlineStore] init error:', err);
                 this.mode = 'local';
                 return { ok: false, mode: this.mode, reason: 'client_create_failed' };
+            }
+            })();
+
+            try {
+                return await this._initPromise;
+            } finally {
+                this._initPromise = null;
             }
         },
 
@@ -257,7 +280,12 @@
             const changed = localRaw !== nextRaw;
 
             if (changed) {
-                localStorage.setItem('EventPro_DB_Ultimate_Final', nextRaw);
+                window.__bpSkipAutoPush = true;
+                try {
+                    localStorage.setItem('EventPro_DB_Ultimate_Final', nextRaw);
+                } finally {
+                    window.__bpSkipAutoPush = false;
+                }
             }
 
             return { ok: true, changed, count: merged.length };
