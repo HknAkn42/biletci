@@ -158,10 +158,11 @@
             // Önce online veriyi yükle
             onlineEvents.forEach(ev => { mergedMap[String(ev.id)] = ev; });
 
-            // Local'deki satış verilerini online üzerine bindir (local daha yeni sayılır)
+            // Local'deki satış verilerini online üzerine bindir.
+            // DİKKAT: Online'da olmayan event localden geri eklenmez (silinen eventin dirilmesini önler).
             localEvents.forEach(localEv => {
                 const key = String(localEv.id);
-                if (!mergedMap[key]) { mergedMap[key] = localEv; return; }
+                if (!mergedMap[key]) { return; }
                 const onlineEv = mergedMap[key];
                 // Kategori bazlı masa merge
                 const mergedCats = (onlineEv.categories || []).map(onlineCat => {
@@ -293,6 +294,51 @@
             }
 
             return { ok: true, reason: 'event_and_tickets_upserted', eventId: eventDbId, ticketCount: ticketRows.length };
+        },
+
+        // Etkinliği online'dan kalıcı sil (bağlı biletlerle birlikte)
+        async deleteLegacyEventBundle(legacyEventId) {
+            if (!legacyEventId) return { ok: false, reason: 'invalid_event_id' };
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+
+            const { data: evRow, error: evFindErr } = await this.client
+                .from('events')
+                .select('id')
+                .eq('legacy_event_id', String(legacyEventId))
+                .maybeSingle();
+
+            if (evFindErr) {
+                console.error('[BiletPro OnlineStore] deleteLegacyEventBundle find error:', evFindErr);
+                return { ok: false, reason: 'event_find_failed' };
+            }
+
+            if (!evRow?.id) {
+                return { ok: true, reason: 'event_not_found_online' };
+            }
+
+            const eventDbId = evRow.id;
+
+            const { error: ticketDelErr } = await this.client
+                .from('tickets')
+                .delete()
+                .eq('event_id', eventDbId);
+
+            if (ticketDelErr) {
+                console.error('[BiletPro OnlineStore] deleteLegacyEventBundle tickets error:', ticketDelErr);
+                return { ok: false, reason: 'ticket_delete_failed' };
+            }
+
+            const { error: eventDelErr } = await this.client
+                .from('events')
+                .delete()
+                .eq('id', eventDbId);
+
+            if (eventDelErr) {
+                console.error('[BiletPro OnlineStore] deleteLegacyEventBundle event error:', eventDelErr);
+                return { ok: false, reason: 'event_delete_failed' };
+            }
+
+            return { ok: true, reason: 'event_deleted_online', eventId: legacyEventId };
         },
 
         // Aşama 2 için: Supabase RPC (ticket_checkin_atomic)

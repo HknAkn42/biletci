@@ -487,7 +487,7 @@
             const msg = "Etkinlik/bilet/kapı verileri silinecek. Ciro ve borçlular finans arşive taşınacak. Onaylıyor musunuz?";
             
             if(typeof showConfirm === 'function') {
-                showConfirm("SİLME ONAYI", msg, () => {
+                showConfirm("SİLME ONAYI", msg, async () => {
                     const target = events.find(e => String(e.id) === String(id));
                     if(target) {
                         const snapshot = buildEventFinanceSnapshot(target);
@@ -498,6 +498,12 @@
 
                     events = events.filter(e => String(e.id) !== String(id)); 
                     localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+
+                    if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
+                        try {
+                            await window.BiletProOnlineStore.deleteLegacyEventBundle(id);
+                        } catch (_) {}
+                    }
 
                     // Operasyonel kapı logları da silinir
                     localStorage.removeItem('BiletPro_CLog_' + id);
@@ -521,6 +527,11 @@
 
                     events = events.filter(e => String(e.id) !== String(id)); 
                     localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+
+                    if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
+                        window.BiletProOnlineStore.deleteLegacyEventBundle(id).catch(() => {});
+                    }
+
                     localStorage.removeItem('BiletPro_CLog_' + id);
                     render(); 
                 }
