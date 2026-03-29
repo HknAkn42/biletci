@@ -5,6 +5,7 @@
  */
 (function () {
     const ONLINE_CACHE_KEY = 'BiletPro_OnlineRuntime';
+    const DELETED_EVENTS_KEY = 'BiletPro_DeletedEvents';
 
     function getCoreConfig() {
         if (window.BiletProCore && typeof window.BiletProCore.getConfig === 'function') {
@@ -104,6 +105,37 @@
             return this.mode;
         },
 
+        async getDeletedEventIds() {
+            if (this.mode !== 'online' || !this.client) return [];
+            const { data, error } = await this.client
+                .from('app_config')
+                .select('value')
+                .eq('key', DELETED_EVENTS_KEY)
+                .maybeSingle();
+
+            if (error || !data?.value || !Array.isArray(data.value)) return [];
+            return data.value.map((x) => String(x));
+        },
+
+        async markEventsDeleted(ids) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const list = Array.isArray(ids) ? ids.map((x) => String(x)).filter(Boolean) : [];
+            if (!list.length) return { ok: true, reason: 'no_ids' };
+
+            const existing = await this.getDeletedEventIds();
+            const merged = Array.from(new Set([...(existing || []), ...list]));
+
+            const { error } = await this.client
+                .from('app_config')
+                .upsert({ key: DELETED_EVENTS_KEY, value: merged }, { onConflict: 'key' });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] markEventsDeleted error:', error);
+                return { ok: false, reason: error.message || 'upsert_failed' };
+            }
+            return { ok: true, count: merged.length };
+        },
+
         // Aşama 1: read/write fallback API (sayfalar kademeli taşıyacak)
         async getEvents() {
             if (this.mode !== 'online' || !this.client) {
@@ -138,13 +170,16 @@
             }
 
             const rows = data || [];
+            const deletedIds = new Set(await this.getDeletedEventIds());
             const onlineEvents = [];
 
             rows.forEach((r) => {
                 const p = r && r.payload_json;
                 if (p && typeof p === 'object' && p.id) {
+                    if (deletedIds.has(String(p.id))) return;
                     onlineEvents.push(p);
                 } else if (r && r.legacy_event_id) {
+                    if (deletedIds.has(String(r.legacy_event_id))) return;
                     onlineEvents.push({ id: String(r.legacy_event_id), title: 'Etkinlik', categories: [], isActive: true });
                 }
             });
@@ -162,6 +197,7 @@
             // DİKKAT: Online'da olmayan event localden geri eklenmez (silinen eventin dirilmesini önler).
             localEvents.forEach(localEv => {
                 const key = String(localEv.id);
+                if (deletedIds.has(key)) { return; }
                 if (!mergedMap[key]) { return; }
                 const onlineEv = mergedMap[key];
                 // Kategori bazlı masa merge
@@ -188,7 +224,7 @@
                 mergedMap[key] = { ...onlineEv, categories: mergedCats };
             });
 
-            const merged = Object.values(mergedMap);
+            const merged = Object.values(mergedMap).filter((ev) => !deletedIds.has(String(ev && ev.id)));
             const nextRaw = JSON.stringify(merged);
             const changed = localRaw !== nextRaw;
 
@@ -300,6 +336,8 @@
         async deleteLegacyEventBundle(legacyEventId) {
             if (!legacyEventId) return { ok: false, reason: 'invalid_event_id' };
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+
+            await this.markEventsDeleted([legacyEventId]);
 
             const { data: evRow, error: evFindErr } = await this.client
                 .from('events')

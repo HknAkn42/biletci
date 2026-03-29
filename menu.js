@@ -7,6 +7,7 @@
 (function() {
     const _origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value) {
+        const prevValue = localStorage.getItem(key);
         _origSetItem(key, value);
         if (key === 'EventPro_DB_Ultimate_Final') {
             // Kısa gecikmeyle push et (aynı tick'te birden fazla yazma varsa birleşsin)
@@ -14,7 +15,20 @@
             window.__bpSyncTimer = setTimeout(() => {
                 try {
                     if (window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online') {
+                        const prevEvents = JSON.parse(prevValue || '[]');
                         const events = JSON.parse(value || '[]');
+
+                        const prevIds = new Set((Array.isArray(prevEvents) ? prevEvents : []).map(e => String(e && e.id)).filter(Boolean));
+                        const newIds = new Set((Array.isArray(events) ? events : []).map(e => String(e && e.id)).filter(Boolean));
+                        const deletedIds = Array.from(prevIds).filter(id => !newIds.has(id));
+
+                        if (deletedIds.length && typeof window.BiletProOnlineStore.markEventsDeleted === 'function') {
+                            window.BiletProOnlineStore.markEventsDeleted(deletedIds).catch(() => {});
+                            if (typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
+                                deletedIds.forEach((id) => window.BiletProOnlineStore.deleteLegacyEventBundle(id).catch(() => {}));
+                            }
+                        }
+
                         events.forEach(ev => {
                             if (ev && ev.id) {
                                 window.BiletProOnlineStore.syncLegacyEventBundle(ev).catch(() => {});
