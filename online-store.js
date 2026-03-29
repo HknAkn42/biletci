@@ -460,6 +460,48 @@
             return { ok: true, reason: 'event_deleted_online', eventId: legacyEventId };
         },
 
+        // Tüm satışları sıfırlama için: event payload'ları günceller, tüm bağlı biletleri siler
+        async hardResetSalesForEvents(cleanEvents) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const eventsArr = Array.isArray(cleanEvents) ? cleanEvents : [];
+            if (!eventsArr.length) return { ok: true, reason: 'no_events' };
+
+            const eventIds = eventsArr.map((e) => String(e.id)).filter(Boolean);
+            const { data: rows, error: fetchErr } = await this.client
+                .from('events')
+                .select('id, legacy_event_id')
+                .in('legacy_event_id', eventIds);
+
+            if (fetchErr) {
+                console.error('[BiletPro OnlineStore] hardResetSalesForEvents fetch error:', fetchErr);
+                return { ok: false, reason: 'fetch_failed' };
+            }
+
+            const dbRows = rows || [];
+            const dbIds = dbRows.map((r) => r.id).filter(Boolean);
+
+            if (dbIds.length) {
+                const { error: delErr } = await this.client
+                    .from('tickets')
+                    .delete()
+                    .in('event_id', dbIds);
+
+                if (delErr) {
+                    console.error('[BiletPro OnlineStore] hardResetSalesForEvents ticket delete error:', delErr);
+                    return { ok: false, reason: 'ticket_delete_failed' };
+                }
+            }
+
+            // Unsold event payload'larını tekrar events tablosuna yaz
+            for (const ev of eventsArr) {
+                try {
+                    await this.syncLegacyEventBundle(ev);
+                } catch (_) {}
+            }
+
+            return { ok: true, reason: 'sales_reset_online', events: eventsArr.length, clearedTickets: dbIds.length };
+        },
+
         // Aşama 2 için: Supabase RPC (ticket_checkin_atomic)
         async atomicCheckin(ticketHash, gateUser, gateId) {
             if (this.mode !== 'online' || !this.client) {

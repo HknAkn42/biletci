@@ -35,6 +35,7 @@
                     <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">Finans Yenile</button>
                     <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">Log Yenile</button>
                     <button onclick="resetReportTestData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black uppercase tracking-wider text-[11px]">Deneme Verisini Sıfırla</button>
+                    <button onclick="hardResetAllSalesWithCode();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 font-black uppercase tracking-wider text-[11px]">Tüm Satışları Sıfırla (Kodlu)</button>
                 </div>
             </header>
 
@@ -326,6 +327,63 @@
 
             if(typeof showToast === 'function') showToast('Rapor deneme verileri sıfırlandı.', 'success');
             else alert('Rapor deneme verileri sıfırlandı.');
+        }
+
+        async function hardResetAllSalesWithCode() {
+            const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+            const typed = prompt(`KRİTİK İŞLEM!\nTüm satışlar sıfırlanacak (etkinlik/kategori/masa yapısı korunur).\nOnay için şu kodu yaz: ${code}`);
+            if(!typed) return;
+            if(String(typed).trim().toUpperCase() !== code) {
+                if(typeof showToast === 'function') showToast('Kod yanlış. İşlem iptal edildi.', 'error');
+                else alert('Kod yanlış. İşlem iptal edildi.');
+                return;
+            }
+
+            const ok = confirm('Son onay: Tüm satış kayıtları ve kapı logları sıfırlanacak. Devam edilsin mi?');
+            if(!ok) return;
+
+            // 1) Event satış alanlarını yerelde sıfırla
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            events.forEach(ev => {
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        m.isSold = false;
+                        m.soldTo = '';
+                        m.saleDetail = null;
+                    });
+                });
+            });
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+
+            // 2) Kapı loglarını temizle
+            const removeKeys = [];
+            for(let i=0;i<localStorage.length;i++) {
+                const k = localStorage.key(i);
+                if(k && k.startsWith('BiletPro_CLog_')) removeKeys.push(k);
+            }
+            removeKeys.forEach(k => localStorage.removeItem(k));
+
+            // 3) Rapor/deneme verilerini temizle
+            localStorage.removeItem('BiletPro_AuditLogs');
+            localStorage.removeItem('BiletPro_FinanceArchive');
+            financeArchive = [];
+
+            // 4) Online modu da kesin temizle
+            try {
+                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.hardResetSalesForEvents === 'function') {
+                        await window.BiletProOnlineStore.hardResetSalesForEvents(events);
+                    }
+                }
+            } catch(_) {}
+
+            renderStaffFinancials();
+            renderArchiveManager();
+            renderAuditLogs();
+
+            if(typeof showToast === 'function') showToast('Tüm satışlar kod doğrulaması ile sıfırlandı.', 'success');
+            else alert('Tüm satışlar sıfırlandı.');
         }
 
         function calculateStaffFinancials() {

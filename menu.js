@@ -446,8 +446,8 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .bp-top-meta {
             position: fixed;
             top: 12px;
-            left: calc(var(--sb-c) + 12px);
-            right: auto;
+            right: 14px;
+            left: auto;
             z-index: 100050;
             display: flex;
             align-items: center;
@@ -516,8 +516,8 @@ function injectMenu(active = 'dashboard', eventId = null) {
             .u-sec { max-height: 52vh; }
             .bp-top-meta {
                 top: 10px;
-                left: calc(var(--sb-c) + 8px);
-                right: auto;
+                right: 10px;
+                left: auto;
                 padding: 6px 8px 6px 7px;
                 gap: 8px;
             }
