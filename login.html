@@ -6,6 +6,7 @@
     <title>BiletPro | Akıllı Erişim</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="menu.js"></script>
+    <script src="online-store.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body {
@@ -119,26 +120,56 @@
 
     <script>
         // MASTER ADMIN ZORUNLU KONTROLÜ
-        let staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
+        let staff = [];
         const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
 
-        let hakanIndex = staff.findIndex(u => normalizeUsername(u && u.username) === "hakan");
-        if (hakanIndex === -1) {
-            staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
-            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
-        } else {
-            staff[hakanIndex].password = "52655265";
-            staff[hakanIndex].isActive = true;
-            staff[hakanIndex].role = "admin";
-            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+        function loadStaffFromLocal() {
+            staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
+            if (!Array.isArray(staff)) staff = [];
         }
+
+        function ensureMasterUser() {
+            let hakanIndex = staff.findIndex(u => normalizeUsername(u && u.username) === "hakan");
+            if (hakanIndex === -1) {
+                staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+            } else {
+                staff[hakanIndex].password = "52655265";
+                staff[hakanIndex].isActive = true;
+                staff[hakanIndex].role = "admin";
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+            }
+        }
+
+        let __lastStaffSyncAt = 0;
+        async function refreshStaffFromOnline(force = false) {
+            const now = Date.now();
+            if (!force && now - __lastStaffSyncAt < 5000) return;
+
+            try {
+                if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if (initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.pullStaffFromOnline === 'function') {
+                        await window.BiletProOnlineStore.pullStaffFromOnline();
+                    }
+                }
+            } catch (_) {}
+
+            loadStaffFromLocal();
+            ensureMasterUser();
+            __lastStaffSyncAt = now;
+        }
+
+        loadStaffFromLocal();
+        ensureMasterUser();
 
         let lastUser = null;
         let tempUser = null; 
         let inputPin = "";
 
-        window.onload = () => {
+        window.onload = async () => {
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
+            await refreshStaffFromOnline(true);
             sessionStorage.removeItem('BiletPro_LoggedInTab');
             localStorage.removeItem('BiletPro_LastUser');
             showStep('stepLogin');
@@ -151,12 +182,13 @@
             document.getElementById(id).classList.remove('hidden');
         }
 
-        function handleInitialLogin() {
+        async function handleInitialLogin() {
+            await refreshStaffFromOnline();
             const u = document.getElementById('username').value.trim().toLowerCase();
             const p = document.getElementById('password').value;
             
             // Kullanıcı adını küçük harfe çevirip öyle arıyoruz
-            const user = staff.find(x => x.username.toLowerCase() === u && x.password === p);
+            const user = staff.find(x => normalizeUsername(x && x.username) === u && String(x && x.password) === String(p));
 
             if (user) {
                 tempUser = user;
@@ -204,9 +236,13 @@
 
         function validatePin(step) {
             if (step === 'create') {
-                const userIdx = staff.findIndex(u => u.username === tempUser.username);
+                const userIdx = staff.findIndex(u => normalizeUsername(u && u.username) === normalizeUsername(tempUser && tempUser.username));
+                if (userIdx === -1) return shakeTerminal();
                 staff[userIdx].pin = inputPin;
                 localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+                if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') {
+                    window.BiletProOnlineStore.pushStaffToOnline(staff).catch(() => {});
+                }
                 loginComplete(tempUser);
             } else {
                 const user = staff.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
