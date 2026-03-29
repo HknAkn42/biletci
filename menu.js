@@ -399,6 +399,8 @@ window.writeAuditEvent = function(module, action, details) {
 function injectMenu(active = 'dashboard', eventId = null) {
     const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Misafir", role: "user" };
     const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+    const roleLabel = isAdmin ? 'YÖNETİCİ' : 'PERSONEL';
+    const roleClass = isAdmin ? 'admin' : 'user';
     const cfg = window.BiletProCore.getConfig();
     const labels = cfg.menuLabels || {};
     const visibility = cfg.menuVisibility || {};
@@ -449,15 +451,43 @@ function injectMenu(active = 'dashboard', eventId = null) {
             display: flex;
             align-items: center;
             gap: 10px;
-            background: rgba(255,255,255,0.92);
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.08);
-            border-radius: 14px;
-            padding: 8px 12px;
-            backdrop-filter: blur(16px);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,250,252,0.92));
+            border: 1px solid #dbeafe;
+            box-shadow: 0 12px 32px rgba(2, 6, 23, 0.12);
+            border-radius: 18px;
+            padding: 8px 10px 8px 9px;
+            backdrop-filter: blur(18px);
         }
-        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; }
-        .bp-top-time { font-size: 11px; font-weight: 900; color: #1d4ed8; letter-spacing: .8px; }
+        .bp-top-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .5px;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+        .bp-top-info { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
+        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; line-height: 1; }
+        .bp-top-role { width: fit-content; font-size: 9px; font-weight: 900; letter-spacing: .8px; border-radius: 999px; padding: 3px 8px; line-height: 1; }
+        .bp-top-role.admin { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .bp-top-role.user { background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; }
+        .bp-top-time {
+            font-size: 12px;
+            font-weight: 900;
+            color: #1d4ed8;
+            letter-spacing: .9px;
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 12px;
+            padding: 7px 10px;
+            line-height: 1;
+        }
 
         @media (max-width: 1023px) {
             :root { --sb-c: 76px; }
@@ -476,10 +506,13 @@ function injectMenu(active = 'dashboard', eventId = null) {
             .bp-top-meta {
                 top: 10px;
                 right: 10px;
-                padding: 6px 10px;
+                padding: 6px 8px 6px 7px;
                 gap: 8px;
             }
-            .bp-top-user, .bp-top-time { font-size: 10px; }
+            .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
+            .bp-top-user { font-size: 10px; }
+            .bp-top-role { font-size: 8px; padding: 2px 6px; }
+            .bp-top-time { font-size: 10px; padding: 6px 8px; }
         }
     `;
     document.head.appendChild(style);
@@ -523,7 +556,11 @@ function injectMenu(active = 'dashboard', eventId = null) {
             </div>
         </nav>
         <div class="bp-top-meta" id="bpTopMeta">
-            <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
+            <div class="bp-top-avatar" id="bpTopAvatar">${String((session.name || 'M').trim().charAt(0) || 'M').toUpperCase()}</div>
+            <div class="bp-top-info">
+                <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
+                <span class="bp-top-role ${roleClass}" id="bpTopRole">${roleLabel}</span>
+            </div>
             <span class="bp-top-time" id="bpTopClock">--:--:--</span>
         </div>
     `;
