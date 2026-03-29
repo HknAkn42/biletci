@@ -281,7 +281,9 @@
                 cancelText = 'Vazgeç',
                 tone = 'danger',
                 code = null,
-                inputPlaceholder = 'Kodu buraya yazın'
+                inputPlaceholder = 'Kodu buraya yazın',
+                requireInput = false,
+                inputType = 'text'
             } = opts;
 
             return new Promise((resolve) => {
@@ -299,7 +301,7 @@
                             <button type="button" class="text-2xl font-bold text-slate-400 hover:text-red-500" data-close-modal>&times;</button>
                         </div>
                         <p class="text-sm font-semibold text-slate-600 leading-relaxed">${description}</p>
-                        ${code ? `<div class="mt-4 space-y-3"><div class="action-code">${code}</div><input id="actionCodeInput" class="action-input" placeholder="${inputPlaceholder}" /></div>` : ''}
+                        ${(code || requireInput) ? `<div class="mt-4 space-y-3">${code ? `<div class="action-code">${code}</div>` : ''}<input id="actionCodeInput" type="${inputType}" class="action-input" placeholder="${inputPlaceholder}" /></div>` : ''}
                         <div class="mt-6 grid grid-cols-2 gap-3">
                             <button type="button" class="px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-700 font-black uppercase text-xs" data-cancel-modal>${cancelText}</button>
                             <button type="button" class="px-4 py-3 rounded-xl font-black uppercase text-xs ${toneClass}" data-confirm-modal>${confirmText}</button>
@@ -393,7 +395,9 @@
                 confirmText: 'Doğrula',
                 cancelText: 'Vazgeç',
                 tone: 'danger',
-                inputPlaceholder: 'PIN: 52655265'
+                requireInput: true,
+                inputType: 'password',
+                inputPlaceholder: 'PIN kodunu girin'
             });
             if(!pinDialog.confirmed) return;
 
