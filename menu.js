@@ -632,6 +632,7 @@ window.logout = function(ev) {
    AUTO SYNC: LOCAL -> ONLINE (OFFLINE SAFE)
    ========================================== */
 const BILETPRO_SYNC_STATUS_KEY = 'BiletPro_LastOnlineSyncStatus';
+const BILETPRO_SYNC_RELOAD_FLAG = 'BiletPro_AutoReloadAfterHydrate';
 
 window.BiletProAutoSync = {
     running: false,
@@ -684,14 +685,10 @@ window.BiletProAutoSync = {
             }
 
             const events = this.getLocalEvents();
-            if (!events.length) {
-                this.saveStatus({ ok: true, reason: 'nothing_to_sync', trigger, total: 0, synced: 0, failed: 0 });
-                return { ok: true, reason: 'nothing_to_sync' };
-            }
-
             let synced = 0;
             let failed = 0;
 
+            // 1) Local -> Online push
             for (const ev of events) {
                 if (!ev || !ev.id) continue;
                 try {
@@ -703,9 +700,41 @@ window.BiletProAutoSync = {
                 }
             }
 
-            const ok = failed === 0;
-            this.saveStatus({ ok, reason: ok ? 'synced' : 'partial', trigger, total: events.length, synced, failed });
-            return { ok, total: events.length, synced, failed };
+            // 2) Online -> Local pull (yeni cihazda merkezi veriyi indirmek için)
+            let pullRes = { ok: false, changed: false, count: 0, reason: 'not_supported' };
+            if (typeof window.BiletProOnlineStore.pullOnlineToLocal === 'function') {
+                pullRes = await window.BiletProOnlineStore.pullOnlineToLocal();
+            }
+
+            const ok = failed === 0 && (pullRes.ok !== false);
+            this.saveStatus({
+                ok,
+                reason: ok ? 'bi_sync_ok' : 'bi_sync_partial',
+                trigger,
+                total: events.length,
+                synced,
+                failed,
+                pulled: pullRes.count || 0,
+                changed: !!pullRes.changed
+            });
+
+            // Yeni cihazda veri çekildiyse, ekrandaki sayfalar local cache'i yeniden okusun
+            if (pullRes.changed) {
+                const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
+                if (page !== 'login.html' && sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
+                    sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
+                    setTimeout(() => window.location.reload(), 250);
+                }
+            }
+
+            return {
+                ok,
+                total: events.length,
+                synced,
+                failed,
+                pulled: pullRes.count || 0,
+                changed: !!pullRes.changed
+            };
         } finally {
             this.running = false;
         }

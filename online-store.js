@@ -122,6 +122,51 @@
             return data || [];
         },
 
+        async pullOnlineToLocal() {
+            if (this.mode !== 'online' || !this.client) {
+                return { ok: false, reason: 'offline_mode', changed: false, count: 0 };
+            }
+
+            const { data, error } = await this.client
+                .from('events')
+                .select('legacy_event_id, payload_json, updated_at')
+                .order('updated_at', { ascending: false });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] pullOnlineToLocal error:', error);
+                return { ok: false, reason: 'fetch_failed', changed: false, count: 0 };
+            }
+
+            const rows = data || [];
+            const localEvents = [];
+
+            rows.forEach((r) => {
+                const p = r && r.payload_json;
+                if (p && typeof p === 'object' && p.id) {
+                    localEvents.push(p);
+                    return;
+                }
+                if (r && r.legacy_event_id) {
+                    localEvents.push({
+                        id: String(r.legacy_event_id),
+                        title: 'Etkinlik',
+                        categories: [],
+                        isActive: true
+                    });
+                }
+            });
+
+            const currentRaw = localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]';
+            const nextRaw = JSON.stringify(localEvents);
+            const changed = currentRaw !== nextRaw;
+
+            if (changed) {
+                localStorage.setItem('EventPro_DB_Ultimate_Final', nextRaw);
+            }
+
+            return { ok: true, changed, count: localEvents.length };
+        },
+
         async writeAudit(module, action, details, actor) {
             if (this.mode !== 'online' || !this.client) {
                 return false;
