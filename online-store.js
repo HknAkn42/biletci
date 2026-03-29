@@ -7,6 +7,26 @@
     const ONLINE_CACHE_KEY = 'BiletPro_OnlineRuntime';
     const DELETED_EVENTS_KEY = 'BiletPro_DeletedEvents';
 
+    function getLocalDeletedIds() {
+        try {
+            const raw = localStorage.getItem(DELETED_EVENTS_KEY) || '[]';
+            const arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr.map((x) => String(x)).filter(Boolean) : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function saveLocalDeletedIds(ids) {
+        try {
+            const merged = Array.from(new Set([...(getLocalDeletedIds() || []), ...(ids || []).map((x) => String(x)).filter(Boolean)]));
+            localStorage.setItem(DELETED_EVENTS_KEY, JSON.stringify(merged));
+            return merged;
+        } catch (_) {
+            return getLocalDeletedIds();
+        }
+    }
+
     function getCoreConfig() {
         if (window.BiletProCore && typeof window.BiletProCore.getConfig === 'function') {
             return window.BiletProCore.getConfig();
@@ -106,21 +126,29 @@
         },
 
         async getDeletedEventIds() {
-            if (this.mode !== 'online' || !this.client) return [];
+            const localDeleted = getLocalDeletedIds();
+            if (this.mode !== 'online' || !this.client) return localDeleted;
             const { data, error } = await this.client
                 .from('app_config')
                 .select('value')
                 .eq('key', DELETED_EVENTS_KEY)
                 .maybeSingle();
 
-            if (error || !data?.value || !Array.isArray(data.value)) return [];
-            return data.value.map((x) => String(x));
+            if (error || !data?.value || !Array.isArray(data.value)) return localDeleted;
+            const onlineDeleted = data.value.map((x) => String(x));
+            return Array.from(new Set([...(localDeleted || []), ...(onlineDeleted || [])]));
         },
 
         async markEventsDeleted(ids) {
-            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
             const list = Array.isArray(ids) ? ids.map((x) => String(x)).filter(Boolean) : [];
             if (!list.length) return { ok: true, reason: 'no_ids' };
+
+            // Önce local tombstone'a yaz (offline durumda bile geri dirilmeyi engeller)
+            const localMerged = saveLocalDeletedIds(list);
+
+            if (this.mode !== 'online' || !this.client) {
+                return { ok: true, reason: 'local_only', count: localMerged.length };
+            }
 
             const existing = await this.getDeletedEventIds();
             const merged = Array.from(new Set([...(existing || []), ...list]));
@@ -131,7 +159,7 @@
 
             if (error) {
                 console.error('[BiletPro OnlineStore] markEventsDeleted error:', error);
-                return { ok: false, reason: error.message || 'upsert_failed' };
+                return { ok: true, reason: 'local_only_online_failed', count: localMerged.length };
             }
             return { ok: true, count: merged.length };
         },

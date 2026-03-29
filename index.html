@@ -499,8 +499,18 @@
                     events = events.filter(e => String(e.id) !== String(id)); 
                     localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
 
+                    // Silinen event'in geri dirilmesini engellemek için tombstone işareti
+                    try {
+                        const prevDel = JSON.parse(localStorage.getItem('BiletPro_DeletedEvents') || '[]');
+                        const nextDel = Array.from(new Set([...(Array.isArray(prevDel) ? prevDel : []), String(id)]));
+                        localStorage.setItem('BiletPro_DeletedEvents', JSON.stringify(nextDel));
+                    } catch (_) {}
+
                     if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
                         try {
+                            if (typeof window.BiletProOnlineStore.markEventsDeleted === 'function') {
+                                await window.BiletProOnlineStore.markEventsDeleted([id]);
+                            }
                             await window.BiletProOnlineStore.deleteLegacyEventBundle(id);
                         } catch (_) {}
                     }
@@ -528,7 +538,16 @@
                     events = events.filter(e => String(e.id) !== String(id)); 
                     localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
 
+                    try {
+                        const prevDel = JSON.parse(localStorage.getItem('BiletPro_DeletedEvents') || '[]');
+                        const nextDel = Array.from(new Set([...(Array.isArray(prevDel) ? prevDel : []), String(id)]));
+                        localStorage.setItem('BiletPro_DeletedEvents', JSON.stringify(nextDel));
+                    } catch (_) {}
+
                     if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
+                        if (typeof window.BiletProOnlineStore.markEventsDeleted === 'function') {
+                            window.BiletProOnlineStore.markEventsDeleted([id]).catch(() => {});
+                        }
                         window.BiletProOnlineStore.deleteLegacyEventBundle(id).catch(() => {});
                     }
 
