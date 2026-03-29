@@ -622,6 +622,119 @@ window.logout = function() {
     });
 }
 
+/* ==========================================
+   AUTO SYNC: LOCAL -> ONLINE (OFFLINE SAFE)
+   ========================================== */
+const BILETPRO_SYNC_STATUS_KEY = 'BiletPro_LastOnlineSyncStatus';
+
+window.BiletProAutoSync = {
+    running: false,
+    timer: null,
+
+    getLocalEvents() {
+        const events = safeJSON(localStorage.getItem('EventPro_DB_Ultimate_Final'), []);
+        return Array.isArray(events) ? events : [];
+    },
+
+    async waitOnlineStore(maxWaitMs = 10000) {
+        const started = Date.now();
+        while (Date.now() - started < maxWaitMs) {
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                return true;
+            }
+            await new Promise(r => setTimeout(r, 250));
+        }
+        return false;
+    },
+
+    saveStatus(payload) {
+        try {
+            localStorage.setItem(BILETPRO_SYNC_STATUS_KEY, JSON.stringify({
+                at: new Date().toISOString(),
+                ...payload
+            }));
+        } catch (_) {}
+    },
+
+    async syncNow(trigger = 'manual') {
+        if (this.running) return { ok: false, reason: 'already_running' };
+        if (!navigator.onLine) {
+            this.saveStatus({ ok: false, reason: 'offline', trigger });
+            return { ok: false, reason: 'offline' };
+        }
+
+        this.running = true;
+        try {
+            const ready = await this.waitOnlineStore();
+            if (!ready) {
+                this.saveStatus({ ok: false, reason: 'online_store_not_ready', trigger });
+                return { ok: false, reason: 'online_store_not_ready' };
+            }
+
+            const initRes = await window.BiletProOnlineStore.init();
+            if (!initRes || initRes.mode !== 'online') {
+                this.saveStatus({ ok: false, reason: 'online_mode_unavailable', trigger, init: initRes || null });
+                return { ok: false, reason: 'online_mode_unavailable' };
+            }
+
+            const events = this.getLocalEvents();
+            if (!events.length) {
+                this.saveStatus({ ok: true, reason: 'nothing_to_sync', trigger, total: 0, synced: 0, failed: 0 });
+                return { ok: true, reason: 'nothing_to_sync' };
+            }
+
+            let synced = 0;
+            let failed = 0;
+
+            for (const ev of events) {
+                if (!ev || !ev.id) continue;
+                try {
+                    const res = await window.BiletProOnlineStore.syncLegacyEventBundle(ev);
+                    if (res && res.ok) synced++;
+                    else failed++;
+                } catch (_) {
+                    failed++;
+                }
+            }
+
+            const ok = failed === 0;
+            this.saveStatus({ ok, reason: ok ? 'synced' : 'partial', trigger, total: events.length, synced, failed });
+            return { ok, total: events.length, synced, failed };
+        } finally {
+            this.running = false;
+        }
+    },
+
+    schedule(trigger = 'scheduled', delayMs = 800) {
+        if (this.timer) clearTimeout(this.timer);
+        this.timer = setTimeout(() => {
+            this.syncNow(trigger).catch(() => {});
+        }, delayMs);
+    },
+
+    start() {
+        // İlk açılışta
+        this.schedule('startup', 1200);
+
+        // İnternet geri gelince otomatik çek (PAT)
+        window.addEventListener('online', () => this.schedule('online', 400));
+
+        // Sekmeye geri dönünce tekrar dene
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this.schedule('visible', 400);
+        });
+
+        // Arka planda periyodik emniyet sync
+        setInterval(() => this.schedule('interval', 0), 45000);
+    }
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.BiletProAutoSync && typeof window.BiletProAutoSync.start === 'function') {
+        window.BiletProAutoSync.start();
+    }
+});
+
 // ONLINE STORE KÖPRÜSÜ (çoklu cihaz altyapısı için)
 (function ensureOnlineStoreLoaded() {
     if (window.__BiletProOnlineStoreScriptLoaded) return;
