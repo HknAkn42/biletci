@@ -105,6 +105,7 @@
                     <p class="text-slate-500 text-sm uppercase tracking-widest mt-1">Personel & denetim analizi</p>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <button onclick="pullLiveReportData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider text-[11px]">☁️ Veri Çek</button>
                     <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">🔄 Finans Yenile</button>
                     <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">🧾 Log Yenile</button>
                     <button onclick="resetReportTestData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black uppercase tracking-wider text-[11px]">🧪 Deneme Verisini Sıfırla</button>
@@ -214,7 +215,8 @@
             <section class="glass-card p-6">
                 <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
                     <h2 class="section-title"><span>🛡️</span><span>Audit Log Filtreleme</span></h2>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="clearAuditLogsWithPin();" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs uppercase tracking-wider font-black hover:bg-red-700">Logları Sıfırla (PIN)</button>
                         <label for="auditFilter" class="font-black text-xs uppercase tracking-wider">Filtre</label>
                         <select id="auditFilter" class="border border-slate-200 rounded-lg px-2 py-2" onchange="applyLogFilter(this.value)">
                             <option value="all">Tümü</option>
@@ -257,6 +259,17 @@
 
         function notifyRefresh(action) {
             if(typeof showToast === 'function') showToast(action + ' tamamlandı', 'success');
+        }
+
+        function getSettingsPinFromConfig() {
+            try {
+                const cfg = (window.BiletProCore && typeof window.BiletProCore.getConfig === 'function')
+                    ? window.BiletProCore.getConfig()
+                    : {};
+                return String((cfg && cfg.security && cfg.security.settingsPin) || '52655265').trim();
+            } catch(_) {
+                return '52655265';
+            }
         }
 
         function openActionDialog(opts = {}) {
@@ -326,6 +339,22 @@
             notifyRefresh('Finans yenileme');
         }
 
+        async function pullLiveReportData() {
+            try {
+                if(window.BiletProAutoSync && typeof window.BiletProAutoSync.syncNow === 'function') {
+                    await window.BiletProAutoSync.syncNow('manual_report_pull');
+                }
+            } catch(_) {}
+
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+            await syncAuditLogsFromOnline();
+            renderStaffFinancials();
+            renderArchiveManager();
+            renderAuditLogs();
+            notifyRefresh('Canlı veri çekme');
+        }
+
         async function refreshLogs() {
             const btn = event?.target;
             if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
@@ -354,6 +383,42 @@
             renderAuditLogs();
 
             if(typeof showToast === 'function') showToast('Rapor deneme verileri sıfırlandı.', 'success');
+        }
+
+        async function clearAuditLogsWithPin() {
+            const code = Math.random().toString(36).slice(2, 7).toUpperCase();
+            const pinDialog = await openActionDialog({
+                title: 'Logları Sıfırla (PIN)',
+                description: `Önce yönetici PIN, ardından doğrulama kodu girilirse loglar temizlenir. Kod: ${code}`,
+                confirmText: 'Doğrula',
+                cancelText: 'Vazgeç',
+                tone: 'danger',
+                inputPlaceholder: 'PIN-KOD formatı: 1234-ABCDE'
+            });
+            if(!pinDialog.confirmed) return;
+
+            const raw = String(pinDialog.input || '').trim();
+            const [pinTyped, codeTyped] = raw.split('-').map(v => String(v || '').trim());
+            const realPin = getSettingsPinFromConfig();
+
+            if(!pinTyped || !codeTyped || pinTyped !== realPin || codeTyped.toUpperCase() !== code) {
+                if(typeof showToast === 'function') showToast('PIN veya doğrulama kodu yanlış. Loglar silinmedi.', 'error');
+                return;
+            }
+
+            localStorage.removeItem('BiletPro_AuditLogs');
+
+            try {
+                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.setAuditResetAt === 'function') {
+                        await window.BiletProOnlineStore.setAuditResetAt(new Date().toISOString());
+                    }
+                }
+            } catch(_) {}
+
+            renderAuditLogs();
+            if(typeof showToast === 'function') showToast('Audit loglar PIN doğrulaması ile sıfırlandı.', 'success');
         }
 
         async function hardResetAllSalesWithCode() {

@@ -6,6 +6,7 @@
 (function () {
     const ONLINE_CACHE_KEY = 'BiletPro_OnlineRuntime';
     const DELETED_EVENTS_KEY = 'BiletPro_DeletedEvents';
+    const AUDIT_RESET_AT_KEY = 'BiletPro_AuditResetAt';
 
     function getLocalDeletedIds() {
         try {
@@ -352,17 +353,53 @@
             });
         },
 
+        async getAuditResetAt() {
+            if (this.mode !== 'online' || !this.client) return null;
+
+            const { data, error } = await this.client
+                .from('app_config')
+                .select('value')
+                .eq('key', AUDIT_RESET_AT_KEY)
+                .maybeSingle();
+
+            if (error) return null;
+            const v = data?.value;
+            if (typeof v === 'string' && v.trim()) return v.trim();
+            return null;
+        },
+
+        async setAuditResetAt(isoString) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const stamp = String(isoString || new Date().toISOString()).trim();
+
+            const { error } = await this.client
+                .from('app_config')
+                .upsert({ key: AUDIT_RESET_AT_KEY, value: stamp }, { onConflict: 'key' });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] setAuditResetAt error:', error);
+                return { ok: false, reason: error.message || 'upsert_failed' };
+            }
+            return { ok: true, resetAt: stamp };
+        },
+
         async pullAuditToLocal(limit = 1000) {
             if (this.mode !== 'online' || !this.client) {
                 return { ok: false, reason: 'offline_mode', changed: false, count: 0 };
             }
 
             const safeLimit = Math.max(50, Math.min(2000, parseInt(limit, 10) || 1000));
-            const { data, error } = await this.client
+            const resetAt = await this.getAuditResetAt();
+            let query = this.client
                 .from('audit_logs')
                 .select('module, action, details, actor_name, actor_username, actor_role, created_at')
-                .order('created_at', { ascending: false })
-                .limit(safeLimit);
+                .order('created_at', { ascending: false });
+
+            if (resetAt) {
+                query = query.gt('created_at', resetAt);
+            }
+
+            const { data, error } = await query.limit(safeLimit);
 
             if (error) {
                 console.error('[BiletPro OnlineStore] pullAuditToLocal error:', error);
