@@ -383,6 +383,10 @@ window.showConfirm = function(title, description, onConfirm) {
 
 // SYSTEM AUDIT LOG (GLOBAL)
 const BILETPRO_AUDIT_QUEUE_KEY = 'BiletPro_AuditQueue';
+const BILETPRO_AUDIT_FLUSH_BATCH = 20;
+const BILETPRO_AUDIT_FLUSH_TIMEOUT_MS = 4500;
+const BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS = 250;
+const BILETPRO_AUDIT_FLUSH_MAX_DELAY_MS = 12000;
 
 function getAuditQueue() {
     try {
@@ -400,9 +404,54 @@ function setAuditQueue(list) {
     } catch (_) {}
 }
 
+function withTimeout(promise, ms) {
+    return new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            resolve({ timeout: true, value: false });
+        }, ms);
+
+        Promise.resolve(promise)
+            .then((v) => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                resolve({ timeout: false, value: v });
+            })
+            .catch(() => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                resolve({ timeout: false, value: false });
+            });
+    });
+}
+
+window.scheduleAuditFlush = function(delayMs = BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS) {
+    const safeDelay = Math.max(0, Number(delayMs) || 0);
+    if (window.__bpAuditFlushTimer) clearTimeout(window.__bpAuditFlushTimer);
+
+    const runner = () => {
+        if (typeof window.flushAuditQueue === 'function') {
+            window.flushAuditQueue().catch(() => {});
+        }
+    };
+
+    window.__bpAuditFlushTimer = setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(runner, { timeout: 1200 });
+        } else {
+            setTimeout(runner, 0);
+        }
+    }, safeDelay);
+}
+
 window.flushAuditQueue = async function() {
     if (window.__bpAuditFlushRunning) return { ok: false, reason: 'busy' };
     if (!window.BiletProOnlineStore || typeof window.BiletProOnlineStore.writeAudit !== 'function') return { ok: false, reason: 'store_missing' };
+    if (!navigator.onLine) return { ok: false, reason: 'offline' };
 
     try {
         const initRes = (typeof window.BiletProOnlineStore.init === 'function')
@@ -419,16 +468,18 @@ window.flushAuditQueue = async function() {
         if (!queue.length) return { ok: true, flushed: 0, left: 0 };
 
         let flushed = 0;
-        for (let i = 0; i < queue.length; i++) {
+        const batchLimit = Math.min(BILETPRO_AUDIT_FLUSH_BATCH, queue.length);
+        for (let i = 0; i < batchLimit; i++) {
             const item = queue[i];
             if (!item || !item.module || !item.action) continue;
 
-            const ok = await window.BiletProOnlineStore.writeAudit(
+            const result = await withTimeout(window.BiletProOnlineStore.writeAudit(
                 item.module,
                 item.action,
                 item.details || '',
                 item.actor || { name: 'anon', username: 'anon', role: 'guest' }
-            );
+            ), BILETPRO_AUDIT_FLUSH_TIMEOUT_MS);
+            const ok = !!(result && result.value === true);
 
             if (!ok) break;
             flushed++;
@@ -439,8 +490,30 @@ window.flushAuditQueue = async function() {
             setAuditQueue(queue);
         }
 
+        if (!queue.length) {
+            window.__bpAuditFlushFailCount = 0;
+        } else if (flushed > 0) {
+            window.__bpAuditFlushFailCount = 0;
+            if (typeof window.scheduleAuditFlush === 'function') {
+                window.scheduleAuditFlush(BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS);
+            }
+        } else {
+            const failCount = (window.__bpAuditFlushFailCount || 0) + 1;
+            window.__bpAuditFlushFailCount = failCount;
+            const nextDelay = Math.min(BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS * Math.pow(2, failCount), BILETPRO_AUDIT_FLUSH_MAX_DELAY_MS);
+            if (typeof window.scheduleAuditFlush === 'function') {
+                window.scheduleAuditFlush(nextDelay);
+            }
+        }
+
         return { ok: true, flushed, left: queue.length };
     } catch (_) {
+        const failCount = (window.__bpAuditFlushFailCount || 0) + 1;
+        window.__bpAuditFlushFailCount = failCount;
+        const nextDelay = Math.min(BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS * Math.pow(2, failCount), BILETPRO_AUDIT_FLUSH_MAX_DELAY_MS);
+        if (typeof window.scheduleAuditFlush === 'function') {
+            window.scheduleAuditFlush(nextDelay);
+        }
         return { ok: false, reason: 'flush_exception' };
     } finally {
         window.__bpAuditFlushRunning = false;
@@ -478,19 +551,20 @@ window.writeAuditEvent = function(module, action, details) {
     if (queue.length > 3000) queue.splice(0, queue.length - 3000);
     setAuditQueue(queue);
 
-    // Online mod açıksa kuyrukta birikenleri merkeze bas
-    if(typeof window.flushAuditQueue === 'function') {
-        window.flushAuditQueue().catch(() => {});
+    // Kullanıcı akışını bloklamadan arka planda flush planla
+    if(typeof window.scheduleAuditFlush === 'function') {
+        window.scheduleAuditFlush(BILETPRO_AUDIT_FLUSH_BASE_DELAY_MS);
     }
 }
 
 window.addEventListener('online', () => {
-    if(typeof window.flushAuditQueue === 'function') window.flushAuditQueue().catch(() => {});
+    window.__bpAuditFlushFailCount = 0;
+    if(typeof window.scheduleAuditFlush === 'function') window.scheduleAuditFlush(50);
 });
 
 document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible' && typeof window.flushAuditQueue === 'function') {
-        window.flushAuditQueue().catch(() => {});
+    if(document.visibilityState === 'visible' && typeof window.scheduleAuditFlush === 'function') {
+        window.scheduleAuditFlush(80);
     }
 });
 
