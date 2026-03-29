@@ -129,7 +129,7 @@ const BILETPRO_DEFAULT_CONFIG = {
         primaryColor: '#2563eb'
     },
     online: {
-        enabled: false, // ← KAPATILI (Test için local mode)
+        enabled: true,
         provider: 'supabase',
         supabaseUrl: 'https://iisjexomwopcxwqeabei.supabase.co',
         supabaseAnonKey: 'sb_publishable_jWJDGWClbtosoQeO_gebxQ_P-o24Ne2',
@@ -179,7 +179,14 @@ function mergeDeep(base, override) {
 window.BiletProCore = {
     getConfig() {
         const raw = safeJSON(localStorage.getItem('BiletPro_Config'), {});
-        return mergeDeep(BILETPRO_DEFAULT_CONFIG, raw || {});
+        const merged = mergeDeep(BILETPRO_DEFAULT_CONFIG, raw || {});
+
+        // Canlı çoklu cihaz modu: eski localStorage config "enabled:false" bırakmış olsa bile online açık gelsin
+        if (merged.online && merged.online.provider === 'supabase' && merged.online.supabaseUrl && merged.online.supabaseAnonKey) {
+            merged.online.enabled = true;
+        }
+
+        return merged;
     },
     saveConfig(newConfig) {
         const merged = mergeDeep(BILETPRO_DEFAULT_CONFIG, newConfig || {});
