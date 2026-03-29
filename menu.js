@@ -201,6 +201,9 @@ const BILETPRO_DEFAULT_CONFIG = {
         personel: true,
         report: true,
         settings: true
+    },
+    security: {
+        settingsPin: '52655265'
     }
 };
 
@@ -665,13 +668,83 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
 window.openGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.remove('hidden'); }
 window.closeGuide = function() { const m = document.getElementById('guideModal'); if(m) m.classList.add('hidden'); }
-window.openSystemSettings = function() {
+const BILETPRO_SETTINGS_PIN_SESSION_KEY = 'BiletPro_SettingsPinUntil';
+
+function hasValidSettingsPinSession() {
+    const until = parseInt(sessionStorage.getItem(BILETPRO_SETTINGS_PIN_SESSION_KEY) || '0', 10) || 0;
+    return until > Date.now();
+}
+
+function getSettingsPin() {
+    const cfg = window.BiletProCore.getConfig();
+    return String((cfg && cfg.security && cfg.security.settingsPin) || '52655265').trim();
+}
+
+function requestSettingsPinModal() {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay show';
+        overlay.innerHTML = `
+            <div class="confirm-box" style="max-width:460px; text-align:left;">
+                <div class="confirm-title" style="font-size:18px; margin-bottom:8px;">AYARLAR PIN DOĞRULAMA</div>
+                <div class="confirm-desc" style="margin-bottom:14px;">Sistem ayarlarına girmek için yönetici PIN kodunu girin.</div>
+                <input id="settingsPinInput" type="password" placeholder="PIN" style="width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-weight:800;font-size:14px;outline:none;" />
+                <div id="settingsPinErr" style="display:none;margin-top:8px;font-size:12px;font-weight:800;color:#dc2626;">PIN yanlış.</div>
+                <div class="confirm-actions" style="margin-top:16px;">
+                    <button class="btn-c-cancel" id="settingsPinCancel">VAZGEÇ</button>
+                    <button class="btn-c-confirm" id="settingsPinConfirm" style="background:#2563eb;box-shadow:0 10px 25px rgba(37,99,235,.25);">DOĞRULA</button>
+                </div>
+            </div>
+        `;
+
+        const cleanup = (ok) => {
+            overlay.remove();
+            resolve(ok === true);
+        };
+
+        overlay.querySelector('#settingsPinCancel').onclick = () => cleanup(false);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+
+        const input = overlay.querySelector('#settingsPinInput');
+        const err = overlay.querySelector('#settingsPinErr');
+        const checkPin = () => {
+            const typed = String(input.value || '').trim();
+            if (typed && typed === getSettingsPin()) {
+                sessionStorage.setItem(BILETPRO_SETTINGS_PIN_SESSION_KEY, String(Date.now() + (15 * 60 * 1000)));
+                cleanup(true);
+                return;
+            }
+            err.style.display = 'block';
+            input.focus();
+            input.select();
+        };
+
+        overlay.querySelector('#settingsPinConfirm').onclick = checkPin;
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                checkPin();
+            }
+        });
+
+        document.body.appendChild(overlay);
+        input.focus();
+    });
+}
+
+window.openSystemSettings = async function() {
     const session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
     const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
     if (!isAdmin) {
         if (typeof showToast === 'function') showToast('Sistem ayarları sadece yöneticiye açıktır.', 'error');
         return;
     }
+
+    if (!hasValidSettingsPinSession()) {
+        const ok = await requestSettingsPinModal();
+        if (!ok) return;
+    }
+
     window.location.href = 'settings.html';
 }
 
@@ -883,14 +956,18 @@ window.BiletProAutoSync = {
             }
 
             // 3) Personel verisini online'dan çek
+            let staffPullRes = { ok: false, changed: false };
             if (typeof window.BiletProOnlineStore.pullStaffFromOnline === 'function') {
-                await window.BiletProOnlineStore.pullStaffFromOnline();
+                staffPullRes = await window.BiletProOnlineStore.pullStaffFromOnline();
             }
 
             // 4) Sistem ayarlarını online'dan çek
+            let configPullRes = { ok: false, changed: false };
             if (typeof window.BiletProOnlineStore.pullConfigFromOnline === 'function') {
-                await window.BiletProOnlineStore.pullConfigFromOnline();
+                configPullRes = await window.BiletProOnlineStore.pullConfigFromOnline();
             }
+
+            const anyChanged = !!(pullRes.changed || staffPullRes.changed || configPullRes.changed);
 
             const ok = failed === 0 && (pullRes.ok !== false);
             this.saveStatus({
@@ -901,17 +978,20 @@ window.BiletProAutoSync = {
                 synced,
                 failed,
                 pulled: pullRes.count || 0,
-                changed: !!pullRes.changed
+                changed: anyChanged,
+                staffChanged: !!staffPullRes.changed,
+                configChanged: !!configPullRes.changed
             });
 
             // Veri değiştiyse sayfayı yenile
             // Realtime tetiklemelerinde flag kontrolü yok (her değişiklikte reload)
             // Startup/interval tetiklemelerinde ilk reload'dan sonra tekrar etme
-            if (pullRes.changed) {
+            if (anyChanged) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
-                    if (isRealtime || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
+                    const forceReloadForConfigOrStaff = !!(configPullRes.changed || staffPullRes.changed);
+                    if (isRealtime || forceReloadForConfigOrStaff || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
                         if (!isRealtime) sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
                         setTimeout(() => window.location.reload(), 300);
                     }
@@ -924,7 +1004,7 @@ window.BiletProAutoSync = {
                 synced,
                 failed,
                 pulled: pullRes.count || 0,
-                changed: !!pullRes.changed
+                changed: anyChanged
             };
         } finally {
             this.running = false;
