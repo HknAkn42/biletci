@@ -3,6 +3,30 @@
  * MASTER ADMIN: Hakan | ŞİFRE: 52655265
  */
 
+// localStorage intercept: EventPro_DB_Ultimate_Final yazılınca anında Supabase push tetikle
+(function() {
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === 'EventPro_DB_Ultimate_Final') {
+            // Kısa gecikmeyle push et (aynı tick'te birden fazla yazma varsa birleşsin)
+            clearTimeout(window.__bpSyncTimer);
+            window.__bpSyncTimer = setTimeout(() => {
+                try {
+                    if (window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online') {
+                        const events = JSON.parse(value || '[]');
+                        events.forEach(ev => {
+                            if (ev && ev.id) {
+                                window.BiletProOnlineStore.syncLegacyEventBundle(ev).catch(() => {});
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }, 400);
+        }
+    };
+})();
+
 (function() {
     function safeJSONParse(raw, fallback = null) {
         try { return JSON.parse(raw); } catch(_) { return fallback; }
