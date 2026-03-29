@@ -9,56 +9,35 @@
     <link rel="stylesheet" href="theme.css">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f4f7fa; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); }
+        .glass-card {
+            background: rgba(255,255,255,.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(226,232,240,.8);
+            border-radius: 28px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.03);
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
         .report-main {
-            height: 100dvh;
+            min-height: 100dvh;
+            height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             padding-bottom: 120px;
-            scroll-behavior: smooth;
-            overscroll-behavior-y: contain;
         }
+
         .report-sticky-head {
-                min-height: 100dvh;
-                height: 100vh;
-            top: 0;
-            z-index: 50;
-            background: linear-gradient(180deg, rgba(255,255,255,0.98) 65%, rgba(244,247,250,0.82) 100%);
-            backdrop-filter: blur(8px);
-            border: 1px solid #e2e8f0;
-            border-radius: 22px;
-            padding: 14px;
-                    <div class="overflow-x-auto">
-        }
-        .report-chip {
-            border: 1px solid #e2e8f0;
-            border-radius: 999px;
-            padding: 6px 12px;
-            font-size: 10px;
-                    <div class="overflow-x-auto">
-            letter-spacing: .7px;
-            color: #334155;
-            text-transform: uppercase;
-        .report-title {
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            -webkit-background-clip: text;
-                    <div class="overflow-x-auto">
-            color: transparent;
-        }
-        .report-scroll-box {
-            overflow: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            background: #fff;
-        }
-        .report-scroll-box thead th {
             position: sticky;
             top: 0;
-            z-index: 1;
-            background: #f8fafc;
+            z-index: 50;
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,247,250,.9));
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 12px;
+            backdrop-filter: blur(8px);
         }
+
         .section-title {
             display: flex;
             align-items: center;
@@ -68,6 +47,7 @@
             text-transform: uppercase;
             color: #0f172a;
         }
+
         .action-overlay {
             position: fixed;
             inset: 0;
@@ -107,9 +87,9 @@
             font-weight: 700;
             color: #0f172a;
         }
+
         @media (max-width: 768px) {
-            .report-sticky-head { top: 0; padding: 10px; }
-            .report-scroll-box { max-height: min(50dvh, 430px); }
+            .report-sticky-head { padding: 10px; }
         }
     </style>
 </head>
@@ -121,13 +101,8 @@
         <div class="max-w-7xl mx-auto space-y-8">
             <header class="report-sticky-head flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 class="report-title text-3xl font-black uppercase tracking-tighter">RAPORLAR</h1>
+                    <h1 class="text-3xl font-black uppercase tracking-tighter text-slate-900">RAPORLAR</h1>
                     <p class="text-slate-500 text-sm uppercase tracking-widest mt-1">Personel & denetim analizi</p>
-                    <div class="flex flex-wrap gap-2 mt-3">
-                        <span class="report-chip">Canlı Senkron</span>
-                        <span class="report-chip">Denetim İzleri</span>
-                        <span class="report-chip">Finans Arşivi</span>
-                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
                     <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">🔄 Finans Yenile</button>
@@ -139,8 +114,8 @@
 
             <section class="glass-card p-6">
                 <h2 class="section-title mb-4"><span>📊</span><span>Personel Finansal Performans</span></h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <div class="col-span-1 md:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
                         <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Toplam Etkinlik</span>
                         <p id="totalEvents" class="text-2xl font-black">0</p>
                     </div>
@@ -154,23 +129,22 @@
                     </div>
                 </div>
 
-                <div class="report-scroll-box no-scrollbar">
-                    <div class="overflow-x-auto">
+                <div class="overflow-x-auto">
                     <table class="w-full border-collapse text-left text-xs sm:text-sm">
                         <thead class="bg-slate-50 text-xs uppercase tracking-widest text-slate-600 font-black">
                             <tr>
                                 <th class="p-3 border-b border-slate-200">Personel</th>
                                 <th class="p-3 border-b border-slate-200 text-right">Ciro</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Satış Adedi</th>
+                                <th class="p-3 border-b border-slate-200 text-right">Satış</th>
                                 <th class="p-3 border-b border-slate-200 text-right">Geciken Borç</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Gecikme (gün)</th>
+                                <th class="p-3 border-b border-slate-200 text-right">Maks. Gecikme</th>
+                                <th class="p-3 border-b border-slate-200 text-right">Ort. Gecikme</th>
                                 <th class="p-3 border-b border-slate-200 text-right">İptal Oranı</th>
                                 <th class="p-3 border-b border-slate-200 text-right">Hata Payı</th>
                             </tr>
                         </thead>
                         <tbody id="staffFinanceList"></tbody>
                     </table>
-                    </div>
                 </div>
             </section>
 
@@ -179,8 +153,7 @@
                     <h2 class="section-title"><span>⏳</span><span>Borçlu Liste (Geciken)</span></h2>
                     <button onclick="sendOverdueReminders()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-xs uppercase tracking-wider font-black hover:bg-amber-600">Hatırlatma Gönder</button>
                 </div>
-                <div class="report-scroll-box no-scrollbar">
-                    <div class="overflow-x-auto">
+                <div class="overflow-x-auto">
                     <table class="w-full border-collapse text-left text-[11px] sm:text-xs">
                         <thead class="bg-slate-50 text-slate-600 uppercase tracking-widest">
                             <tr>
@@ -194,7 +167,6 @@
                         </thead>
                         <tbody id="debtListBody"></tbody>
                     </table>
-                    </div>
                 </div>
             </section>
 
@@ -222,8 +194,7 @@
                     </div>
                 </div>
 
-                <div class="report-scroll-box no-scrollbar">
-                    <div class="overflow-x-auto">
+                <div class="overflow-x-auto">
                     <table class="w-full border-collapse text-left text-[11px] sm:text-xs">
                         <thead class="bg-slate-50 text-slate-600 uppercase tracking-widest">
                             <tr>
@@ -237,7 +208,6 @@
                         </thead>
                         <tbody id="archiveDebtBody"></tbody>
                     </table>
-                    </div>
                 </div>
             </section>
 
@@ -255,13 +225,11 @@
                 </div>
                 <div id="auditLogContainer" class="overflow-y-auto no-scrollbar" style="max-height:45vh;"></div>
             </section>
-
         </div>
     </main>
 
     <script>
         let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-        let staffData = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
         let financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
         let currentAuditFilter = 'all';
 
@@ -349,17 +317,346 @@
 
         function refreshFinancials() {
             const btn = event?.target;
-            if(btn) { btn.disabled=true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+            if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
             events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
             financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
             renderStaffFinancials();
             renderArchiveManager();
-            setTimeout(() => { if(btn) { btn.disabled=false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
+            setTimeout(() => { if(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
             notifyRefresh('Finans yenileme');
         }
 
-        function saveArchive() {
-            localStorage.setItem('BiletPro_FinanceArchive', JSON.stringify(financeArchive));
+        async function refreshLogs() {
+            const btn = event?.target;
+            if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+            await syncAuditLogsFromOnline();
+            renderAuditLogs();
+            setTimeout(() => { if(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
+            notifyRefresh('Log yenileme');
+        }
+
+        async function resetReportTestData() {
+            const result = await openActionDialog({
+                title: 'Deneme Verisini Sıfırla',
+                description: 'Audit Log + Finans Arşivi verileri silinecek. Mevcut etkinlik satışları korunur.',
+                confirmText: 'Sıfırla',
+                cancelText: 'Vazgeç',
+                tone: 'danger'
+            });
+            if(!result.confirmed) return;
+
+            localStorage.removeItem('BiletPro_AuditLogs');
+            localStorage.removeItem('BiletPro_FinanceArchive');
+            financeArchive = [];
+
+            renderStaffFinancials();
+            renderArchiveManager();
+            renderAuditLogs();
+
+            if(typeof showToast === 'function') showToast('Rapor deneme verileri sıfırlandı.', 'success');
+        }
+
+        async function hardResetAllSalesWithCode() {
+            const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+            const codeDialog = await openActionDialog({
+                title: 'Kritik İşlem Onayı',
+                description: 'Tüm satışlar sıfırlanacak. Etkinlik/kategori/masa mimarisi korunur. Devam için ekrandaki kodu girin.',
+                confirmText: 'Kodu Doğrula',
+                cancelText: 'Vazgeç',
+                tone: 'danger',
+                code,
+                inputPlaceholder: 'Onay kodunu yazın'
+            });
+            if(!codeDialog.confirmed) return;
+
+            if(String(codeDialog.input || '').trim().toUpperCase() !== code) {
+                if(typeof showToast === 'function') showToast('Kod yanlış. İşlem iptal edildi.', 'error');
+                return;
+            }
+
+            const finalDialog = await openActionDialog({
+                title: 'Son Onay',
+                description: 'Bu işlem tüm satış kayıtlarını ve kapı loglarını temizler. Geri alınamaz.',
+                confirmText: 'Evet, Kalıcı Sıfırla',
+                cancelText: 'İptal',
+                tone: 'danger'
+            });
+            if(!finalDialog.confirmed) return;
+
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            events.forEach(ev => {
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        m.isSold = false;
+                        m.soldTo = '';
+                        m.saleDetail = null;
+                    });
+                });
+            });
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+
+            const removeKeys = [];
+            for(let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if(k && k.startsWith('BiletPro_CLog_')) removeKeys.push(k);
+            }
+            removeKeys.forEach(k => localStorage.removeItem(k));
+
+            localStorage.removeItem('BiletPro_AuditLogs');
+            localStorage.removeItem('BiletPro_FinanceArchive');
+            financeArchive = [];
+
+            try {
+                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
+                    const initRes = await window.BiletProOnlineStore.init();
+                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.hardResetSalesForEvents === 'function') {
+                        await window.BiletProOnlineStore.hardResetSalesForEvents(events);
+                    }
+                }
+            } catch(_) {}
+
+            renderStaffFinancials();
+            renderArchiveManager();
+            renderAuditLogs();
+
+            if(typeof showToast === 'function') showToast('Tüm satışlar kod doğrulaması ile sıfırlandı.', 'success');
+        }
+
+        function calculateStaffFinancials() {
+            let stats = {};
+            let totalRevenue = 0;
+            let totalSales = 0;
+
+            events.forEach(ev => {
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        if(m.isSold && m.saleDetail) {
+                            const seller = (m.saleDetail.soldBy || 'Merkez Kasa').trim();
+                            const paid = parseFloat(m.saleDetail.paid) || 0;
+
+                            totalRevenue += paid;
+                            totalSales += 1;
+
+                            if(!stats[seller]) {
+                                stats[seller] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0, overdueCount: 0, overdueAmount: 0, totalOverdueDays: 0, maxOverdueDays: 0 };
+                            }
+
+                            stats[seller].revenue += paid;
+                            stats[seller].sales += 1;
+
+                            const now = Date.now();
+                            const debt = parseFloat(m.saleDetail.debt) || 0;
+                            const eventDate = ev.date ? new Date(ev.date) : null;
+                            let dueDate = m.saleDetail.dueDate ? new Date(m.saleDetail.dueDate) : null;
+                            if(!dueDate || Number.isNaN(dueDate.getTime())) {
+                                dueDate = eventDate ? new Date(eventDate.getTime() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+                            }
+
+                            if(debt > 0 && now > dueDate.getTime()) {
+                                stats[seller].overdueCount += 1;
+                                stats[seller].overdueAmount += debt;
+                                const baseDate = eventDate ? eventDate.getTime() : dueDate.getTime();
+                                const overdueDays = Math.floor((now - baseDate) / (24 * 60 * 60 * 1000)) + 1;
+                                stats[seller].totalOverdueDays += overdueDays;
+                                stats[seller].maxOverdueDays = Math.max(stats[seller].maxOverdueDays, overdueDays);
+                            }
+                        }
+                    });
+                });
+            });
+
+            financeArchive.forEach(arc => {
+                totalRevenue += parseFloat(arc.totalRevenue) || 0;
+                totalSales += parseInt(arc.totalSales || 0, 10) || 0;
+
+                (arc.staffSummary || []).forEach(ss => {
+                    const name = (ss.name || 'Merkez Kasa').trim();
+                    if(!stats[name]) {
+                        stats[name] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0, overdueCount: 0, overdueAmount: 0, totalOverdueDays: 0, maxOverdueDays: 0 };
+                    }
+                    stats[name].revenue += parseFloat(ss.revenue) || 0;
+                    stats[name].sales += parseInt(ss.sales || 0, 10) || 0;
+                    stats[name].overdueAmount += parseFloat(ss.overdueAmount) || 0;
+                    stats[name].overdueCount += parseInt(ss.overdueCount || 0, 10) || 0;
+                    stats[name].maxOverdueDays = Math.max(stats[name].maxOverdueDays, parseInt(ss.maxOverdueDays || 0, 10) || 0);
+                });
+            });
+
+            const logs = getAuditLogs();
+            logs.forEach(log => {
+                const actor = (log.actor || 'Merkez Kasa').trim();
+                if(!stats[actor]) stats[actor] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0, overdueCount: 0, overdueAmount: 0, totalOverdueDays: 0, maxOverdueDays: 0 };
+
+                const act = (log.action || '').toLowerCase();
+                const det = (log.details || '').toLowerCase();
+
+                if(act.includes('iptal') || det.includes('iptal')) {
+                    stats[actor].cancel += 1;
+                    stats[actor].error += 1;
+                }
+                if(act.includes('borç') || act.includes('risk') || det.includes('borç') || det.includes('risk')) {
+                    stats[actor].debtPass += 1;
+                    stats[actor].error += 1;
+                }
+            });
+
+            Object.keys(stats).forEach(k => {
+                const rec = stats[k];
+                const total = rec.sales || 1;
+                rec.cancelRate = total ? (rec.cancel / total) * 100 : 0;
+                rec.errorRate = total ? (rec.error / total) * 100 : 0;
+                rec.overdueAmount = rec.overdueAmount || 0;
+                rec.avgOverdueDays = rec.overdueCount ? (rec.totalOverdueDays || 0) / rec.overdueCount : 0;
+            });
+
+            return { stats, totalRevenue, totalSales, totalEvents: events.length + financeArchive.length };
+        }
+
+        function renderStaffFinancials() {
+            const { stats, totalRevenue, totalSales, totalEvents } = calculateStaffFinancials();
+            document.getElementById('totalEvents').innerText = totalEvents;
+            document.getElementById('totalRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('totalSales').innerText = totalSales;
+
+            const tb = document.getElementById('staffFinanceList');
+            const rows = Object.entries(stats).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, rec]) => {
+                return `<tr class="border-t border-slate-100">
+                    <td class="p-3 font-black text-slate-800">${name}</td>
+                    <td class="p-3 text-right text-green-600">₺${rec.revenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="p-3 text-right">${rec.sales}</td>
+                    <td class="p-3 text-right text-red-600">${rec.overdueCount} / ₺${rec.overdueAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="p-3 text-right text-orange-600">${rec.maxOverdueDays > 0 ? rec.maxOverdueDays + ' gün' : '-'}</td>
+                    <td class="p-3 text-right text-blue-600">${rec.avgOverdueDays > 0 ? rec.avgOverdueDays.toFixed(1) + ' gün' : '-'}</td>
+                    <td class="p-3 text-right text-red-500">${rec.cancelRate.toFixed(2)}%</td>
+                    <td class="p-3 text-right text-amber-600">${rec.errorRate.toFixed(2)}%</td>
+                </tr>`;
+            });
+
+            tb.innerHTML = rows.length
+                ? rows.join('')
+                : '<tr><td class="p-3 text-center text-slate-500" colspan="8">Personel satış verisi bulunamadı</td></tr>';
+
+            renderOverdueDebtors();
+        }
+
+        function renderOverdueDebtors() {
+            const debtBody = document.getElementById('debtListBody');
+            if(!debtBody) return;
+
+            const overdueRecords = [];
+            const now = Date.now();
+
+            events.forEach(ev => {
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        if(m.isSold && m.saleDetail) {
+                            const debt = parseFloat(m.saleDetail.debt) || 0;
+                            if(debt <= 0) return;
+
+                            let dueDate = m.saleDetail.dueDate ? new Date(m.saleDetail.dueDate) : null;
+                            if(!dueDate || Number.isNaN(dueDate.getTime())) {
+                                dueDate = ev.date ? new Date(new Date(ev.date).getTime() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+                            }
+                            if(now <= dueDate.getTime()) return;
+
+                            const eventDate = ev.date ? new Date(ev.date).getTime() : dueDate.getTime();
+                            const overdueDays = Math.floor((now - eventDate) / (24 * 60 * 60 * 1000)) + 1;
+
+                            overdueRecords.push({
+                                customer: m.soldTo || 'Bilinmiyor',
+                                seller: m.saleDetail.soldBy || 'Merkez Kasa',
+                                phone: m.saleDetail.phone || '',
+                                debt,
+                                overdueDays,
+                                eventTitle: ev.title || 'Etkinlik',
+                                dueDate: dueDate.toLocaleDateString('tr-TR')
+                            });
+                        }
+                    });
+                });
+            });
+
+            financeArchive.forEach(arc => {
+                (arc.debtors || []).forEach(d => {
+                    const debt = parseFloat(d.debt) || 0;
+                    if(debt <= 0) return;
+
+                    const dueTs = d.dueDate
+                        ? new Date(d.dueDate).getTime()
+                        : (arc.eventDate ? new Date(arc.eventDate).getTime() : new Date(arc.deletedAt || Date.now()).getTime());
+                    const overdueDays = Math.max(1, Math.floor((now - dueTs) / (24 * 60 * 60 * 1000)) + 1);
+
+                    overdueRecords.push({
+                        customer: d.customer || 'Bilinmiyor',
+                        seller: d.seller || 'Merkez Kasa',
+                        phone: d.phone || '',
+                        debt,
+                        overdueDays,
+                        eventTitle: `${arc.eventTitle || 'Silinmiş Etkinlik'} (ARŞİV)`,
+                        dueDate: dueTs ? new Date(dueTs).toLocaleDateString('tr-TR') : '-',
+                        archived: true
+                    });
+                });
+            });
+
+            if(!overdueRecords.length) {
+                debtBody.innerHTML = '<tr><td class="p-3 text-center text-slate-500" colspan="6">Gecikmiş borçlu kayıt bulunamadı.</td></tr>';
+                return;
+            }
+
+            debtBody.innerHTML = overdueRecords.sort((a,b) => b.overdueDays - a.overdueDays).map(r => {
+                const phoneHint = r.phone ? `+${r.phone.replace(/\D/g, '')}` : '';
+                const wtext = encodeURIComponent(`Merhaba ${r.customer},\n${r.eventTitle} için ₺${r.debt.toFixed(2)} borcunuz ${r.overdueDays} gündür ödenmemiş durumda. Lütfen güncelleyiniz.`);
+                const mailto = `mailto:?subject=${encodeURIComponent('Borç Hatırlatma')}&body=${encodeURIComponent(`${r.customer} merhaba,\nBorç: ₺${r.debt.toFixed(2)}\nGecikme: ${r.overdueDays} gün\nLütfen ivedilikle tahsilat yapınız.`)}`;
+
+                return `<tr class="border-t border-slate-100 ${r.overdueDays >= 5 ? 'bg-red-50' : ''}">
+                    <td class="p-2">${r.customer}${r.archived ? ' <span class="text-[9px] font-black text-amber-600">(ARŞİV)</span>' : ''}</td>
+                    <td class="p-2">${r.seller}</td>
+                    <td class="p-2 text-right">₺${r.debt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="p-2 text-right">${r.overdueDays} gün</td>
+                    <td class="p-2">${r.phone || '-'} <br><small class="text-slate-500">${r.dueDate}</small></td>
+                    <td class="p-2">
+                        <a href="${mailto}" class="text-blue-600 text-[10px] font-black">E-Posta</a><br>
+                        <a target="_blank" href="https://api.whatsapp.com/send?phone=${phoneHint}&text=${wtext}" class="text-green-700 text-[10px] font-black">WhatsApp</a>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sendOverdueReminders() {
+            if(typeof showToast === 'function') {
+                showToast('WhatsApp/E-posta linkleri hazır. Sarı satırları kullanabilirsiniz.', 'info');
+            }
+        }
+
+        function renderAuditLogs() {
+            let logs = getAuditLogs();
+            if(currentAuditFilter !== 'all') {
+                logs = logs.filter(log => {
+                    const act = (log.action || '').toLowerCase();
+                    const det = (log.details || '').toLowerCase();
+                    if(currentAuditFilter === 'cancel') return act.includes('iptal') || det.includes('iptal');
+                    if(currentAuditFilter === 'debt') return act.includes('borç') || act.includes('risk') || det.includes('borç') || det.includes('risk');
+                    return true;
+                });
+            }
+
+            const container = document.getElementById('auditLogContainer');
+            if(!logs.length) {
+                container.innerHTML = '<div class="text-center text-sm text-slate-500">Filtreye uygun kayıt bulunamadı.</div>';
+                return;
+            }
+
+            container.innerHTML = logs.map(log => `
+                <div class="border p-3 rounded-xl mb-2 bg-white">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-black">${log.actor} (${log.role})</span>
+                        <span class="text-[10px] text-slate-400">${log.time}</span>
+                    </div>
+                    <div class="text-sm font-bold text-slate-700 uppercase">${log.module} - ${log.action}</div>
+                    <p class="text-xs text-slate-500 mt-1">${log.details || ''}</p>
+                </div>
+            `).join('');
         }
 
         function recalcArchiveTotals(arc) {
@@ -369,7 +666,7 @@
             const staffMap = {};
             debtors.forEach(d => {
                 const seller = (d.seller || 'Merkez Kasa').trim();
-                if(!staffMap[seller]) staffMap[seller] = { name: seller, overdueAmount: 0, overdueCount: 0, maxOverdueDays: 0 };
+                if(!staffMap[seller]) staffMap[seller] = { overdueAmount: 0, overdueCount: 0, maxOverdueDays: 0 };
                 const debt = parseFloat(d.debt) || 0;
                 if(debt > 0) {
                     staffMap[seller].overdueAmount += debt;
@@ -381,6 +678,10 @@
                 const m = staffMap[s.name] || { overdueAmount: 0, overdueCount: 0, maxOverdueDays: 0 };
                 return { ...s, overdueAmount: m.overdueAmount, overdueCount: m.overdueCount, maxOverdueDays: m.maxOverdueDays };
             });
+        }
+
+        function saveArchive() {
+            localStorage.setItem('BiletPro_FinanceArchive', JSON.stringify(financeArchive));
         }
 
         function closeArchiveDebt(archiveId, debtorIndex) {
@@ -448,8 +749,8 @@
             const totalDebt = financeArchive.reduce((sum, a) => sum + (parseFloat(a.totalDebt) || 0), 0);
 
             document.getElementById('arcEvtCount').innerText = financeArchive.length;
-            document.getElementById('arcRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
-            document.getElementById('arcDebt').innerText = '₺' + totalDebt.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('arcRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('arcDebt').innerText = '₺' + totalDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
             const rows = [];
             financeArchive.forEach(arc => {
@@ -465,354 +766,18 @@
                         <td class="p-2">${arc.eventTitle}</td>
                         <td class="p-2">${d.customer || '-'}</td>
                         <td class="p-2">${d.phone || '-'}</td>
-                        <td class="p-2 text-right ${debt > 0 ? 'text-red-600' : 'text-green-600'}">₺${debt.toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                        <td class="p-2 text-right ${debt > 0 ? 'text-red-600' : 'text-green-600'}">₺${debt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td class="p-2">${debt > 0 ? '<span class="text-red-600 font-black">AÇIK</span>' : '<span class="text-green-600 font-black">KAPALI</span>'}</td>
                         <td class="p-2">${debt > 0 ? `<button onclick="closeArchiveDebt('${arc.id}', ${idx})" class="px-2 py-1 rounded bg-emerald-600 text-white text-[10px] font-black uppercase">Kapat</button>` : '-'}</td>
                     </tr>`);
                 });
             });
 
-            body.innerHTML = rows.length ? rows.join('') : '<tr><td class="p-3 text-center text-slate-500" colspan="6">Arşiv kaydı bulunamadı.</td></tr>';
+            body.innerHTML = rows.length
+                ? rows.join('')
+                : '<tr><td class="p-3 text-center text-slate-500" colspan="6">Arşiv kaydı bulunamadı.</td></tr>';
         }
 
-        async function refreshLogs() {
-            const btn = event?.target;
-            if(btn) { btn.disabled=true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
-            await syncAuditLogsFromOnline();
-            renderAuditLogs();
-            setTimeout(() => { if(btn) { btn.disabled=false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
-            notifyRefresh('Log yenileme');
-        }
-
-        async function resetReportTestData() {
-            const result = await openActionDialog({
-                title: 'Deneme Verisini Sıfırla',
-                description: 'Audit Log + Finans Arşivi verileri silinecek. Mevcut etkinlik satışları korunur.',
-                confirmText: 'Sıfırla',
-                cancelText: 'Vazgeç',
-                tone: 'danger'
-            });
-            if(!result.confirmed) return;
-
-            localStorage.removeItem('BiletPro_AuditLogs');
-            localStorage.removeItem('BiletPro_FinanceArchive');
-
-            financeArchive = [];
-            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-
-            renderStaffFinancials();
-            renderArchiveManager();
-            renderAuditLogs();
-
-            if(typeof showToast === 'function') showToast('Rapor deneme verileri sıfırlandı.', 'success');
-        }
-
-        async function hardResetAllSalesWithCode() {
-            const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-            const codeDialog = await openActionDialog({
-                title: 'Kritik İşlem Onayı',
-                description: 'Tüm satışlar sıfırlanacak. Etkinlik/kategori/masa mimarisi korunur. Devam için ekrandaki kodu girin.',
-                confirmText: 'Kodu Doğrula',
-                cancelText: 'Vazgeç',
-                tone: 'danger',
-                code,
-                inputPlaceholder: 'Onay kodunu yazın'
-            });
-            if(!codeDialog.confirmed) return;
-            if(String(codeDialog.input || '').trim().toUpperCase() !== code) {
-                if(typeof showToast === 'function') showToast('Kod yanlış. İşlem iptal edildi.', 'error');
-                return;
-            }
-
-            const finalDialog = await openActionDialog({
-                title: 'Son Onay',
-                description: 'Bu işlem tüm satış kayıtlarını ve kapı loglarını temizler. Geri alınamaz.',
-                confirmText: 'Evet, Kalıcı Sıfırla',
-                cancelText: 'İptal',
-                tone: 'danger'
-            });
-            if(!finalDialog.confirmed) return;
-
-            // 1) Event satış alanlarını yerelde sıfırla
-            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-            events.forEach(ev => {
-                (ev.categories || []).forEach(cat => {
-                    (cat.masalar || []).forEach(m => {
-                        m.isSold = false;
-                        m.soldTo = '';
-                        m.saleDetail = null;
-                    });
-                });
-            });
-            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
-
-            // 2) Kapı loglarını temizle
-            const removeKeys = [];
-            for(let i=0;i<localStorage.length;i++) {
-                const k = localStorage.key(i);
-                if(k && k.startsWith('BiletPro_CLog_')) removeKeys.push(k);
-            }
-            removeKeys.forEach(k => localStorage.removeItem(k));
-
-            // 3) Rapor/deneme verilerini temizle
-            localStorage.removeItem('BiletPro_AuditLogs');
-            localStorage.removeItem('BiletPro_FinanceArchive');
-            financeArchive = [];
-
-            // 4) Online modu da kesin temizle
-            try {
-                if(window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
-                    const initRes = await window.BiletProOnlineStore.init();
-                    if(initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.hardResetSalesForEvents === 'function') {
-                        await window.BiletProOnlineStore.hardResetSalesForEvents(events);
-                    }
-                }
-            } catch(_) {}
-
-            renderStaffFinancials();
-            renderArchiveManager();
-            renderAuditLogs();
-
-            if(typeof showToast === 'function') showToast('Tüm satışlar kod doğrulaması ile sıfırlandı.', 'success');
-        }
-
-        function calculateStaffFinancials() {
-            let stats = {};
-            let totalRevenue = 0;
-            let totalSales = 0;
-
-            events.forEach(ev => {
-                if(!ev.categories) return;
-                ev.categories.forEach(cat => {
-                    if(!cat.masalar) return;
-                    cat.masalar.forEach(m => {
-                        if(m.isSold && m.saleDetail) {
-                            const seller = (m.saleDetail.soldBy || 'Merkez Kasa').trim();
-                            const paid = parseFloat(m.saleDetail.paid) || 0;
-
-                            totalRevenue += paid;
-                            totalSales += 1;
-
-                            if(!stats[seller]) stats[seller] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0, overdueCount: 0, overdueAmount: 0, totalOverdueDays: 0, maxOverdueDays: 0 };
-                            stats[seller].revenue += paid;
-                            stats[seller].sales += 1;
-
-                            const now = Date.now();
-                            const debt = parseFloat(m.saleDetail.debt) || 0;
-                            const eventDatePerm = ev.date ? new Date(ev.date) : null;
-                            let dueDate = m.saleDetail.dueDate ? new Date(m.saleDetail.dueDate) : null;
-                            if(!dueDate || Number.isNaN(dueDate.getTime())) {
-                                dueDate = eventDatePerm ? new Date(eventDatePerm.getTime() + 24*60*60*1000) : new Date(Date.now() + 24*60*60*1000);
-                            }
-
-                            if(debt > 0 && now > dueDate.getTime()) {
-                                stats[seller].overdueCount += 1;
-                                stats[seller].overdueAmount += debt;
-
-                                const baseDate = eventDatePerm ? eventDatePerm.getTime() : dueDate.getTime();
-                                const overdueDays = Math.floor((now - baseDate) / (24*60*60*1000)) + 1;
-                                stats[seller].totalOverdueDays += overdueDays;
-                                stats[seller].maxOverdueDays = Math.max(stats[seller].maxOverdueDays, overdueDays);
-                            }
-                        }
-                    });
-                });
-            });
-
-            // SİLİNMİŞ ETKİNLİK FİNANS ARŞİVİ
-            financeArchive.forEach(arc => {
-                totalRevenue += parseFloat(arc.totalRevenue) || 0;
-                totalSales += parseInt(arc.totalSales || 0, 10) || 0;
-
-                (arc.staffSummary || []).forEach(ss => {
-                    const name = (ss.name || 'Merkez Kasa').trim();
-                    if(!stats[name]) stats[name] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0, overdueCount: 0, overdueAmount: 0, totalOverdueDays: 0, maxOverdueDays: 0 };
-
-                    stats[name].revenue += parseFloat(ss.revenue) || 0;
-                    stats[name].sales += parseInt(ss.sales || 0, 10) || 0;
-                    stats[name].overdueAmount += parseFloat(ss.overdueAmount) || 0;
-                    stats[name].overdueCount += parseInt(ss.overdueCount || 0, 10) || 0;
-                    stats[name].maxOverdueDays = Math.max(stats[name].maxOverdueDays, parseInt(ss.maxOverdueDays || 0, 10) || 0);
-                });
-            });
-
-            const logs = getAuditLogs();
-            logs.forEach(log => {
-                const actor = (log.actor || 'Merkez Kasa').trim();
-                if(!stats[actor]) stats[actor] = { revenue: 0, sales: 0, cancel: 0, debtPass: 0, error: 0 };
-
-                const act = (log.action || '').toLowerCase();
-                const det = (log.details || '').toLowerCase();
-
-                if(act.includes('iptal') || det.includes('iptal')) {
-                    stats[actor].cancel += 1;
-                    stats[actor].error += 1;
-                }
-                if(act.includes('borç') || act.includes('risk') || det.includes('borç') || det.includes('risk')) {
-                    stats[actor].debtPass += 1;
-                    stats[actor].error += 1;
-                }
-            });
-
-            Object.keys(stats).forEach(k => {
-                const rec = stats[k];
-                const total = rec.sales || 1;
-                rec.cancelRate = total ? (rec.cancel / total) * 100 : 0;
-                rec.errorRate = total ? (rec.error / total) * 100 : 0;
-                rec.overdueAmount = rec.overdueAmount || 0;
-                rec.avgOverdueDays = rec.overdueCount ? (rec.totalOverdueDays || 0) / rec.overdueCount : 0;
-            });
-
-            return { stats, totalRevenue, totalSales, totalEvents: events.length + financeArchive.length };
-        }
-
-        function renderStaffFinancials() {
-            const {stats, totalRevenue, totalSales, totalEvents} = calculateStaffFinancials();
-            document.getElementById('totalEvents').innerText = totalEvents;
-            document.getElementById('totalRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
-            document.getElementById('totalSales').innerText = totalSales;
-
-            const tb = document.getElementById('staffFinanceList');
-            const rows = Object.entries(stats).sort((a,b)=>b[1].revenue-a[1].revenue).map(([name, rec]) => {
-                return `<tr class="border-t border-slate-100">
-                    <td class="p-3 font-black text-slate-800">${name}</td>
-                    <td class="p-3 text-right text-green-600">₺${rec.revenue.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                    <td class="p-3 text-right">${rec.sales}</td>
-                    <td class="p-3 text-right text-red-600">${rec.overdueCount} / ₺${rec.overdueAmount.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                    <td class="p-3 text-right text-orange-600">${rec.maxOverdueDays > 0 ? rec.maxOverdueDays + ' gün' : '-'}</td>
-                    <td class="p-3 text-right text-blue-600">${rec.avgOverdueDays > 0 ? rec.avgOverdueDays.toFixed(1) + ' gün' : '-'}</td>
-                    <td class="p-3 text-right text-red-500">${rec.cancelRate.toFixed(2)}%</td>
-                    <td class="p-3 text-right text-amber-600">${rec.errorRate.toFixed(2)}%</td>
-                </tr>`;
-            });
-
-            if(!rows.length) tb.innerHTML = '<tr><td class="p-3 text-center text-slate-500" colspan="8">Personel satış verisi bulunamadı</td></tr>';
-            else tb.innerHTML = rows.join('');
-
-            renderOverdueDebtors();
-        }
-
-        function renderOverdueDebtors() {
-            const debtBody = document.getElementById('debtListBody');
-            if(!debtBody) return;
-
-            const overdueRecords = [];
-            let owed = 0;
-            let now = Date.now();
-
-            events.forEach(ev => {
-                (ev.categories||[]).forEach(cat => {
-                    (cat.masalar||[]).forEach(m => {
-                        if(m.isSold && m.saleDetail) {
-                            const debt = parseFloat(m.saleDetail.debt) || 0;
-                            if(debt<=0) return;
-
-                            let dueDate = m.saleDetail.dueDate ? new Date(m.saleDetail.dueDate) : null;
-                            if(!dueDate || Number.isNaN(dueDate.getTime())) {
-                                dueDate = ev.date ? new Date(new Date(ev.date).getTime() + 24*60*60*1000) : new Date(Date.now() + 24*60*60*1000);
-                            }
-                            if(now <= dueDate.getTime()) return;
-
-                            const eventDate = ev.date ? new Date(ev.date).getTime() : dueDate.getTime();
-                            const overdueDays = Math.floor((now - eventDate) / (24*60*60*1000)) + 1;
-                            overdueRecords.push({
-                                customer: m.soldTo || 'Bilinmiyor',
-                                seller: m.saleDetail.soldBy || 'Merkez Kasa',
-                                phone: m.saleDetail.phone || '',
-                                debt, overdueDays, eventTitle: ev.title || 'Etkinlik',
-                                dueDate: dueDate.toLocaleDateString('tr-TR')
-                            });
-                            owed += debt;
-                        }
-                    });
-                });
-            });
-
-            // ARŞİV BORÇLULARI DA LİSTEDE TUT
-            financeArchive.forEach(arc => {
-                (arc.debtors || []).forEach(d => {
-                    const debt = parseFloat(d.debt) || 0;
-                    if(debt <= 0) return;
-
-                    const dueTs = d.dueDate ? new Date(d.dueDate).getTime() : (arc.eventDate ? new Date(arc.eventDate).getTime() : new Date(arc.deletedAt || Date.now()).getTime());
-                    const overdueDays = Math.max(1, Math.floor((now - dueTs) / (24*60*60*1000)) + 1);
-
-                    overdueRecords.push({
-                        customer: d.customer || 'Bilinmiyor',
-                        seller: d.seller || 'Merkez Kasa',
-                        phone: d.phone || '',
-                        debt,
-                        overdueDays,
-                        eventTitle: `${arc.eventTitle || 'Silinmiş Etkinlik'} (ARŞİV)`,
-                        dueDate: dueTs ? new Date(dueTs).toLocaleDateString('tr-TR') : '-',
-                        archived: true
-                    });
-                    owed += debt;
-                });
-            });
-
-            if(overdueRecords.length===0) {
-                debtBody.innerHTML = '<tr><td class="p-3 text-center text-slate-500" colspan="6">Gecikmiş borçlu kayıt bulunamadı.</td></tr>';
-                return;
-            }
-
-            debtBody.innerHTML = overdueRecords.sort((a,b)=>b.overdueDays-a.overdueDays).map(r=>{
-                const phoneHint = r.phone ? `+${r.phone.replace(/\D/g,'')}` : '';
-                const wtext = encodeURIComponent(`Merhaba ${r.customer},\n${r.eventTitle} için ₺${r.debt.toFixed(2)} borcunuz ${r.overdueDays} gündür ödenmemiş durumda. Lütfen güncelleyiniz.`);
-                const mailto = `mailto:?subject=${encodeURIComponent('Borç Hatırlatma')}&body=${encodeURIComponent(`${r.customer} merhaba,\nBorç: ₺${r.debt.toFixed(2)}\nGecikme: ${r.overdueDays} gün\nLütfen ivedilikle tahsilat yapınız.`)}`;
-
-                return `<tr class="border-t border-slate-100 ${r.overdueDays >= 5 ? 'bg-red-50' : ''}">
-                    <td class="p-2">${r.customer}${r.archived ? ' <span class="text-[9px] font-black text-amber-600">(ARŞİV)</span>' : ''}</td>
-                    <td class="p-2">${r.seller}</td>
-                    <td class="p-2 text-right">₺${r.debt.toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                    <td class="p-2 text-right">${r.overdueDays} gün</td>
-                    <td class="p-2">${r.phone || '-'} <br><small class="text-slate-500">${r.dueDate}</small></td>
-                    <td class="p-2">
-                        <a href="${mailto}" class="text-blue-600 text-[10px] font-black">E-Posta</a><br>
-                        <a target="_blank" href="https://api.whatsapp.com/send?phone=${phoneHint}&text=${wtext}" class="text-green-700 text-[10px] font-black">WhatsApp</a>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-
-        function sendOverdueReminders() {
-            const debtBody = document.getElementById('debtListBody');
-            if(!debtBody) return;
-            if(typeof showToast === 'function') showToast('WhatsApp/E-posta linkleri hazır. Sarı satırları kullanabilirsiniz.', 'info');
-        }
-
-        function renderAuditLogs() {
-            let logs = getAuditLogs();
-            if(currentAuditFilter !== 'all') {
-                logs = logs.filter(log => {
-                    const act = (log.action || '').toLowerCase();
-                    const det = (log.details || '').toLowerCase();
-                    if(currentAuditFilter === 'cancel') return act.includes('iptal') || det.includes('iptal');
-                    if(currentAuditFilter === 'debt') return act.includes('borç') || act.includes('risk') || det.includes('borç') || det.includes('risk');
-                    return true;
-                });
-            }
-
-            const container = document.getElementById('auditLogContainer');
-            if(!logs.length) {
-                container.innerHTML = '<div class="text-center text-sm text-slate-500">Filtreye uygun kayıt bulunamadı.</div>';
-                return;
-            }
-
-            container.innerHTML = logs.map(log => {
-                const stamp = new Date(log.time).toLocaleString('tr-TR');
-                return `<div class="border p-3 rounded-xl mb-2 bg-white">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-black">${log.actor} (${log.role})</span>
-                        <span class="text-[10px] text-slate-400">${log.time}</span>
-                    </div>
-                    <div class="text-sm font-bold text-slate-700 uppercase">${log.module} - ${log.action}</div>
-                    <p class="text-xs text-slate-500 mt-1">${log.details || ''}</p>
-                </div>`;
-            }).join('');
-        }
-
-        // İlk yüklemede veri getir
         (async () => {
             renderStaffFinancials();
             renderArchiveManager();
