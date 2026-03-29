@@ -138,33 +138,64 @@
             }
 
             const rows = data || [];
-            const localEvents = [];
+            const onlineEvents = [];
 
             rows.forEach((r) => {
                 const p = r && r.payload_json;
                 if (p && typeof p === 'object' && p.id) {
-                    localEvents.push(p);
-                    return;
-                }
-                if (r && r.legacy_event_id) {
-                    localEvents.push({
-                        id: String(r.legacy_event_id),
-                        title: 'Etkinlik',
-                        categories: [],
-                        isActive: true
-                    });
+                    onlineEvents.push(p);
+                } else if (r && r.legacy_event_id) {
+                    onlineEvents.push({ id: String(r.legacy_event_id), title: 'Etkinlik', categories: [], isActive: true });
                 }
             });
 
-            const currentRaw = localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]';
-            const nextRaw = JSON.stringify(localEvents);
-            const changed = currentRaw !== nextRaw;
+            // Mevcut local veriyle merge: her etkinlik için masa bazlı birleştir
+            const localRaw = localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]';
+            const localEvents = JSON.parse(localRaw);
+
+            const mergedMap = {};
+
+            // Önce online veriyi yükle
+            onlineEvents.forEach(ev => { mergedMap[String(ev.id)] = ev; });
+
+            // Local'deki satış verilerini online üzerine bindir (local daha yeni sayılır)
+            localEvents.forEach(localEv => {
+                const key = String(localEv.id);
+                if (!mergedMap[key]) { mergedMap[key] = localEv; return; }
+                const onlineEv = mergedMap[key];
+                // Kategori bazlı masa merge
+                const mergedCats = (onlineEv.categories || []).map(onlineCat => {
+                    const localCat = (localEv.categories || []).find(c => c.id === onlineCat.id);
+                    if (!localCat) return onlineCat;
+                    const mergedMasalar = (onlineCat.masalar || []).map(onlineMasa => {
+                        const localMasa = (localCat.masalar || []).find(m => m.id === onlineMasa.id);
+                        if (!localMasa) return onlineMasa;
+                        // İkisi de satılmışsa daha erken satışı koru (saleDate'e göre)
+                        if (localMasa.isSold && onlineMasa.isSold) {
+                            const localDate = new Date(localMasa.saleDetail?.saleDate || 0);
+                            const onlineDate = new Date(onlineMasa.saleDetail?.saleDate || 0);
+                            return localDate <= onlineDate ? localMasa : onlineMasa;
+                        }
+                        // Sadece local satılmışsa local'i al
+                        if (localMasa.isSold) return localMasa;
+                        // Sadece online satılmışsa online'ı al
+                        if (onlineMasa.isSold) return onlineMasa;
+                        return onlineMasa;
+                    });
+                    return { ...onlineCat, masalar: mergedMasalar };
+                });
+                mergedMap[key] = { ...onlineEv, categories: mergedCats };
+            });
+
+            const merged = Object.values(mergedMap);
+            const nextRaw = JSON.stringify(merged);
+            const changed = localRaw !== nextRaw;
 
             if (changed) {
                 localStorage.setItem('EventPro_DB_Ultimate_Final', nextRaw);
             }
 
-            return { ok: true, changed, count: localEvents.length };
+            return { ok: true, changed, count: merged.length };
         },
 
         async writeAudit(module, action, details, actor) {
