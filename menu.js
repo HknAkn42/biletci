@@ -459,6 +459,15 @@ function injectMenu(active = 'dashboard', eventId = null) {
             padding: 8px 10px 8px 9px;
             backdrop-filter: blur(18px);
         }
+        .bp-top-meta.inline-mode {
+            position: static;
+            top: auto;
+            left: auto;
+            right: auto;
+            z-index: auto;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
         .bp-top-avatar {
             width: 34px;
             height: 34px;
@@ -510,6 +519,9 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 right: auto;
                 padding: 6px 8px 6px 7px;
                 gap: 8px;
+            }
+            .bp-top-meta.inline-mode {
+                margin-right: 8px;
             }
             .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
             .bp-top-user { font-size: 10px; }
@@ -567,6 +579,16 @@ function injectMenu(active = 'dashboard', eventId = null) {
         </div>
     `;
     document.body.insertAdjacentHTML('afterbegin', html);
+
+    // Dashboard özel: Rozeti '+ YENİ ETKİNLİK' butonunun hemen soluna yerleştir
+    if (active === 'dashboard') {
+        const topMeta = document.getElementById('bpTopMeta');
+        const newEventBtn = document.querySelector('header button[onclick="openModal()"]');
+        if (topMeta && newEventBtn && newEventBtn.parentElement) {
+            topMeta.classList.add('inline-mode');
+            newEventBtn.parentElement.insertBefore(topMeta, newEventBtn);
+        }
+    }
 
     const clockEl = document.getElementById('bpTopClock');
     if (clockEl) {
