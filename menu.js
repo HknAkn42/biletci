@@ -60,8 +60,16 @@
     let session = safeJSONParse(localStorage.getItem('BiletPro_Session'));
     const path = window.location.pathname;
     const currentPage = path.split("/").pop();
+    const tabLoggedIn = sessionStorage.getItem('BiletPro_LoggedInTab') === '1';
 
     if (!session && currentPage !== 'login.html' && currentPage !== '') {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // Eski localStorage oturumu ile yeni sekmede panelin direkt açılmasını engelle
+    if (session && currentPage !== 'login.html' && !tabLoggedIn) {
+        localStorage.removeItem('BiletPro_Session');
         window.location.href = 'login.html';
         return;
     }

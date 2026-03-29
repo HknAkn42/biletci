@@ -139,6 +139,7 @@
 
         window.onload = () => {
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
+            sessionStorage.removeItem('BiletPro_LoggedInTab');
             localStorage.removeItem('BiletPro_LastUser');
             showStep('stepLogin');
         };
@@ -226,6 +227,7 @@
                 username: userData.username,
                 time: new Date().toISOString()
             }));
+            sessionStorage.setItem('BiletPro_LoggedInTab', '1');
             
             document.getElementById('terminal').style.opacity = "0";
             document.getElementById('terminal').style.transform = "scale(0.9)";
