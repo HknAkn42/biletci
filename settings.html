@@ -257,6 +257,9 @@
                 }
             } catch(_) {}
             if(typeof applyGlobalConfig === 'function') applyGlobalConfig();
+            // Güvenlik: kaydetmeden sonra settings PIN oturumunu düşür.
+            // Böylece ayarlara yeniden girişte PIN tekrar istenir.
+            sessionStorage.removeItem(SETTINGS_PIN_SESSION_KEY);
             if(typeof showToast === 'function') showToast('Ayarlar kaydedildi. Tüm sayfalara uygulanacak.', 'success');
             setTimeout(() => window.location.reload(), 600);
         }
