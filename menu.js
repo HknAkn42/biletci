@@ -441,6 +441,24 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .quick-logout:hover { transform: translateY(-2px); background: #fff1f2; }
         .sidebar-silk.expanded .quick-actions { display: none; }
 
+        .bp-top-meta {
+            position: fixed;
+            top: 12px;
+            right: 14px;
+            z-index: 100050;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.08);
+            border-radius: 14px;
+            padding: 8px 12px;
+            backdrop-filter: blur(16px);
+        }
+        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; }
+        .bp-top-time { font-size: 11px; font-weight: 900; color: #1d4ed8; letter-spacing: .8px; }
+
         @media (max-width: 1023px) {
             :root { --sb-c: 76px; }
             .sidebar-silk { padding: 18px 0; }
@@ -455,6 +473,13 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 box-shadow: 20px 0 50px rgba(0,0,0,0.12);
             }
             .u-sec { max-height: 52vh; }
+            .bp-top-meta {
+                top: 10px;
+                right: 10px;
+                padding: 6px 10px;
+                gap: 8px;
+            }
+            .bp-top-user, .bp-top-time { font-size: 10px; }
         }
     `;
     document.head.appendChild(style);
@@ -497,8 +522,22 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 <button onclick="logout(event)" class="quick-logout" title="ÇIKIŞ">🚪</button>
             </div>
         </nav>
+        <div class="bp-top-meta" id="bpTopMeta">
+            <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
+            <span class="bp-top-time" id="bpTopClock">--:--:--</span>
+        </div>
     `;
     document.body.insertAdjacentHTML('afterbegin', html);
+
+    const clockEl = document.getElementById('bpTopClock');
+    if (clockEl) {
+        const tick = () => {
+            clockEl.textContent = new Date().toLocaleTimeString('tr-TR', { hour12: false });
+        };
+        tick();
+        if (window.__bpTopClockTimer) clearInterval(window.__bpTopClockTimer);
+        window.__bpTopClockTimer = setInterval(tick, 1000);
+    }
 
     if(!document.getElementById('restoreInput')) {
         const restoreInput = document.createElement('input');
