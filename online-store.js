@@ -251,26 +251,51 @@
                 if (deletedIds.has(key)) { return; }
                 if (!mergedMap[key]) { return; }
                 const onlineEv = mergedMap[key];
-                // Kategori bazlı masa merge
-                const mergedCats = (onlineEv.categories || []).map(onlineCat => {
-                    const localCat = (localEv.categories || []).find(c => c.id === onlineCat.id);
-                    if (!localCat) return onlineCat;
-                    const mergedMasalar = (onlineCat.masalar || []).map(onlineMasa => {
-                        const localMasa = (localCat.masalar || []).find(m => m.id === onlineMasa.id);
-                        if (!localMasa) return onlineMasa;
-                        // İkisi de satılmışsa daha erken satışı koru (saleDate'e göre)
+                // Kategori bazlı masa merge (UNION): online + local birlikte korunur
+                const onlineCats = Array.isArray(onlineEv.categories) ? onlineEv.categories : [];
+                const localCats = Array.isArray(localEv.categories) ? localEv.categories : [];
+                const catMap = {};
+
+                onlineCats.forEach((c) => { if (c && c.id !== undefined && c.id !== null) catMap[String(c.id)] = c; });
+                localCats.forEach((c) => { if (c && c.id !== undefined && c.id !== null && !catMap[String(c.id)]) catMap[String(c.id)] = c; });
+
+                const mergedCats = Object.values(catMap).map((baseCat) => {
+                    const cid = String(baseCat.id);
+                    const onlineCat = onlineCats.find(c => String(c.id) === cid) || null;
+                    const localCat = localCats.find(c => String(c.id) === cid) || null;
+
+                    if (!onlineCat && localCat) return localCat;
+                    if (onlineCat && !localCat) return onlineCat;
+
+                    const onlineMasalar = Array.isArray(onlineCat.masalar) ? onlineCat.masalar : [];
+                    const localMasalar = Array.isArray(localCat.masalar) ? localCat.masalar : [];
+                    const masaMap = {};
+
+                    onlineMasalar.forEach((m) => { if (m && m.id !== undefined && m.id !== null) masaMap[String(m.id)] = m; });
+                    localMasalar.forEach((m) => { if (m && m.id !== undefined && m.id !== null && !masaMap[String(m.id)]) masaMap[String(m.id)] = m; });
+
+                    const mergedMasalar = Object.values(masaMap).map((baseMasa) => {
+                        const mid = String(baseMasa.id);
+                        const onlineMasa = onlineMasalar.find(m => String(m.id) === mid) || null;
+                        const localMasa = localMasalar.find(m => String(m.id) === mid) || null;
+
+                        if (!onlineMasa && localMasa) return localMasa;
+                        if (onlineMasa && !localMasa) return onlineMasa;
+
+                        // İkisi de satılmışsa daha erken satışı koru (çift satış kilidi yaklaşımı)
                         if (localMasa.isSold && onlineMasa.isSold) {
                             const localDate = new Date(localMasa.saleDetail?.saleDate || 0);
                             const onlineDate = new Date(onlineMasa.saleDetail?.saleDate || 0);
                             return localDate <= onlineDate ? localMasa : onlineMasa;
                         }
-                        // Sadece local satılmışsa local'i al
                         if (localMasa.isSold) return localMasa;
-                        // Sadece online satılmışsa online'ı al
                         if (onlineMasa.isSold) return onlineMasa;
-                        return onlineMasa;
+
+                        // Satılmadıysa local'in en güncel düzenlemelerini koru
+                        return localMasa || onlineMasa;
                     });
-                    return { ...onlineCat, masalar: mergedMasalar };
+
+                    return { ...(onlineCat || localCat), ...(localCat || {}), masalar: mergedMasalar };
                 });
                 mergedMap[key] = { ...onlineEv, categories: mergedCats };
             });
