@@ -1047,22 +1047,131 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
     if(!document.getElementById('guideModal')) {
         const guideHtml = `
-            <div id="guideModal" class="fixed inset-0 hidden z-[99999] bg-slate-900/70 flex items-center justify-center p-6">
-                <div class="bg-white w-full max-w-2xl p-7 rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh]">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-black uppercase">BiletPro Kullanım Kılavuzu</h2>
-                        <button onclick="closeGuide()" class="text-xl font-black">&times;</button>
+            <div id="guideModal" class="fixed inset-0 hidden z-[99999] bg-slate-900/70 flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center px-7 py-5 border-b border-slate-100 flex-shrink-0">
+                        <div>
+                            <h2 class="text-base font-black uppercase tracking-tight text-slate-900">📘 BiletPro Kullanım Kılavuzu</h2>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Tüm modüller ve yetkiler</p>
+                        </div>
+                        <button onclick="closeGuide()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center text-lg font-black transition-colors">&times;</button>
                     </div>
-                    <ol class="pl-4 list-decimal text-xs text-slate-700 leading-6">
-                        <li><strong>Dashboard</strong>: Etkinlik ekle, düzenle, sil, pasif/aktif geçiş yap.</li>
-                        <li><strong>Gişe</strong>: Kategori ve masa üretimi, masayı sat veya iptal işlemleri.</li>
-                        <li><strong>Satış</strong>: Müşteri seç, masa seç, indirim uygula (izin varsa), tahsilat kaydet.</li>
-                        <li><strong>Kapı</strong>: QR okut ve "Kaç kişi giriyor?" sorusunu kullan. Borçlu geçiş için yetki gereklidir.</li>
-                        <li><strong>Müşteriler</strong>: CRM verilerini izle; aynı numara + farklı isim ayrı müşteri olur.</li>
-                        <li><strong>Personel</strong>: Yetki matrisi ataması (Satış, İndirim, İptal, Kapı, Tahsilat, Risk vb).</li>
-                        <li><strong>Audit</strong>: Her işlem otomatik kaydedilir; açılan pencereden CSV indirilebilir.</li>
-                        <li><strong>Çıkış</strong>: Güvenli oturum kapatma.</li>
-                    </ol>
+                    <!-- Scrollable body -->
+                    <div class="overflow-y-auto px-7 py-5 space-y-5 text-xs text-slate-700">
+
+                        <!-- Dashboard -->
+                        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">🏠 Dashboard (Ana Ekran)</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Etkinlik <strong>ekle, düzenle, sil</strong> ve <strong>pasif/aktif</strong> geçişi yapın.</li>
+                                <li>Her etkinliğe <strong>masa kategorisi</strong> (VIP, Standart, vb.) ekleyin; kapasite ve fiyat belirleyin.</li>
+                                <li>Silinen etkinliğin ciro ve borç verileri <strong>Finans Arşivi</strong>'ne otomatik aktarılır.</li>
+                                <li>Sağ üstteki <strong>Gişe</strong> butonu o etkinliğin koltuk haritasına açılır.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Gişe -->
+                        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">🎟️ Gişe</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Masa renkleri: <span class="font-bold text-slate-600">Gri=Boş</span> · <span class="font-bold text-green-700">Yeşil=Satıldı</span> · <span class="font-bold text-blue-700">Mavi=İçeride</span> · <span class="font-bold text-yellow-700">Sarı=Geçici Çıkış</span>.</li>
+                                <li>Boş masaya tıklayınca <strong>Hızlı Satış</strong> formu açılır; müşteri adı, telefon, kişi sayısı ve ödeme bilgisi girin.</li>
+                                <li>Satılmış masaya tıklayınca <strong>iptal</strong> (pCancel yetkisi), <strong>bilet gönder</strong> ve detay seçenekleri çıkar.</li>
+                                <li>Tüm gişe işlemleri <strong>Audit Log</strong>'a otomatik kaydedilir.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Satış -->
+                        <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">💳 Satış</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Etkinlik → kategori → masa seçimi yapıldıktan sonra müşteri bilgileri ve ödeme yöntemi girilir.</li>
+                                <li><strong>İndirim</strong> uygulayabilmek için <em>pDiscount</em> yetkisi gerekir; yetkisiz personelde alan gizlenir.</li>
+                                <li>Admin olmayan personel <strong>kendi adına</strong> satış yapar; başkası adına satışçı alanı değiştirilemez (DOM koruma).</li>
+                                <li>Kısmi ödeme yapılabilir; kalan tutar müşteri <strong>borç</strong> olarak CRM'e yansır.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Kapı -->
+                        <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">🚪 Kapı (Check-in)</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Bilet kodunu arama kutusuna yazın veya QR okutun; sistem kaç kişinin gireceğini sorar.</li>
+                                <li><strong>Borçlu müşteri</strong> geçişi için <em>pDoorRisk</em> yetkisi gerekir; yetkisiz personel borçlu girişi onaylayamaz.</li>
+                                <li>Kapıda tahsilat yapabilmek için <em>pDoorPay</em> yetkisi gereklidir.</li>
+                                <li><strong>Geçici Çıkış / Tekrar Giriş</strong> (WC, sigara) butonları giriş sayfasında mevcuttur.</li>
+                                <li>Her giriş onayı; <strong>personel adı, saat ve kişi sayısıyla</strong> birlikte kaydedilir ve Müşteriler ekranında görünür.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Müşteriler -->
+                        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">👥 Müşteriler (CRM)</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Müşteriler <strong>telefon + isim</strong> kombinasyonuna göre ayrı kayıt olarak oluşturulur.</li>
+                                <li>Her müşteri satırında son etkinliğin <strong>giriş durumu badge'i</strong> gösterilir: ✅ İçeride · 🚶 Geçici Çıkış · ✔️ Giriş Yapıldı · ⏳ Giriş Yok.</li>
+                                <li>📋 (Geçmiş) butonunda tüm etkinlik geçmişi listelenir; her kart için <strong>giren kişi sayısı, onaylayan personel ve giriş saati</strong> görünür.</li>
+                                <li>Kırmızı <strong>TAHSİLAT</strong> butonu borçlu müşteriler için görünür; pCancel veya admin yetkisi gerekir.</li>
+                                <li>Müşteri silme ve <strong>Kara Liste</strong> işlemleri <em>pManageStaff</em> yetkisi ister.</li>
+                                <li>✉️ <strong>Kampanya Auto-Pilot</strong>: Birden fazla müşteri seçip toplu WhatsApp mesajı kuyruğuna alın.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Personel -->
+                        <div class="bg-rose-50 rounded-2xl p-4 border border-rose-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">🧑‍💼 Personel Yönetimi</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Personel ekle, düzenle, <strong>pasif/aktif</strong> geçişi yap; kendi hesabını silemez veya pasife alamazsın.</li>
+                                <li><strong>Admin rolü</strong> yalnızca başka bir admin tarafından atanabilir (yetki yükseltme koruması).</li>
+                                <li>Admin hesabını düzenlemek veya silmek için de admin olmak gerekir.</li>
+                                <li><strong>Yetki Matrisi</strong> — atanabilecek izinler:<br>
+                                    <span class="inline-block mt-1 font-mono text-[10px] bg-white border border-rose-200 rounded-lg px-2 py-1 leading-5">
+                                        pSale Satış · pDiscount İndirim · pCancel İptal+Borç<br>
+                                        pDoor Kapı · pDoorPay Kap.Tahsilat · pDoorRisk Borçlu Geçiş<br>
+                                        pManageEvents Etkinlik · pReports Raporlar<br>
+                                        pManageStaff Personel+Müşteri · pViewLogs Audit Log
+                                    </span>
+                                </li>
+                                <li>Audit Log sekmesinde aktör ve işlem tipine göre <strong>filtreleme</strong> ve <strong>CSV indirme</strong> yapılabilir.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Raporlar -->
+                        <div class="bg-cyan-50 rounded-2xl p-4 border border-cyan-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">📊 Raporlar</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li><strong>Personel Finansal Performans</strong>: Ciro, satış adedi, geciken borç, iptal oranı.</li>
+                                <li><strong>Borçlu Liste</strong>: Gecikmiş borçlar; <em>Hatırlatma Gönder</em> ile WhatsApp linki oluşturur.</li>
+                                <li><strong>Finans Arşivi</strong>: Silinmiş etkinliklerin ciro ve borçları; <em>Arşivi CSV İndir</em> butonu ile dışa aktarılır.</li>
+                                <li><strong>Audit Log Filtreleme</strong>: İptal işlemleri veya borçlu geçişleri ayrı görüntülenebilir; <em>PIN ile Sıfırla</em> seçeneği mevcuttur.</li>
+                                <li>☁️ <em>Veri Çek</em> butonu online modda Supabase'den en güncel veriyi çeker.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Ayarlar -->
+                        <div class="bg-slate-100 rounded-2xl p-4 border border-slate-200">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">⚙️ Sistem Ayarları <span class="text-[9px] font-bold text-red-500 ml-1">ADMIN + PIN</span></p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li><strong>Marka</strong>: Uygulama adı, kısa marka, giriş alt başlık, logo dosyası ve ana renk.</li>
+                                <li><strong>Online Mod</strong>: Supabase URL ve Anon Key girerek çoklu cihaz senkronizasyonunu etkinleştirin.</li>
+                                <li><strong>Yönetici PIN</strong>: Ayarlar sayfasına erişmek için ek PIN doğrulaması; boş bırakılırsa mevcut PIN korunur.</li>
+                                <li><strong>Menü Görünürlüğü</strong>: Sidebar'daki linkleri göster/gizle (uygulama genelinde geçerlidir).</li>
+                            </ul>
+                        </div>
+
+                        <!-- Güvenlik notu -->
+                        <div class="bg-red-50 rounded-2xl p-4 border border-red-100">
+                            <p class="font-black text-sm uppercase tracking-tight text-slate-900 mb-2">🔒 Güvenlik Notları</p>
+                            <ul class="space-y-1 leading-5 pl-3 list-disc">
+                                <li>Tüm yetki kontrolleri <strong>rol tabanlı</strong> çalışır; kullanıcı adına dayalı bypass yoktur.</li>
+                                <li>Sidebar menü linkleri personelin sahip olduğu yetkiye göre <strong>otomatik filtrelenir</strong>.</li>
+                                <li>Her kritik işlem (satış, iptal, giriş onayı, personel değişikliği) <strong>Audit Log</strong>'a kaydedilir.</li>
+                                <li>Şifreler ve PIN kodları hiçbir zaman kod içine veya yorumlara yazılmamalıdır.</li>
+                            </ul>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         `;
