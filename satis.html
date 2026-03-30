@@ -321,7 +321,6 @@
             const user = staffData.find(s => s.username.toLowerCase() === (session.username || '').toLowerCase());
 
             const isAdmin = (session.role === 'admin')
-                || ((session.username || '').toLowerCase() === 'hakan')
                 || (user && user.role === 'admin');
 
             if(isAdmin) {
@@ -585,7 +584,11 @@
             const n = document.getElementById('custName').value.trim();
             const ph = document.getElementById('custPhone').value.trim();
             const gn = document.getElementById('gateNote').value.trim();
-            const sellerName = document.getElementById('staffSelect').value; // Personel seçimi
+            // Admin değilse staffSelect DOM manipulation koruması: satıcı her zaman oturum sahibi olmalı
+            const _isSatsAdmin = session.role === 'admin' || !!(staffData.find(s => (s.username||'').toLowerCase() === (session.username||'').toLowerCase())?.role === 'admin');
+            const sellerName = _isSatsAdmin
+                ? document.getElementById('staffSelect').value
+                : (session.name || 'Merkez Kasa');
             const seller = staffData.find(s => s.name === sellerName || s.username === sellerName);
             if(seller && seller.isActive === false) return showToast("Pasif personel ile satış yapılamaz.", "error");
 

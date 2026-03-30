@@ -129,7 +129,8 @@
     <script>
         const SETTINGS_PIN_SESSION_KEY = 'BiletPro_SettingsPinUntil';
         const __bpSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
-        const __bpIsAdmin = __bpSession.role === 'admin' || String(__bpSession.username || '').toLowerCase() === 'hakan';
+        const __bpStaffRec = (JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]') || []).find(s => (s.username||'').toLowerCase() === (__bpSession.username||'').toLowerCase());
+        const __bpIsAdmin = __bpSession.role === 'admin' || !!(__bpStaffRec && __bpStaffRec.role === 'admin');
         const __bpHasPinAccess = (parseInt(sessionStorage.getItem(SETTINGS_PIN_SESSION_KEY) || '0', 10) || 0) > Date.now();
         if(!__bpIsAdmin) {
             localStorage.removeItem('BiletPro_Session');

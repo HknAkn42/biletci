@@ -302,6 +302,8 @@
             const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || {};
             const staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
             const user = staff.find(s => s.username.toLowerCase() === (session.username || '').toLowerCase());
+            const isAdmin = session.role === 'admin' || (user && user.role === 'admin');
+            if(isAdmin) return { pSale:true, pDiscount:true, pCancel:true, pDoor:true, pDoorPay:true, pDoorRisk:true, pManageEvents:true, pReports:true, pManageStaff:true, pViewLogs:true };
             return user && user.perms ? user.perms : {
                 pSale: false, pDiscount: false, pCancel: false,
                 pDoor: false, pDoorPay: false, pDoorRisk: false,
@@ -521,7 +523,7 @@
             const sd=masa.saleDetail;
             sd.status='INSIDE'; 
             if(!sd.checkinTime) sd.checkinTime=t;
-            sd.checkinBy='Kapı Personeli';
+            sd.checkinBy = (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name) || 'Kapı Personeli';
             if(paid>0) sd.checkinPaid = (sd.checkinPaid||0) + paid;
             sd.debt=remain;
             sd.insideCount = (sd.insideCount || 0) + enterCount;

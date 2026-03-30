@@ -228,7 +228,7 @@
                         <textarea id="editCollectNote" class="input-silk w-full resize-none h-12" placeholder="Örn: Taksit, özel ödeme vb..."></textarea>
                     </div>
                 </div>
-                <div class="mb-8">
+                <div class="mb-8" id="editDebtSection">
                     <label class="text-[10px] font-black text-slate-500 uppercase block mb-3 ml-3">Borç Ekle (Opsiyonel ₺)</label>
                     <input type="number" id="editAddDebt" class="input-silk w-full !text-red-600 !font-black" placeholder="0.00" min="0">
                     <div>
@@ -317,10 +317,10 @@
         // Sayfa içi yetki yardımcısı
         function _getMusterilerUserPerms() {
             const sess = JSON.parse(localStorage.getItem('BiletPro_Session')) || {};
-            const isAdm = sess.role === 'admin' || (sess.username || '').toLowerCase() === 'hakan';
-            if(isAdm) return { isAdmin: true, pManageStaff: true, pCancel: true, pSale: true };
             const staffList = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
             const user = staffList.find(s => (s.username || '').toLowerCase() === (sess.username || '').toLowerCase()) || {};
+            const isAdm = sess.role === 'admin' || user.role === 'admin';
+            if(isAdm) return { isAdmin: true, pManageStaff: true, pCancel: true, pSale: true };
             return Object.assign({ isAdmin: false }, user.perms || {});
         }
 
@@ -631,6 +631,11 @@
             document.getElementById('editCollectNote').value = "";
             document.getElementById('editAddDebt').value = "";
             document.getElementById('editAddDebtNote').value = "";
+            // Borç ekleme bölümünü yalnızca pCancel veya admin kullanıcıya göster
+            const _up = _getMusterilerUserPerms();
+            const _canDebt = _up.isAdmin || _up.pCancel === true;
+            const debtSec = document.getElementById('editDebtSection');
+            if(debtSec) debtSec.style.display = _canDebt ? '' : 'none';
             document.getElementById('editModal').classList.remove('hidden');
         }
 
@@ -655,6 +660,11 @@
             // BORÇ EKLEME MANTIGI
             const addDebtInput = parseFloat(document.getElementById('editAddDebt').value) || 0;
             const addDebtNote = document.getElementById('editAddDebtNote').value.trim();
+            const _mup = _getMusterilerUserPerms();
+            if(addDebtInput > 0 && !_mup.isAdmin && !_mup.pCancel) {
+                notify('YETKİNİZ YOK — Borç ekleme için pCancel yetkisi gereklidir', '#ef4444');
+                return;
+            }
             
             const totalDebt = parseFloat(c.totalDebt) || 0;
             let collectAmount = collectFull ? totalDebt : collectInput;

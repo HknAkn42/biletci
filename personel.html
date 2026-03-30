@@ -482,7 +482,7 @@
         function toggleLogModal() {
             const session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             const currentUser = staffData.find(s => (s.username || '').toLowerCase() === (session.username || '').toLowerCase());
-            const isAdmin = (session.role === 'admin') || ((session.username || '').toLowerCase() === 'hakan');
+            const isAdmin = (session.role === 'admin') || (currentUser && currentUser.role === 'admin');
             const canViewLogs = isAdmin || (currentUser && currentUser.perms && currentUser.perms.pViewLogs === true);
             if(!canViewLogs) {
                 if(typeof showToast === 'function') showToast('Log görüntüleme yetkiniz yok.', 'error');
@@ -770,6 +770,13 @@
                 perms: perms
             };
 
+            // YETKİ YÜKSELTMESİ KORUMASI: Admin rolü yalnızca admin atayabilir
+            const _cs = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const _csIsAdmin = _cs.role === 'admin';
+            if(role === 'admin' && !_csIsAdmin) {
+                if(typeof showToast === 'function') showToast('Yalnızca sistem yöneticisi admin rolü atayabilir!', 'error');
+                return;
+            }
             if(!person.name || !person.username || !person.password) {
                 if(typeof showToast === 'function') showToast("Ad, kullanıcı adı ve şifre zorunludur!", "error");
                 return;
@@ -797,6 +804,14 @@
 
         function toggleStaffStatus(idx) {
             const staff = staffData[idx];
+            const _ts = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const _tsIsAdmin = _ts.role === 'admin';
+            if(staff.username && staff.username.toLowerCase() === (_ts.username || '').toLowerCase()) {
+                if(typeof showToast === 'function') showToast('Kendi hesabınızı pasife alamazsınız!', 'error'); return;
+            }
+            if(staff.role === 'admin' && !_tsIsAdmin) {
+                if(typeof showToast === 'function') showToast('Admin hesabını yalnızca sistem yöneticisi değiştirebilir!', 'error'); return;
+            }
             const currentStatus = staff.isActive !== false;
             const msg = currentStatus 
                 ? `${staff.name} adlı personelin tüm yetkileri iptal edilecek (Pasife alınacak). Onaylıyor musunuz?`
@@ -905,6 +920,17 @@
             const staff = staffData[editingStaffIndex];
             const nextName = String(document.getElementById('eName').value || '').trim();
             const nextUser = normalizeUsername(document.getElementById('eUser').value);
+            // YETKİ YÜKSELTMESİ KORUMASI: Admin rolü ve admin hesap düzenleme sadece admin yapabilir
+            const _ces = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const _cesIsAdmin = _ces.role === 'admin';
+            if(role === 'admin' && !_cesIsAdmin) {
+                if(typeof showToast === 'function') showToast('Yalnızca sistem yöneticisi admin rolü atayabilir!', 'error');
+                return;
+            }
+            if(editingStaffIndex !== null && staffData[editingStaffIndex] && staffData[editingStaffIndex].role === 'admin' && !_cesIsAdmin) {
+                if(typeof showToast === 'function') showToast('Admin hesabını yalnızca sistem yöneticisi düzenleyebilir!', 'error');
+                return;
+            }
             if(!nextName || !nextUser) {
                 if(typeof showToast === 'function') showToast("Ad ve kullanıcı adı zorunludur!", "error");
                 return;
@@ -944,6 +970,16 @@
         function confirmDeleteStaff() {
             const staff = staffData[deletingStaffIndex];
             if(!staff) return;
+            const _ds = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const _dsIsAdmin = _ds.role === 'admin';
+            if(staff.username && staff.username.toLowerCase() === (_ds.username || '').toLowerCase()) {
+                if(typeof showToast === 'function') showToast('Kendi hesabınızı silemezsiniz!', 'error');
+                closeDeleteModal(); return;
+            }
+            if(staff.role === 'admin' && !_dsIsAdmin) {
+                if(typeof showToast === 'function') showToast('Admin hesabını yalnızca sistem yöneticisi silebilir!', 'error');
+                closeDeleteModal(); return;
+            }
 
             staffData.splice(deletingStaffIndex, 1);
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
@@ -961,7 +997,7 @@
 
             staffData = (staffData || []).map((s) => {
                 const role = String((s && s.role) || '').toLowerCase();
-                const isAdmin = role === 'admin' || String((s && s.username) || '').toLowerCase() === 'hakan';
+                const isAdmin = role === 'admin';
                 if (isAdmin) return s;
 
                 const perms = Object.assign({}, (s && s.perms) || {});

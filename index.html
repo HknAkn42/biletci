@@ -334,7 +334,7 @@
             const _sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             const _staff = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
             const _su = _staff.find(s => (s.username || '').toLowerCase() === (_sess.username || '').toLowerCase()) || {};
-            const _isAdmin = _su.role === 'admin' || (_sess.username || '').toLowerCase() === 'hakan';
+            const _isAdmin = _sess.role === 'admin' || _su.role === 'admin';
             // Gişe erişimi: pManageEvents + (pManageStaff VEYA pReports) şartı (menu.js ile aynı kural)
             const canManage = _isAdmin || (_su.perms && _su.perms.pManageEvents === true && (_su.perms.pManageStaff === true || _su.perms.pReports === true));
             const canSale   = _isAdmin || (_su.perms && _su.perms.pSale === true);

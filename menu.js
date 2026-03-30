@@ -1,6 +1,5 @@
 /**
  * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
- * MASTER ADMIN: Hakan | ŞİFRE: 52655265
  */
 
 // localStorage intercept: kritik anahtarlar yazılınca anında Supabase push tetikle
@@ -70,7 +69,7 @@
         if(!user) return false;
         if(page === 'settings.html') return false; // settings yalnızca admin
         const username = (user.username || '').toLowerCase();
-        const isAdmin = user.role === 'admin' || username === 'hakan';
+        const isAdmin = user.role === 'admin';
         if(isAdmin) return true;
 
         const perms = user.perms || {};
@@ -163,7 +162,7 @@
         );
 
         const currentUserRole = String((currentUser && currentUser.role) || '').trim().toLowerCase();
-        const isSessionAdmin = sessionRole === 'admin' || currentUserRole === 'admin' || sessionUsername === 'hakan';
+        const isSessionAdmin = sessionRole === 'admin' || currentUserRole === 'admin';
 
         if (!isSessionAdmin) {
             const isAllowed = currentUser && currentUser.isActive !== false && hasRequiredPermission(currentUser, currentPage);
@@ -840,7 +839,8 @@ window.BiletProActionAudit = {
    ========================================== */
 function injectMenu(active = 'dashboard', eventId = null) {
     const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || { name: "Misafir", role: "user" };
-    const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+    const _injectStaffRec = (JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]') || []).find(s => (s.username||'').toLowerCase() === (session.username||'').toLowerCase());
+    const isAdmin = session.role === 'admin' || !!(_injectStaffRec && _injectStaffRec.role === 'admin');
     const roleLabel = isAdmin ? 'YÖNETİCİ' : 'PERSONEL';
     const roleClass = isAdmin ? 'admin' : 'user';
     const cfg = window.BiletProCore.getConfig();
@@ -1138,7 +1138,8 @@ function requestSettingsPinModal() {
 
 window.openSystemSettings = async function() {
     const session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
-    const isAdmin = session.role === 'admin' || (session.username || '').toLowerCase() === 'hakan';
+    const _sysStaffRec = (JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]') || []).find(s => (s.username||'').toLowerCase() === (session.username||'').toLowerCase());
+    const isAdmin = session.role === 'admin' || !!(_sysStaffRec && _sysStaffRec.role === 'admin');
     if (!isAdmin) {
         if (typeof showToast === 'function') showToast('Sistem ayarları sadece yöneticiye açıktır.', 'error');
         return;
