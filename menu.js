@@ -356,9 +356,10 @@ uiStyles.innerHTML = `
 document.head.appendChild(uiStyles);
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Dark mode init
+    // Dark mode init — kayıtlıysa uygula
     if (localStorage.getItem('BiletPro_DarkMode') === '1') {
         document.documentElement.setAttribute('data-theme', 'dark');
+        _applyDarkModeStyles();
     }
     // Sayfa fade-in
     document.body.classList.add('bp-ready');
@@ -869,15 +870,113 @@ window.BiletProActionAudit = {
 /* ==========================================
    DARK MODE & SAYFA GEÇİŞ YARDIMCILARI
    ========================================== */
+
+// Dark mode CSS — JS ile inject edilir (Tailwind CDN cache sorununu aşar)
+const _DM_CSS = `
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="dark"] body,
+html[data-theme="dark"] main { background-color: #0f172a !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] header { background: rgba(15,23,42,0.97) !important; border-color: #1e293b !important; }
+html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3,
+html[data-theme="dark"] h4, html[data-theme="dark"] h5, html[data-theme="dark"] h6 { color: #f1f5f9 !important; }
+html[data-theme="dark"] .event-card, html[data-theme="dark"] .silk-card,
+html[data-theme="dark"] .glass-card, html[data-theme="dark"] .category-shell { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .cat-header { background: #1e293b !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .cat-header:hover { background: #253352 !important; }
+html[data-theme="dark"] .sidebar-silk { background: rgba(8,15,28,0.99) !important; border-color: #1e293b !important; }
+html[data-theme="dark"] .u-sec { background: #080f1c !important; border-color: #1e293b !important; }
+html[data-theme="dark"] .quick-actions { background: #080f1c !important; }
+html[data-theme="dark"] .nav-link { color: #94a3b8 !important; }
+html[data-theme="dark"] .nav-link:hover { background: rgba(255,255,255,0.05) !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .nav-link.active { background: rgba(37,99,235,0.18) !important; color: #60a5fa !important; }
+html[data-theme="dark"] .nav-link.active::before { background: #3b82f6 !important; }
+html[data-theme="dark"] .masa-silk, html[data-theme="dark"] .unit-silk { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .masa-silk.sold, html[data-theme="dark"] .unit-silk.sold { background: #0f172a !important; }
+html[data-theme="dark"] .m-kap { color: #f1f5f9 !important; }
+html[data-theme="dark"] .m-no, html[data-theme="dark"] .m-alt { color: #94a3b8 !important; }
+html[data-theme="dark"] .basket-item { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .finance-summary { background: #0f172a !important; border-color: #1e293b !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] input:not([type="file"]), html[data-theme="dark"] select, html[data-theme="dark"] textarea,
+html[data-theme="dark"] .input-silk { background: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important; }
+html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #475569 !important; }
+html[data-theme="dark"] .toast-silk { background: rgba(30,41,59,0.98) !important; border-color: #334155 !important; }
+html[data-theme="dark"] .toast-text { color: #f1f5f9 !important; }
+html[data-theme="dark"] .confirm-box, html[data-theme="dark"] .action-modal { background: #1e293b !important; color: #e2e8f0 !important; border-color: #334155 !important; }
+html[data-theme="dark"] .confirm-title { color: #f1f5f9 !important; }
+html[data-theme="dark"] .confirm-desc { color: #94a3b8 !important; }
+html[data-theme="dark"] .btn-c-cancel { background: #0f172a !important; color: #94a3b8 !important; }
+html[data-theme="dark"] .bp-top-user { color: #f1f5f9 !important; }
+html[data-theme="dark"] .bp-top-role.admin { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+html[data-theme="dark"] .bp-top-role.user { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
+html[data-theme="dark"] .bp-top-time { background: #1e3a8a !important; border-color: #1d4ed8 !important; color: #93c5fd !important; }
+html[data-theme="dark"] .sb-user-badge { border-color: #1e293b !important; }
+html[data-theme="dark"] .bp-sync-pill { background: rgba(30,41,59,0.95) !important; color: #94a3b8 !important; }
+/* Tailwind utility overrides */
+html[data-theme="dark"] .bg-white { background-color: #1e293b !important; }
+html[data-theme="dark"] .bg-white\/85, html[data-theme="dark"] .bg-white\/90 { background-color: rgba(15,23,42,0.95) !important; }
+html[data-theme="dark"] .bg-slate-50 { background-color: #0f172a !important; }
+html[data-theme="dark"] .bg-slate-100 { background-color: #1a2744 !important; }
+html[data-theme="dark"] .bg-slate-900 { background-color: #020918 !important; }
+html[data-theme="dark"] .bg-slate-800 { background-color: #0f172a !important; }
+html[data-theme="dark"] .bg-blue-50 { background-color: #0d1f3c !important; }
+html[data-theme="dark"] .bg-blue-100 { background-color: #1e3a8a !important; }
+html[data-theme="dark"] .bg-green-50 { background-color: #052e16 !important; }
+html[data-theme="dark"] .bg-amber-50 { background-color: #291800 !important; }
+html[data-theme="dark"] .bg-red-50 { background-color: #2d0a0a !important; }
+html[data-theme="dark"] .bg-\[\\#f4f7fa\] { background-color: #0f172a !important; }
+html[data-theme="dark"] .border-slate-100, html[data-theme="dark"] .border-slate-200 { border-color: #1e293b !important; }
+html[data-theme="dark"] .border-slate-300 { border-color: #334155 !important; }
+html[data-theme="dark"] .border-t, html[data-theme="dark"] .border-b { border-color: #1e293b !important; }
+html[data-theme="dark"] .text-slate-900, html[data-theme="dark"] .text-slate-800 { color: #f1f5f9 !important; }
+html[data-theme="dark"] .text-slate-700 { color: #e2e8f0 !important; }
+html[data-theme="dark"] .text-slate-600 { color: #cbd5e1 !important; }
+html[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+html[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+html[data-theme="dark"] .text-blue-600 { color: #60a5fa !important; }
+html[data-theme="dark"] .text-blue-700 { color: #93c5fd !important; }
+html[data-theme="dark"] .text-blue-500 { color: #60a5fa !important; }
+html[data-theme="dark"] .text-blue-400 { color: #93c5fd !important; }
+html[data-theme="dark"] .text-green-700 { color: #4ade80 !important; }
+html[data-theme="dark"] .text-green-600 { color: #34d399 !important; }
+html[data-theme="dark"] .text-amber-500 { color: #fbbf24 !important; }
+html[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
+html[data-theme="dark"] .text-white { color: #f8fafc !important; }
+html[data-theme="dark"] table thead { background: #0f172a !important; }
+html[data-theme="dark"] th, html[data-theme="dark"] td { border-color: #1e293b !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] tbody tr:hover { background: #1e293b !important; }
+html[data-theme="dark"] .btn-pay { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .btn-pay.active { background: #1d4ed8 !important; color: #fff !important; }
+html[data-theme="dark"] .out-btn { background: #1e293b !important; color: #cbd5e1 !important; border-color: #334155 !important; }
+html[data-theme="dark"] .shadow-sm, html[data-theme="dark"] .shadow,
+html[data-theme="dark"] .shadow-xl, html[data-theme="dark"] .shadow-2xl { box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important; }
+@media print { html[data-theme="dark"] * { color: #000 !important; background: #fff !important; } }
+`;
+
+function _applyDarkModeStyles() {
+    if (document.getElementById('bpDarkModeStyleTag')) return;
+    const s = document.createElement('style');
+    s.id = 'bpDarkModeStyleTag';
+    s.textContent = _DM_CSS;
+    // <body> sonuna ekle: Tailwind CDN'den SONRA gelir, kesinlikle override eder
+    (document.body || document.head).appendChild(s);
+}
+
+function _removeDarkModeStyles() {
+    const s = document.getElementById('bpDarkModeStyleTag');
+    if (s) s.remove();
+}
+
 window.toggleDarkMode = function() {
     const html = document.documentElement;
     const isDark = html.getAttribute('data-theme') === 'dark';
     if (isDark) {
         html.removeAttribute('data-theme');
         localStorage.removeItem('BiletPro_DarkMode');
+        _removeDarkModeStyles();
     } else {
         html.setAttribute('data-theme', 'dark');
         localStorage.setItem('BiletPro_DarkMode', '1');
+        _applyDarkModeStyles();
     }
     const btn = document.getElementById('bpDarkToggle');
     if (btn) btn.innerHTML = isDark ? '<i>🌙</i> KARANLIK MOD' : '<i>☀️</i> AYDINLIK MOD';
@@ -1079,6 +1178,10 @@ function injectMenu(active = 'dashboard', eventId = null) {
     const _dmBtn = document.getElementById('bpDarkToggle');
     if (_dmBtn && document.documentElement.getAttribute('data-theme') === 'dark') {
         _dmBtn.innerHTML = '<i>☀️</i> AYDINLIK MOD';
+    }
+    // Dark mode aktifse style tag'i body'e ekle (DOMContentLoaded'dan önce çalışabilir)
+    if (document.documentElement.getAttribute('data-theme') === 'dark') {
+        _applyDarkModeStyles();
     }
 
     // Sayfa geçiş animasyonu: nav-link tıklamalarında fade-out
