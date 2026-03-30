@@ -90,6 +90,21 @@
         return perms[requiredPerm] === true;
     }
 
+    function getFirstAllowedPage(user) {
+        if (!user) return null;
+        const username = (user.username || '').toLowerCase();
+        const isAdmin = user.role === 'admin' || username === 'hakan';
+        if (isAdmin) return 'index.html';
+
+        const perms = user.perms || {};
+        if (perms.pManageEvents === true) return 'index.html';
+        if (perms.pDoor === true) return 'checkin.html';
+        if (perms.pSale === true) return 'satis.html';
+        if (perms.pReports === true) return 'rapor.html';
+        if (perms.pManageStaff === true) return 'personel.html';
+        return null;
+    }
+
     // 1. MASTER VERİ TANIMI
     const MASTER_USER = {
         name: "Hakan",
@@ -156,6 +171,15 @@
         if (!isSessionAdmin) {
             const isAllowed = currentUser && currentUser.isActive !== false && hasRequiredPermission(currentUser, currentPage);
             if (!isAllowed) {
+                const fallbackPage = getFirstAllowedPage(currentUser);
+                sessionStorage.setItem('BiletPro_AccessDeniedMsg', 'GİRİŞ YASAK: Bu sayfa için yetkiniz yok.');
+
+                if (fallbackPage && fallbackPage !== currentPage) {
+                    window.location.href = fallbackPage;
+                    return;
+                }
+
+                // Hiç yetkili sayfa yoksa güvenli şekilde login'e yönlendir.
                 localStorage.removeItem('BiletPro_Session');
                 window.location.href = 'login.html';
                 return;
@@ -328,6 +352,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if(typeof applyGlobalConfig === 'function') {
         applyGlobalConfig();
+    }
+
+    const deniedMsg = sessionStorage.getItem('BiletPro_AccessDeniedMsg');
+    if (deniedMsg) {
+        sessionStorage.removeItem('BiletPro_AccessDeniedMsg');
+        setTimeout(() => {
+            if (typeof window.showToast === 'function') {
+                window.showToast(deniedMsg, 'error');
+            }
+        }, 120);
     }
 });
 
