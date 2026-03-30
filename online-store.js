@@ -697,6 +697,58 @@
             return data || { ok: false, reason: 'no_data' };
         },
 
+        // Atomik satış kilidi: aynı etkinlikte aynı masa ikinci kez satılamaz
+        async atomicSaleCreate(legacyEvent, ticketRows) {
+            if (this.mode !== 'online' || !this.client) {
+                return { ok: false, reason: 'offline_mode' };
+            }
+
+            if (!legacyEvent || !legacyEvent.id) {
+                return { ok: false, reason: 'invalid_event' };
+            }
+
+            const rows = Array.isArray(ticketRows) ? ticketRows : [];
+            if (!rows.length) {
+                return { ok: false, reason: 'invalid_ticket_rows' };
+            }
+
+            // Event kaydı yoksa oluştur / güncelle (RPC event_id üzerinden çalışır)
+            const eventRow = {
+                legacy_event_id: String(legacyEvent.id),
+                title: legacyEvent.title || 'Etkinlik',
+                company: legacyEvent.company || null,
+                venue: legacyEvent.venue || null,
+                city: legacyEvent.city || null,
+                full_address: legacyEvent.fullAddress || null,
+                event_date: this.normalizeEventDate(legacyEvent.date),
+                door_time: legacyEvent.doorTime || null,
+                start_time: legacyEvent.startTime || null,
+                is_active: legacyEvent.isActive !== false,
+                payload_json: legacyEvent
+            };
+
+            const { error: evErr } = await this.client
+                .from('events')
+                .upsert(eventRow, { onConflict: 'legacy_event_id' });
+
+            if (evErr) {
+                console.error('[BiletPro OnlineStore] atomicSaleCreate event upsert error:', evErr);
+                return { ok: false, reason: 'event_upsert_failed' };
+            }
+
+            const { data, error } = await this.client.rpc('ticket_sale_atomic', {
+                p_legacy_event_id: String(legacyEvent.id),
+                p_tickets: rows
+            });
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] atomicSaleCreate rpc error:', error);
+                return { ok: false, reason: error.message || 'rpc_failed' };
+            }
+
+            return data || { ok: false, reason: 'no_data' };
+        },
+
         // Satış öncesi masa müsaitlik kontrolü: ÖNCE tickets tablosuna, SONRA payload_json'a bakar
         async checkTablesAvailableOnline(legacyEventId, tableNos) {
             if (this.mode !== 'online' || !this.client) return { ok: true, reason: 'offline' };

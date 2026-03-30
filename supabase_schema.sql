@@ -241,3 +241,131 @@ begin
   return jsonb_build_object('ok', false, 'reason', 'unknown_action');
 end;
 $$;
+
+-- Aynı etkinlikte aynı masa ikinci kez satılamaz (DB-level kilit)
+create unique index if not exists uq_tickets_event_table_no
+  on tickets(event_id, table_no)
+  where table_no is not null and table_no <> '';
+
+-- Atomik satış fonksiyonu (aynı anda 2 kasa aynı masayı satamaz)
+-- p_tickets örneği:
+-- [
+--   {
+--     "ticket_hash": "EV123-M2-T998877",
+--     "category_name": "VIP",
+--     "table_no": "2",
+--     "customer_name": "Ali Veli",
+--     "customer_phone": "90555...",
+--     "sold_by_username": "Hakan",
+--     "people_count": 4,
+--     "inside_count": 0,
+--     "paid": 28000,
+--     "debt": 0,
+--     "status": "READY",
+--     "payload_json": {"masa": {...}, "saleDetail": {...}}
+--   }
+-- ]
+create or replace function ticket_sale_atomic(
+  p_legacy_event_id text,
+  p_tickets jsonb
+)
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_event_id uuid;
+  v_conflicts jsonb;
+  v_inserted_count int := 0;
+begin
+  if p_legacy_event_id is null or btrim(p_legacy_event_id) = '' then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_event_id');
+  end if;
+
+  if p_tickets is null or jsonb_typeof(p_tickets) <> 'array' or jsonb_array_length(p_tickets) = 0 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_ticket_payload');
+  end if;
+
+  -- Event satırını kilitle: aynı event için satış akışı serialize edilir.
+  select id into v_event_id
+  from events
+  where legacy_event_id = p_legacy_event_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'event_not_found');
+  end if;
+
+  -- Ön kontrol: bu masalardan satılmış olan var mı?
+  with req as (
+    select nullif(btrim(x->>'table_no'), '') as table_no
+    from jsonb_array_elements(p_tickets) as x
+  )
+  select coalesce(jsonb_object_agg(t.table_no, coalesce(t.customer_name, 'Bilinmiyor')), '{}'::jsonb)
+  into v_conflicts
+  from tickets t
+  join req r on r.table_no is not null and t.table_no = r.table_no
+  where t.event_id = v_event_id;
+
+  if v_conflicts <> '{}'::jsonb then
+    return jsonb_build_object('ok', false, 'reason', 'already_sold', 'soldTo', v_conflicts);
+  end if;
+
+  -- Atomik insert: unique(event_id, table_no) ikinci satışı DB seviyesinde engeller.
+  insert into tickets(
+    event_id,
+    ticket_hash,
+    category_name,
+    table_no,
+    customer_name,
+    customer_phone,
+    sold_by_username,
+    people_count,
+    inside_count,
+    paid,
+    debt,
+    status,
+    payload_json,
+    created_at,
+    updated_at
+  )
+  select
+    v_event_id,
+    x->>'ticket_hash',
+    nullif(x->>'category_name', ''),
+    nullif(btrim(x->>'table_no'), ''),
+    nullif(x->>'customer_name', ''),
+    nullif(x->>'customer_phone', ''),
+    nullif(x->>'sold_by_username', ''),
+    coalesce((x->>'people_count')::int, 1),
+    coalesce((x->>'inside_count')::int, 0),
+    coalesce((x->>'paid')::numeric, 0),
+    coalesce((x->>'debt')::numeric, 0),
+    coalesce(nullif(x->>'status', ''), 'READY'),
+    coalesce(x->'payload_json', '{}'::jsonb),
+    now(),
+    now()
+  from jsonb_array_elements(p_tickets) as x;
+
+  GET DIAGNOSTICS v_inserted_count = ROW_COUNT;
+
+  return jsonb_build_object('ok', true, 'reason', 'sale_committed', 'inserted', v_inserted_count);
+
+exception
+  when unique_violation then
+    -- Yarışta diğer kasa öne geçtiyse burada yakalanır.
+    with req as (
+      select nullif(btrim(x->>'table_no'), '') as table_no
+      from jsonb_array_elements(p_tickets) as x
+    )
+    select coalesce(jsonb_object_agg(t.table_no, coalesce(t.customer_name, 'Bilinmiyor')), '{}'::jsonb)
+    into v_conflicts
+    from tickets t
+    join req r on r.table_no is not null and t.table_no = r.table_no
+    where t.event_id = v_event_id;
+
+    return jsonb_build_object('ok', false, 'reason', 'already_sold', 'soldTo', coalesce(v_conflicts, '{}'::jsonb));
+
+  when others then
+    return jsonb_build_object('ok', false, 'reason', 'rpc_error', 'message', SQLERRM);
+end;
+$$;

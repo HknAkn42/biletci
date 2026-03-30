@@ -633,20 +633,77 @@
             if(!n || basket.length === 0) return showToast("Müşteri adı ve masa seçimi zorunludur!", "error");
 
             let isUpdate = editId !== null;
+            let _atomicRows = null;
 
-            // === ÇAKIŞMA KONTROLÜ: Yeni satışlarda masanın online'da satılıp satılmadığını kontrol et ===
+            // === ONLINE MOD: ATOMİK SATIŞ KİLİDİ (DB tarafında) ===
             if (!isUpdate && window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online') {
                 const confirmBtn = document.getElementById('confirmBtn');
                 const btnOldText = confirmBtn ? confirmBtn.textContent : '';
-                if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Kontrol ediliyor...'; }
+                if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Satış kilitleniyor...'; }
                 try {
-                    const tableNosToCheck = basket.map(b => String(b.masa.no));
-                    const check = await window.BiletProOnlineStore.checkTablesAvailableOnline(ev.id, tableNosToCheck);
-                    if (!check.ok && check.reason === 'already_sold') {
-                        const soldMsg = Object.entries(check.soldTo || {})
-                            .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
-                            .join(', ');
-                        showToast(`Satış iptal! Bu masa az önce başka bir kasada satıldı: ${soldMsg}`, 'error');
+                    const netPreview = recalc();
+                    const paidPreview = parseFloat(document.getElementById('paidAmt').value) || 0;
+                    const prPreview = parseFloat(document.getElementById('prDisc').value) || 0;
+                    const tlPreview = parseFloat(document.getElementById('tlDisc').value) || 0;
+                    const debtPreview = Math.max(0, netPreview - paidPreview);
+
+                    const nowIso = new Date().toISOString();
+                    const eventDate = ev.date ? new Date(ev.date) : new Date();
+                    const dueDate = new Date(eventDate.getTime() + 24*60*60*1000);
+                    const dueIso = dueDate.toISOString();
+
+                    const masaNosOnlyPreview = basket.map(b => b.masa.no).join('');
+                    const baseHash = `EV${ev.id.toString().slice(-4)}-M${masaNosOnlyPreview}-T${Date.now().toString().slice(-6)}`;
+
+                    _atomicRows = basket.map((b, idx) => {
+                        const perTableHash = basket.length > 1 ? `${baseHash}-M${b.masa.no}` : baseHash;
+                        return {
+                            masa_id: b.masa.id,
+                            ticket_hash: perTableHash,
+                            category_name: b.cat.name,
+                            table_no: String(b.masa.no),
+                            customer_name: n,
+                            customer_phone: ph,
+                            sold_by_username: sellerName,
+                            people_count: b.p,
+                            inside_count: 0,
+                            paid: paidPreview / basket.length,
+                            debt: debtPreview / basket.length,
+                            status: 'READY',
+                            sale_date: nowIso,
+                            due_date: dueIso,
+                            payload_json: {
+                                masa: b.masa,
+                                saleDetail: {
+                                    phone: ph,
+                                    people: b.p,
+                                    paid: paidPreview / basket.length,
+                                    paymentType: payType,
+                                    debt: debtPreview / basket.length,
+                                    ticketHash: perTableHash,
+                                    categoryName: b.cat.name,
+                                    prDisc: prPreview,
+                                    tlDisc: tlPreview,
+                                    gateNote: gn,
+                                    soldBy: sellerName,
+                                    status: 'READY',
+                                    saleDate: nowIso,
+                                    dueDate: dueIso
+                                }
+                            }
+                        };
+                    });
+
+                    const lockRes = await window.BiletProOnlineStore.atomicSaleCreate(ev, _atomicRows);
+                    if (!lockRes?.ok) {
+                        if (lockRes?.reason === 'already_sold') {
+                            const soldMsg = Object.entries(lockRes.soldTo || {})
+                                .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
+                                .join(', ');
+                            showToast(`Satış kilidi reddetti: ${soldMsg}`, 'error');
+                        } else {
+                            showToast('Online satış kilidi başarısız. Lütfen tekrar deneyin.', 'error');
+                        }
                         basket.forEach(b => window.bpSoftLock?.release(ev.id, b.masa.no));
                         if (window.BiletProAutoSync && typeof window.BiletProAutoSync.syncNow === 'function') {
                             window.BiletProAutoSync.syncNow('conflict_detected');
@@ -654,7 +711,9 @@
                         return;
                     }
                 } catch(e) {
-                    console.warn('[BiletPro] Çakışma kontrolü başarısız, yerel kayda devam ediliyor:', e);
+                    console.warn('[BiletPro] Atomik satış kilidi hatası:', e);
+                    showToast('Satış kilidi sırasında hata oluştu. Lütfen tekrar deneyin.', 'error');
+                    return;
                 } finally {
                     if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = btnOldText; }
                 }
@@ -693,8 +752,12 @@
                 const oldTarget = ev.categories.find(c => c.id === basket[0].cat.id).masalar.find(m => m.id === editId);
                 if(oldTarget && oldTarget.saleDetail) oldHash = oldTarget.saleDetail.ticketHash;
             }
-            
-            lastTicketHash = oldHash || `EV${ev.id.toString().slice(-4)}-M${masaNosOnly}-T${Date.now().toString().slice(-6)}`;
+
+            const _atomicRowByMasaId = _atomicRows
+                ? Object.fromEntries(_atomicRows.map(r => [String(r.masa_id), r]))
+                : null;
+
+            lastTicketHash = oldHash || _atomicRows?.[0]?.ticket_hash || `EV${ev.id.toString().slice(-4)}-M${masaNosOnly}-T${Date.now().toString().slice(-6)}`;
             lastPhone = ph;
 
             const pr = parseFloat(document.getElementById('prDisc').value) || 0;
@@ -702,6 +765,7 @@
 
             basket.forEach(i => {
                 const target = ev.categories.find(c => c.id === i.cat.id).masalar.find(m => m.id === i.masa.id);
+                const _atomicRow = _atomicRowByMasaId ? _atomicRowByMasaId[String(i.masa.id)] : null;
                 target.isSold = true; 
                 target.soldTo = n;
                 const eventDate = ev.date ? new Date(ev.date) : new Date();
@@ -709,18 +773,18 @@
                 target.saleDetail = { 
                     phone: ph, 
                     people: i.p, 
-                    paid: paid / basket.length, 
+                    paid: _atomicRow ? (parseFloat(_atomicRow.paid) || 0) : (paid / basket.length), 
                     paymentType: payType, 
-                    debt: lastDebt / basket.length, 
-                    ticketHash: lastTicketHash, 
+                    debt: _atomicRow ? (parseFloat(_atomicRow.debt) || 0) : (lastDebt / basket.length), 
+                    ticketHash: _atomicRow?.ticket_hash || lastTicketHash, 
                     categoryName: i.cat.name,
                     prDisc: pr, 
                     tlDisc: tl,
                     gateNote: gn,
                     soldBy: sellerName, // SATICI BİLGİSİ BİLETE KAZINDI
                     status: 'READY',
-                    saleDate: new Date().toISOString(),
-                    dueDate: dueDate.toISOString()
+                    saleDate: _atomicRow?.sale_date || new Date().toISOString(),
+                    dueDate: _atomicRow?.due_date || dueDate.toISOString()
                 };
             });
             
