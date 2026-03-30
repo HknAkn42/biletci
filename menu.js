@@ -75,7 +75,7 @@
 
         const perms = user.perms || {};
         const pagePermMap = {
-            'index.html': 'pManageEvents',
+            'index.html': null, // Dashboard: herkes görebilir, yönetim butonları index.html içinde kontrol edilir
             'gise.html': 'pManageEvents',
             'satis.html': 'pSale',
             'musteriler.html': 'pSale',
@@ -92,17 +92,8 @@
 
     function getFirstAllowedPage(user) {
         if (!user) return null;
-        const username = (user.username || '').toLowerCase();
-        const isAdmin = user.role === 'admin' || username === 'hakan';
-        if (isAdmin) return 'index.html';
-
-        const perms = user.perms || {};
-        if (perms.pManageEvents === true) return 'index.html';
-        if (perms.pDoor === true) return 'checkin.html';
-        if (perms.pSale === true) return 'satis.html';
-        if (perms.pReports === true) return 'rapor.html';
-        if (perms.pManageStaff === true) return 'personel.html';
-        return null;
+        // Dashboard (index.html) herkese açık; etkinlik seçim merkezi
+        return 'index.html';
     }
 
     // 1. MASTER VERİ TANIMI
