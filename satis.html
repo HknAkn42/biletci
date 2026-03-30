@@ -430,6 +430,24 @@
                 loadEdit(cat, m); 
                 return; 
             }
+
+            // Soft lock kontrolü: başkası bu masayı işlemde mi?
+            const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const _slUser = _slSession.name || _slSession.username || 'Kasa';
+            if (window.bpSoftLock) {
+                const conflict = window.bpSoftLock.getConflict(ev.id, m.no, _slUser);
+                if (conflict) {
+                    const _secs = Math.round((90000 - (Date.now() - conflict.lockedAt)) / 1000);
+                    if(typeof showToast === 'function') showToast(`⏳ Masa ${m.no} şu an ${conflict.lockedBy} tarafından işlemde (${_secs}s kaldı)`, 'error');
+                    return;
+                }
+                window.bpSoftLock.acquire(ev.id, m.no, _slUser);
+                // 90 saniye sonra otomatik bırak
+                window.__bpLockTimers = window.__bpLockTimers || {};
+                const _ltKey = `EV${ev.id}-M${m.no}`;
+                clearTimeout(window.__bpLockTimers[_ltKey]);
+                window.__bpLockTimers[_ltKey] = setTimeout(() => window.bpSoftLock?.release(ev.id, m.no), 88000);
+            }
             
             if(editId !== null) {
                 reset(); 
@@ -506,6 +524,14 @@
         }
 
         function reset() {
+            // Soft lock'ları bırak
+            if (window.bpSoftLock && ev) {
+                basket.forEach(b => {
+                    window.bpSoftLock.release(ev.id, b.masa.no);
+                    const _ltKey = `EV${ev.id}-M${b.masa.no}`;
+                    if (window.__bpLockTimers?.[_ltKey]) { clearTimeout(window.__bpLockTimers[_ltKey]); delete window.__bpLockTimers[_ltKey]; }
+                });
+            }
             basket = []; 
             editId = null; 
             lastDebt = 0; 
@@ -611,6 +637,7 @@
                             .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
                             .join(', ');
                         showToast(`Satış iptal! Bu masa az önce başka bir kasada satıldı: ${soldMsg}`, 'error');
+                        basket.forEach(b => window.bpSoftLock?.release(ev.id, b.masa.no));
                         if (window.BiletProAutoSync && typeof window.BiletProAutoSync.syncNow === 'function') {
                             window.BiletProAutoSync.syncNow('conflict_detected');
                         }
@@ -621,8 +648,27 @@
                 } finally {
                     if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = btnOldText; }
                 }
+            } else if (!isUpdate) {
+                // Offline mod: localStorage'dan taze okuma yaparak çakışmayı tespit et
+                const _freshEvts = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+                const _freshEv = _freshEvts.find(e => String(e.id) === String(ev.id));
+                if (_freshEv) {
+                    const _soldNow = basket.filter(b => {
+                        const fCat = _freshEv.categories?.find(c => c.id === b.cat.id);
+                        const fMasa = fCat?.masalar?.find(m => m.id === b.masa.id);
+                        return fMasa?.isSold === true;
+                    });
+                    if (_soldNow.length > 0) {
+                        showToast(`Çakışma! ${_soldNow.map(b => `Masa ${b.masa.no}`).join(', ')} az önce başka bir kasa tarafından satıldı!`, 'error');
+                        basket.forEach(b => window.bpSoftLock?.release(ev.id, b.masa.no));
+                        // Yerel veriyi güncelle
+                        events = _freshEvts; ev = _freshEv; render();
+                        return;
+                    }
+                }
             }
             // ============================================================================================
+
             
             const net = recalc(); 
             const paid = parseFloat(document.getElementById('paidAmt').value) || 0;
@@ -800,7 +846,16 @@
         function save() { 
             const idx = events.findIndex(e => e.id == eventId); 
             events[idx] = ev; 
-            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+
+            // Soft lock'ları bırak (satış tamamlandı)
+            if (window.bpSoftLock) {
+                basket.forEach(b => {
+                    window.bpSoftLock.release(ev.id, b.masa.no);
+                    const _ltKey = `EV${ev.id}-M${b.masa.no}`;
+                    if (window.__bpLockTimers?.[_ltKey]) { clearTimeout(window.__bpLockTimers[_ltKey]); delete window.__bpLockTimers[_ltKey]; }
+                });
+            }
 
             // Online mod açıksa aynı satışı merkezi veritabanına da senkronla
             if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.syncLegacyEventBundle === 'function') {
@@ -863,8 +918,15 @@
                     <div class="masalar-grid">
                         ${filteredMasalar.sort((a,b)=>a.no-b.no).map(m => {
                             const sel = basket.find(bi => bi.masa.id === m.id);
+                            const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+                            const _slUser = _slSession.name || _slSession.username || '';
+                            const _softConflict = !m.isSold && window.bpSoftLock?.getConflict(ev.id, m.no, _slUser);
+                            const _conflictBadge = _softConflict
+                                ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${_softConflict.lockedBy}</div>`
+                                : '';
                             return `
-                                <div onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''}">
+                                <div onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
+                                    ${_conflictBadge}
                                     <p class="m-no">MASA</p>
                                     <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
                                     <p class="m-alt">${m.isSold ? m.soldTo : m.kapasite + ' KİŞİLİK'}</p>

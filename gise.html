@@ -427,8 +427,15 @@
                     </div>
                     <div class="masalar-grid">${cat.masalar.sort((a,b)=>a.no-b.no).map(m => {
                         if(!m.isDeleted) tK += m.kapasite;
+                        const _giseSess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+                        const _giseUser = _giseSess.name || _giseSess.username || '';
+                        const _gsConflict = !m.isSold && !m.isDeleted && window.bpSoftLock?.getConflict(ev.id, m.no, _giseUser);
+                        const _gsOverlay = _gsConflict
+                            ? `<div class="absolute inset-0 rounded-[16px] bg-amber-300/25 border-2 border-amber-400 pointer-events-none z-10"></div><div class="absolute top-1 left-1 right-1 text-center text-[7px] font-black text-amber-800 bg-amber-100/90 rounded-md px-1 py-0.5 uppercase z-10">\u23f3 ${_gsConflict.lockedBy}</div>`
+                            : '';
                         return `
-                            <div class="unit-silk ${m.isSold ? 'sold' : ''} ${m.isDeleted ? 'deleted' : ''} ${m.isExtra && !m.isDeleted && !m.isSold ? 'extra' : ''}" onclick="openMasaEdit(${cat.id}, ${m.id})">
+                            <div class="unit-silk ${m.isSold ? 'sold' : ''} ${m.isDeleted ? 'deleted' : ''} ${m.isExtra && !m.isDeleted && !m.isSold ? 'extra' : ''} ${_gsConflict ? 'opacity-60' : ''}" onclick="openMasaEdit(${cat.id}, ${m.id})">
+                                ${_gsOverlay}
                                 ${m.isExtra && !m.isDeleted && !m.isSold ? '<div class="extra-badge">EK</div>' : ''}
                                 <p class="m-no text-[10px] font-black text-slate-400 uppercase tracking-widest">${m.isDeleted ? 'PASİF' : 'MASA'}</p>
                                 <p class="m-kap text-2xl font-black italic text-slate-800 my-1">${m.isDeleted ? 'X' : (m.isSold ? 'DOLU' : m.no)}</p>

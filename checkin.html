@@ -513,6 +513,14 @@
                     }
                     return;
                 }
+            } else {
+                // Offline mod: başka bir sekme/cihazın aynı bileti lokalde okutup okutmadığını kontrol et
+                const _freshEvs = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+                const _freshMasa = _freshEvs?.[ei]?.categories?.[ci]?.masalar?.[mi];
+                if (_freshMasa?.saleDetail?.status === 'INSIDE') {
+                    found.saleDetail.status = 'INSIDE';
+                    showInsideCard(found); sndDouble(); flash('r'); return;
+                }
             }
 
             commitIn(found,ei,ci,mi,0,0,'',enterCount); sndOK();flash('g');

@@ -324,6 +324,14 @@ uiStyles.innerHTML = `
     .toast-info .toast-icon { background: #e0e7ff; color: #4f46e5; }
     .toast-text { font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;}
 
+    /* Sayfa geçiş animasyonu (flash engeli) */
+    @keyframes bpFadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+    body.bp-ready { animation: bpFadeIn 260ms ease forwards; }
+    body.bp-fading { opacity:0 !important; transition: opacity 160ms ease !important; pointer-events:none !important; }
+    /* Senkronizasyon bildirimi */
+    .bp-sync-pill { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,0.88); color:#94a3b8; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; padding:5px 16px; border-radius:99px; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:9999997; white-space:nowrap; }
+    .bp-sync-pill.show { opacity:1; }
+
     /* Confirm Kutusu (Ekranın ortasında cam efektli) */
     .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); z-index: 9999999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; pointer-events: none; }
     .confirm-overlay.show { opacity: 1; pointer-events: all; }
@@ -341,6 +349,13 @@ uiStyles.innerHTML = `
 document.head.appendChild(uiStyles);
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Sayfa fade-in
+    document.body.classList.add('bp-ready');
+    // Sync pill
+    const _syncPill = document.createElement('div');
+    _syncPill.className = 'bp-sync-pill'; _syncPill.id = 'bpSyncPill'; _syncPill.textContent = '⟳ GÜNCELLENIYOR';
+    document.body.appendChild(_syncPill);
+
     const toastContainer = document.createElement('div');
     toastContainer.className = 'toast-container';
     toastContainer.id = 'globalToastContainer';
@@ -1392,6 +1407,95 @@ window.logout = function(ev) {
 }
 
 /* ==========================================
+   SMART RELOAD — Flash'sız, modal-güvenli yenileme
+   ========================================== */
+window.bpSmartReload = function(trigger) {
+    const now = Date.now();
+    // Son reload'dan 18s geçmemişse atla (hızlı döngü engeli)
+    const lastAt = parseInt(sessionStorage.getItem('BiletPro_LastReloadAt') || '0', 10);
+    if (now - lastAt < 18000) return;
+
+    // Modal açık mı? (hidden olmayan fixed z-[...] elementler)
+    const openModal = Array.from(document.querySelectorAll('.fixed')).some(el => {
+        if (el.classList.contains('hidden')) return false;
+        if (el.id === 'bpSyncPill') return false;
+        const s = window.getComputedStyle(el);
+        return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    });
+    // Input/textarea aktif mi?
+    const inputBusy = document.activeElement &&
+        ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) &&
+        document.activeElement.value !== '';
+
+    const attempts = (window.__bpReloadAttempts || 0);
+    if ((openModal || inputBusy) && attempts < 5) {
+        window.__bpReloadAttempts = attempts + 1;
+        // Kullanıcıya alt bildirim göster
+        const pill = document.getElementById('bpSyncPill');
+        if (pill) { pill.textContent = '⟳ VERİ DEĞİŞTİ — İŞLEM BİTİNCE YENİLENECEK'; pill.classList.add('show'); }
+        setTimeout(() => window.bpSmartReload(trigger), 5000);
+        return;
+    }
+
+    window.__bpReloadAttempts = 0;
+    sessionStorage.setItem('BiletPro_LastReloadAt', String(now));
+    // Pill'i temizle
+    const pill = document.getElementById('bpSyncPill');
+    if (pill) pill.classList.remove('show');
+    // Fade-out → reload
+    document.body.classList.add('bp-fading');
+    setTimeout(() => window.location.reload(), 180);
+};
+
+/* ==========================================
+   SOFT LOCK — Çakışan işlem görsel koruması
+   (localStorage tabanlı, aynı cihazda çoklu sekme için)
+   ========================================== */
+window.bpSoftLock = {
+    _key: 'BiletPro_SoftLocks',
+    _ttl: 90000, // 90 saniye
+
+    _read() {
+        const now = Date.now();
+        try {
+            return (JSON.parse(localStorage.getItem(this._key) || '[]') || [])
+                .filter(l => l && (now - (l.lockedAt || 0)) < this._ttl);
+        } catch(_) { return []; }
+    },
+    _save(locks) {
+        try { localStorage.setItem(this._key, JSON.stringify(locks)); } catch(_) {}
+    },
+    _id(eventId, masaNo) { return `EV${eventId}-M${masaNo}`; },
+
+    // Kilit al. Başkası kilitlediyse false döner.
+    acquire(eventId, masaNo, userName) {
+        const id = this._id(eventId, masaNo);
+        const locks = this._read();
+        const existing = locks.find(l => l.id === id);
+        if (existing && existing.lockedBy !== userName) return false;
+        const filtered = locks.filter(l => l.id !== id);
+        filtered.push({ id, eventId: String(eventId), masaNo: String(masaNo), lockedBy: userName, lockedAt: Date.now() });
+        this._save(filtered);
+        return true;
+    },
+
+    // Kilit bırak
+    release(eventId, masaNo) {
+        this._save(this._read().filter(l => l.id !== this._id(eventId, masaNo)));
+    },
+
+    // Başkasının kilidi varsa lock objesini döndür, yoksa null
+    getConflict(eventId, masaNo, currentUser) {
+        const lock = this._read().find(l => l.id === this._id(eventId, masaNo));
+        if (!lock || lock.lockedBy === currentUser) return null;
+        return lock;
+    },
+
+    // Tüm kilit listesini döndür (render için)
+    getAll() { return this._read(); }
+};
+
+/* ==========================================
    AUTO SYNC: LOCAL -> ONLINE (OFFLINE SAFE)
    ========================================== */
 const BILETPRO_SYNC_STATUS_KEY = 'BiletPro_LastOnlineSyncStatus';
@@ -1523,16 +1627,14 @@ window.BiletProAutoSync = {
                 cLogResetChanged: !!cLogResetRes.changed
             });
 
-            // Veri değiştiyse sayfayı yenile
-            // Realtime tetiklemelerinde her zaman reload; diğer tetiklemelerde oturum başına bir kez
+            // Veri değiştiyse sayfayı akıllı yenile (flash'sız, modal/input koruma ile)
             if (anyChanged && requiresReload) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
-                    // forceReloadForConfigOrStaff kaldırıldı: flag bypass'ı sonsuz döngüye yol açıyordu
                     if (isRealtime || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
                         if (!isRealtime) sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
-                        setTimeout(() => window.location.reload(), 300);
+                        setTimeout(() => window.bpSmartReload(trigger), 300);
                     }
                 }
             }
