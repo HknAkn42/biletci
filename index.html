@@ -60,10 +60,34 @@
                 <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Operasyonel Sistem</p>
                 <h1 class="text-base sm:text-2xl font-black italic uppercase tracking-tighter text-slate-800 truncate">Kontrol Paneli</h1>
             </div>
+            <div class="flex-1 max-w-xs hidden sm:block">
+                <input id="searchEvents" type="text" placeholder="🔍 Etkinlik ara..." oninput="filterSearch(this.value)"
+                    class="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-[11px] font-bold text-slate-700 outline-none focus:border-blue-400 focus:bg-white transition-all">
+            </div>
             <button id="newEventBtn" onclick="openModal()" class="bg-slate-900 text-white px-4 sm:px-6 lg:px-10 py-3 sm:py-4 lg:py-5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase shadow-xl hover:scale-105 transition-all whitespace-nowrap w-full sm:w-auto">+ YENİ ETKİNLİK</button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pb-24 lg:pb-[150px] no-scrollbar">
+            <!-- ÖZET STAT KARTLARI -->
+            <div id="dashStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-[1850px]">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-[3px] mb-1">🎤 Aktif Etkinlik</span>
+                    <span id="statActiveEvents" class="text-3xl font-black text-slate-800">0</span>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-[3px] mb-1">📋 Toplam Masa</span>
+                    <span id="statTotalTables" class="text-3xl font-black text-slate-800">0</span>
+                </div>
+                <div class="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                    <span class="text-[9px] font-black text-green-600 uppercase tracking-[3px] mb-1">✅ Satılan Masa</span>
+                    <span id="statSoldTables" class="text-3xl font-black text-green-700">0</span>
+                </div>
+                <div class="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                    <span class="text-[9px] font-black text-blue-600 uppercase tracking-[3px] mb-1">💰 Toplam Ciro</span>
+                    <span id="statRevenue" class="text-3xl font-black text-blue-700">₺0</span>
+                </div>
+            </div>
+
             <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
             </div>
 
@@ -147,6 +171,7 @@
         let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
         let tempLogo = "";
         let editEventId = null;
+        let _searchQuery = '';
 
         function getFinanceArchive() {
             return JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
@@ -345,7 +370,16 @@
             if (newEvBtn) newEvBtn.style.display = canManage ? '' : 'none';
             
             // TARİHE GÖRE SIRALAMA (En yakın/ileri tarih en üstte)
-            const sortedEvents = [...events].sort((a, b) => {
+            const eventsToShow = _searchQuery
+                ? events.filter(ev =>
+                    (ev.title || '').toLowerCase().includes(_searchQuery.toLowerCase()) ||
+                    (ev.venue || '').toLowerCase().includes(_searchQuery.toLowerCase()) ||
+                    (ev.company || '').toLowerCase().includes(_searchQuery.toLowerCase()) ||
+                    (ev.city || '').toLowerCase().includes(_searchQuery.toLowerCase())
+                  )
+                : events;
+
+            const sortedEvents = [...eventsToShow].sort((a, b) => {
                 const dateA = a.date ? new Date(a.date).getTime() : 0;
                 const dateB = b.date ? new Date(b.date).getTime() : 0;
                 return dateB - dateA; // Yeniden eskiye sıralama
@@ -407,6 +441,7 @@
             
             // Audit logları da güncelle
             renderAuditLogs();
+            renderStats();
         }
 
         // DASHBOARD AUDIT LOG GÖSTERİCİ
@@ -449,6 +484,33 @@
                     <p class="text-[9px] text-slate-400 mt-2">${time}</p>
                 </div>`;
             }).join('');
+        }
+
+        // ARAMA/FİLTRE
+        function filterSearch(q) { _searchQuery = q; render(); }
+
+        // DASHBOARD ÖZET İSTATİSTİKLER
+        function renderStats() {
+            let activeEvents = 0, totalTables = 0, soldTables = 0, totalRevenue = 0;
+            events.forEach(ev => {
+                if (ev.isActive !== false) activeEvents++;
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        if (m.isDeleted) return;
+                        totalTables++;
+                        if (m.isSold && m.saleDetail) {
+                            soldTables++;
+                            totalRevenue += parseFloat(m.saleDetail.paid) || 0;
+                        }
+                    });
+                });
+            });
+            const fmt = (n) => n >= 1000 ? '₺' + (n/1000).toFixed(1) + 'B' : '₺' + n.toFixed(0);
+            const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+            el('statActiveEvents', activeEvents);
+            el('statTotalTables', totalTables);
+            el('statSoldTables', soldTables);
+            el('statRevenue', fmt(totalRevenue));
         }
 
         // VERİTABANINA KAYIT VE GÜNCELLEME

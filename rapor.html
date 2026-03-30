@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f4f7fa; }
         .glass-card {
@@ -120,6 +121,20 @@
                     <button onclick="hardResetAllSalesWithCode();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 font-black uppercase tracking-wider text-[11px]">💣 Tüm Satışları Sıfırla (Kodlu)</button>
                 </div>
             </header>
+
+            <section class="glass-card p-6">
+                <h2 class="section-title mb-5"><span>📈</span><span>Görsel Analiz</span></h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Personel Ciro Dağılımı (₺)</p>
+                        <canvas id="chartStaffRevenue" height="220"></canvas>
+                    </div>
+                    <div>
+                        <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Etkinlik Satış Dağılımı (Masa)</p>
+                        <canvas id="chartEventSales" height="220"></canvas>
+                    </div>
+                </div>
+            </section>
 
             <section class="glass-card p-6">
                 <h2 class="section-title mb-4"><span>📊</span><span>Personel Finansal Performans</span></h2>
@@ -338,6 +353,7 @@
             financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
             renderStaffFinancials();
             renderArchiveManager();
+            renderCharts();
             setTimeout(() => { if(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); } }, 500);
             notifyRefresh('Finans yenileme');
         }
@@ -866,9 +882,76 @@
                 : '<tr><td class="p-3 text-center text-slate-500" colspan="6">Arşiv kaydı bulunamadı.</td></tr>';
         }
 
+        let _chartStaff = null, _chartEvent = null;
+
+        function renderCharts() {
+            const evs = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+            const palette = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+
+            // Personel ciro haritası
+            const staffMap = {};
+            evs.forEach(ev => {
+                (ev.categories || []).forEach(cat => {
+                    (cat.masalar || []).forEach(m => {
+                        if (!m.isSold || !m.saleDetail) return;
+                        const s = (m.saleDetail.soldBy || 'Merkez').trim();
+                        staffMap[s] = (staffMap[s] || 0) + (parseFloat(m.saleDetail.paid) || 0);
+                    });
+                });
+            });
+
+            // Etkinlik satış sayısı
+            const evLabels = evs.slice(0, 8).map(ev => (ev.title || 'ETK').substring(0, 16));
+            const evSales  = evs.slice(0, 8).map(ev => {
+                let c = 0;
+                (ev.categories || []).forEach(cat => { (cat.masalar || []).forEach(m => { if (m.isSold) c++; }); });
+                return c;
+            });
+
+            const baseOpts = {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { font: { size: 10, weight: '800' }, color: '#64748b' }, grid: { display: false } },
+                    y: { ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } }
+                }
+            };
+
+            const ctx1 = document.getElementById('chartStaffRevenue');
+            if (ctx1) {
+                if (_chartStaff) _chartStaff.destroy();
+                const sLabels = Object.keys(staffMap);
+                _chartStaff = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: sLabels.length ? sLabels : ['Veri Yok'],
+                        datasets: [{ label: 'Ciro ₺', data: sLabels.length ? Object.values(staffMap) : [0],
+                            backgroundColor: palette.slice(0, Math.max(sLabels.length, 1)),
+                            borderRadius: 8, borderSkipped: false }]
+                    },
+                    options: { ...baseOpts }
+                });
+            }
+
+            const ctx2 = document.getElementById('chartEventSales');
+            if (ctx2) {
+                if (_chartEvent) _chartEvent.destroy();
+                _chartEvent = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: evLabels.length ? evLabels : ['Veri Yok'],
+                        datasets: [{ label: 'Satış', data: evSales.length ? evSales : [0],
+                            backgroundColor: '#8b5cf6', borderRadius: 8, borderSkipped: false }]
+                    },
+                    options: { ...baseOpts }
+                });
+            }
+        }
+
         (async () => {
             renderStaffFinancials();
             renderArchiveManager();
+            renderCharts();
             await syncAuditLogsFromOnline();
             renderAuditLogs();
         })();

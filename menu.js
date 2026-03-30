@@ -316,13 +316,20 @@ uiStyles.innerHTML = `
         padding: 16px 24px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.08); 
         display: flex; align-items: center; gap: 14px; transform: translateX(120%); opacity: 0; 
         transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-family: 'Plus Jakarta Sans', sans-serif;
+        position: relative; overflow: hidden;
     }
     .toast-silk.show { transform: translateX(0); opacity: 1; }
-    .toast-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; }
+    .toast-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; flex-shrink: 0; }
     .toast-success .toast-icon { background: #dcfce7; color: #16a34a; }
     .toast-error .toast-icon { background: #fee2e2; color: #ef4444; }
     .toast-info .toast-icon { background: #e0e7ff; color: #4f46e5; }
-    .toast-text { font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;}
+    .toast-warning .toast-icon { background: #fef3c7; color: #d97706; }
+    .toast-text { font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+    .toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; border-radius: 0 0 20px 20px; transition: width 3.4s linear; }
+    .toast-success .toast-progress { background: #16a34a; }
+    .toast-error .toast-progress { background: #ef4444; }
+    .toast-info .toast-progress { background: #4f46e5; }
+    .toast-warning .toast-progress { background: #d97706; }
 
     /* Sayfa geçiş animasyonu (flash engeli) */
     @keyframes bpFadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
@@ -349,6 +356,10 @@ uiStyles.innerHTML = `
 document.head.appendChild(uiStyles);
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Dark mode init
+    if (localStorage.getItem('BiletPro_DarkMode') === '1') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
     // Sayfa fade-in
     document.body.classList.add('bp-ready');
     // Sync pill
@@ -383,14 +394,20 @@ window.showToast = function(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast-silk toast-${type}`;
-    let iconHtml = 'i';
-    if(type === 'success') iconHtml = '✓';
-    if(type === 'error') iconHtml = '!';
+    let iconHtml = 'ℹ️';
+    if(type === 'success') iconHtml = '✅';
+    if(type === 'error') iconHtml = '❌';
+    if(type === 'warning') iconHtml = '⚠️';
 
-    toast.innerHTML = `<div class="toast-icon">${iconHtml}</div><div class="toast-text">${message}</div>`;
+    const pId = 'tp_' + Date.now();
+    toast.innerHTML = `<div class="toast-icon">${iconHtml}</div><div class="toast-text">${message}</div><div class="toast-progress" id="${pId}"></div>`;
     container.appendChild(toast);
     
-    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        toast.classList.add('show');
+        const prog = document.getElementById(pId);
+        if (prog) requestAnimationFrame(() => { prog.style.width = '0%'; });
+    }));
 
     setTimeout(() => {
         toast.classList.remove('show');
@@ -850,6 +867,23 @@ window.BiletProActionAudit = {
 })();
 
 /* ==========================================
+   DARK MODE & SAYFA GEÇİŞ YARDIMCILARI
+   ========================================== */
+window.toggleDarkMode = function() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        html.removeAttribute('data-theme');
+        localStorage.removeItem('BiletPro_DarkMode');
+    } else {
+        html.setAttribute('data-theme', 'dark');
+        localStorage.setItem('BiletPro_DarkMode', '1');
+    }
+    const btn = document.getElementById('bpDarkToggle');
+    if (btn) btn.innerHTML = isDark ? '<i>🌙</i> KARANLIK MOD' : '<i>☀️</i> AYDINLIK MOD';
+};
+
+/* ==========================================
    SOL MENÜ ENJEKSİYONU (SQUEEZE YAPISI)
    ========================================== */
 function injectMenu(active = 'dashboard', eventId = null) {
@@ -1032,6 +1066,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 <button onclick="backupAllData()" class="out-btn"><i>💾</i> YEDEK AL</button>
                 <button onclick="triggerRestoreDialog()" class="out-btn"><i>📥</i> GERİ YÜKLE</button>
                 <button onclick="resetDemoData()" class="out-btn" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;"><i>🧪</i> DEMO SIFIRLA</button>
+                <button id="bpDarkToggle" onclick="toggleDarkMode()" class="out-btn" style="background:#1e293b;color:#94a3b8;border-color:#334155;"><i>🌙</i> KARANLIK MOD</button>
             </div>
             <div class="quick-actions">
                 <button onclick="logout(event)" class="quick-logout" title="ÇIKIŞ">🚪</button>
@@ -1039,6 +1074,25 @@ function injectMenu(active = 'dashboard', eventId = null) {
         </nav>
     `;
     document.body.insertAdjacentHTML('afterbegin', html);
+
+    // Dark mode button text init
+    const _dmBtn = document.getElementById('bpDarkToggle');
+    if (_dmBtn && document.documentElement.getAttribute('data-theme') === 'dark') {
+        _dmBtn.innerHTML = '<i>☀️</i> AYDINLIK MOD';
+    }
+
+    // Sayfa geçiş animasyonu: nav-link tıklamalarında fade-out
+    setTimeout(() => {
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href || href === '#') return;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.body.classList.add('bp-fading');
+                setTimeout(() => { window.location.href = href; }, 160);
+            });
+        });
+    }, 0);
 
     const clockEl = document.getElementById('bpTopClock');
     if (clockEl) {
