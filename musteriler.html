@@ -350,7 +350,16 @@
                             if(!customerMap[key]) {
                                 customerMap[key] = { name: m.soldTo, phone: phone, key: key, events: [], totalPaid: 0, totalDebt: 0, visitCount: 0, isBlacklisted: blacklist.includes(phone) };
                             }
-                            customerMap[key].events.push({ eventTitle: ev.title, date: ev.date, masa: m.no, category: cat.name, paid: paid, debt: debt });
+                            const sd = m.saleDetail;
+                            customerMap[key].events.push({
+                                eventTitle: ev.title, date: ev.date, masa: m.no, category: cat.name, paid: paid, debt: debt,
+                                status: sd.status || null,
+                                people: sd.people || 1,
+                                insideCount: sd.insideCount || 0,
+                                remainingCount: sd.remainingCount != null ? sd.remainingCount : (sd.people || 1),
+                                checkinTime: sd.checkinTime || null,
+                                checkinBy: sd.checkinBy || null
+                            });
                             customerMap[key].totalPaid += paid; customerMap[key].totalDebt += debt; customerMap[key].visitCount++;
                         }
                     });
@@ -391,6 +400,18 @@
                 const lastEv = c.events[c.events.length - 1];
                 const isVIP = c.totalPaid > 5000 || c.visitCount > 3;
                 const isBlacklisted = c.isBlacklisted;
+                // Son etkinliğin giriş durumu badge'i
+                const _lev_s = lastEv.status;
+                let _lev_badge = '';
+                if(_lev_s === 'INSIDE') {
+                    _lev_badge = `<span class="inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 mt-1">✅ İÇERİDE</span>`;
+                } else if(_lev_s === 'OUTSIDE') {
+                    _lev_badge = `<span class="inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 mt-1">🚶 GEÇİCİ ÇIKIŞ</span>`;
+                } else if(_lev_s === 'USED' || _lev_s === 'CHECKED') {
+                    _lev_badge = `<span class="inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 mt-1">✔️ GİRİŞ YAPILDI</span>`;
+                } else if(_lev_s) {
+                    _lev_badge = `<span class="inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-400 mt-1">⏳ GİRİŞ YOK</span>`;
+                }
 
                 tr.innerHTML = `
                     <td class="px-6 text-center"><input type="checkbox" class="cust-check" data-phone="${c.phone}" data-name="${c.name}"></td>
@@ -414,6 +435,7 @@
                     <td class="px-6">
                         <p class="font-bold text-xs text-slate-800 uppercase italic tracking-tighter">${lastEv.eventTitle}</p>
                         <p class="text-[9px] text-slate-400 font-black uppercase mt-1">MASA ${lastEv.masa}</p>
+                        ${_lev_badge}
                     </td>
                     <td class="px-6">
                         <span class="text-[9px] font-black text-slate-300 uppercase mb-1 block">NET HARCAMA / BAKİYE</span>
@@ -607,7 +629,36 @@
             const container = document.getElementById('histContent'); container.innerHTML = "";
             [...c.events].reverse().forEach(e => {
                 const div = document.createElement('div'); div.className = "bg-slate-50 p-6 rounded-3xl border border-slate-100";
-                div.innerHTML = `<div class="flex justify-between items-start mb-3"><p class="font-black text-xs uppercase text-slate-800 tracking-tighter">${e.eventTitle}</p><span class="text-[9px] font-bold text-slate-400">${e.date}</span></div><p class="text-[10px] font-bold text-blue-600 uppercase mb-4">${e.category} / MASA ${e.masa}</p><div class="flex justify-between border-t border-slate-200 pt-4"><p class="text-[9px] font-black text-slate-400 uppercase">Ödenen: ₺${e.paid}</p><p class="text-[9px] font-black ${e.debt > 0 ? 'text-red-500' : 'text-green-600'} uppercase">Kalan: ₺${e.debt}</p></div>`;
+                const _ci_status = e.status;
+                let _ci_badge = '';
+                if(_ci_status === 'INSIDE') {
+                    _ci_badge = `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-1 rounded-full bg-green-100 text-green-700">✅ İÇERİDE</span>`;
+                } else if(_ci_status === 'OUTSIDE') {
+                    _ci_badge = `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">🚶 GEÇİCİ ÇIKIŞ</span>`;
+                } else if(_ci_status === 'USED' || _ci_status === 'CHECKED') {
+                    _ci_badge = `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-1 rounded-full bg-slate-100 text-slate-500">✔️ GİRİŞ YAPILDI</span>`;
+                } else {
+                    _ci_badge = `<span class="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-1 rounded-full bg-red-50 text-red-400">⏳ GİRİŞ YAPILMADI</span>`;
+                }
+                const _ci_detail = (_ci_status === 'INSIDE' || _ci_status === 'OUTSIDE') ? `
+                    <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+                        <div><p class="text-[9px] font-black text-slate-400 uppercase">Giren Kişi</p><p class="text-[10px] font-black text-slate-700">${e.insideCount} / ${e.people}</p></div>
+                        <div><p class="text-[9px] font-black text-slate-400 uppercase">Kalan Giriş</p><p class="text-[10px] font-black ${e.remainingCount > 0 ? 'text-orange-500' : 'text-slate-400'}">${e.remainingCount} kişi</p></div>
+                        ${e.checkinTime ? `<div><p class="text-[9px] font-black text-slate-400 uppercase">Giriş Saati</p><p class="text-[10px] font-black text-slate-700">${e.checkinTime}</p></div>` : ''}
+                        ${e.checkinBy ? `<div><p class="text-[9px] font-black text-slate-400 uppercase">Onaylayan</p><p class="text-[10px] font-black text-slate-700">${e.checkinBy}</p></div>` : ''}
+                    </div>` : '';
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <p class="font-black text-xs uppercase text-slate-800 tracking-tighter">${e.eventTitle}</p>
+                        <span class="text-[9px] font-bold text-slate-400">${e.date}</span>
+                    </div>
+                    <p class="text-[10px] font-bold text-blue-600 uppercase mb-3">${e.category} / MASA ${e.masa}</p>
+                    <div class="mb-3">${_ci_badge}</div>
+                    ${_ci_detail}
+                    <div class="flex justify-between border-t border-slate-200 pt-3 mt-3">
+                        <p class="text-[9px] font-black text-slate-400 uppercase">Ödenen: ₺${e.paid}</p>
+                        <p class="text-[9px] font-black ${e.debt > 0 ? 'text-red-500' : 'text-green-600'} uppercase">Kalan: ₺${e.debt}</p>
+                    </div>`;
                 container.appendChild(div);
             });
             document.getElementById('historyPanel').classList.add('open');
