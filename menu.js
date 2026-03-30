@@ -862,7 +862,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .expanded .l1 { transform: translateY(7.5px) rotate(45deg); }
         .expanded .l2 { opacity: 0; }
         .expanded .l3 { transform: translateY(-7.5px) rotate(-45deg); }
-        .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 80px; }
+        .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 8px; }
         .nav-link { width: 100%; display: flex; align-items: center; padding: 6px 35px; color: #64748b; text-decoration: none; transition: 0.2s; position: relative; white-space: nowrap; }
         .nav-link i { font-size: 20px; min-width: 22px; text-align: center; font-style: normal; }
         .nav-txt { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 18px; letter-spacing: 1.2px; color: var(--silk-text); opacity: 0; visibility: hidden; transition: 0.3s; }
@@ -879,32 +879,31 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .quick-logout:hover { transform: translateY(-2px); background: #fff1f2; }
         .sidebar-silk.expanded .quick-actions { display: none; }
 
-        .bp-top-meta {
-            position: fixed;
-            top: 12px;
-            right: 14px;
-            left: auto;
-            z-index: 100050;
+        .sb-user-badge {
+            width: 100%;
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,250,252,0.92));
-            border: 1px solid #dbeafe;
-            box-shadow: 0 12px 32px rgba(2, 6, 23, 0.12);
-            border-radius: 18px;
-            padding: 8px 10px 8px 9px;
-            backdrop-filter: blur(18px);
-        }
-        .bp-top-meta.inline-mode {
-            position: static;
-            top: auto;
-            left: auto;
-            right: auto;
-            z-index: auto;
-            margin-left: auto;
-            margin-right: 12px;
+            justify-content: center;
+            padding: 10px 0 14px;
+            margin-top: 96px;
+            border-bottom: 1px solid #e2e8f0;
             flex-shrink: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        .sidebar-silk.expanded .sb-user-badge {
+            justify-content: flex-start;
+            padding: 10px 20px 14px;
+            gap: 10px;
+        }
+        .sb-user-info {
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .sidebar-silk.expanded .sb-user-info { display: flex; }
         .bp-top-avatar {
             width: 34px;
             height: 34px;
@@ -950,17 +949,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 box-shadow: 20px 0 50px rgba(0,0,0,0.12);
             }
             .u-sec { max-height: 52vh; }
-            .bp-top-meta {
-                top: 10px;
-                right: 10px;
-                left: auto;
-                padding: 6px 8px 6px 7px;
-                gap: 8px;
-            }
-            .bp-top-meta.inline-mode {
-                margin-left: auto;
-                margin-right: 8px;
-            }
+            .sb-user-badge { margin-top: 72px; }
             .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
             .bp-top-user { font-size: 10px; }
             .bp-top-role { font-size: 8px; padding: 2px 6px; }
@@ -987,6 +976,14 @@ function injectMenu(active = 'dashboard', eventId = null) {
             <div class="menu-btn" onclick="toggleProSidebar()">
                 <div class="m-line l1"></div><div class="m-line l2"></div><div class="m-line l3"></div>
             </div>
+            <div class="sb-user-badge">
+                <div class="bp-top-avatar" id="bpTopAvatar">${String((session.name || 'M').trim().charAt(0) || 'M').toUpperCase()}</div>
+                <div class="sb-user-info">
+                    <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
+                    <span class="bp-top-role ${roleClass}" id="bpTopRole">${roleLabel}</span>
+                    <span class="bp-top-time" id="bpTopClock">--:--:--</span>
+                </div>
+            </div>
             <div class="nav-list">
                 ${menuItems.filter(i => i.show).map(i => `
                     <a href="${i.id === 'settings' ? '#' : i.url}" ${i.id === 'settings' ? 'onclick="event.preventDefault(); openSystemSettings();"' : ''} class="nav-link ${active === i.id ? 'active' : ''}">
@@ -1007,37 +1004,8 @@ function injectMenu(active = 'dashboard', eventId = null) {
                 <button onclick="logout(event)" class="quick-logout" title="ÇIKIŞ">🚪</button>
             </div>
         </nav>
-        <div class="bp-top-meta" id="bpTopMeta">
-            <div class="bp-top-avatar" id="bpTopAvatar">${String((session.name || 'M').trim().charAt(0) || 'M').toUpperCase()}</div>
-            <div class="bp-top-info">
-                <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
-                <span class="bp-top-role ${roleClass}" id="bpTopRole">${roleLabel}</span>
-            </div>
-            <span class="bp-top-time" id="bpTopClock">--:--:--</span>
-        </div>
     `;
     document.body.insertAdjacentHTML('afterbegin', html);
-
-    // Dashboard özel: Rozeti '+ YENİ ETKİNLİK' butonunun hemen soluna yerleştir
-    // Not: injectMenu bazı sayfalarda header'dan önce çalıştığı için retry gerekir.
-    if (active === 'dashboard') {
-        let tries = 0;
-        const placeMetaNearCreateButton = () => {
-            tries += 1;
-            const topMeta = document.getElementById('bpTopMeta');
-            const newEventBtn = document.querySelector('header button[onclick="openModal()"]');
-
-            if (topMeta && newEventBtn && newEventBtn.parentElement) {
-                topMeta.classList.add('inline-mode');
-                newEventBtn.parentElement.insertBefore(topMeta, newEventBtn);
-                return;
-            }
-
-            if (tries < 40) setTimeout(placeMetaNearCreateButton, 100);
-        };
-
-        setTimeout(placeMetaNearCreateButton, 0);
-    }
 
     const clockEl = document.getElementById('bpTopClock');
     if (clockEl) {
