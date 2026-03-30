@@ -968,15 +968,25 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
     const eventParams = eventId ? `?id=${eventId}` : '';
     
+    // Kullanıcının gerçek yetkilerini yükle (sidebar'da sadece girebileceği sayfalar gösterilsin)
+    const _sbStaff = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
+    const _sbUser  = _sbStaff.find(s => (s.username || '').toLowerCase() === (session.username || '').toLowerCase()) || {};
+    const _sbPerms = isAdmin
+        ? { pSale: true, pDoor: true, pManageEvents: true, pManageStaff: true, pReports: true, pViewLogs: true }
+        : (_sbUser.perms || {});
+    const _canGise = isAdmin || (_sbPerms.pManageEvents === true && (_sbPerms.pManageStaff === true || _sbPerms.pReports === true));
+    const _canSale = isAdmin || _sbPerms.pSale === true;
+    const _canDoor = isAdmin || _sbPerms.pDoor === true;
+
     const menuItems = [
-        { id: 'dashboard', label: labels.dashboard || 'DASHBOARD', icon: '📊', url: 'index.html', show: visibility.dashboard !== false },
-        { id: 'gise', label: labels.gise || 'GİŞE & MİMARİ', icon: '🎫', url: `gise.html${eventParams}`, show: visibility.gise !== false },
-        { id: 'satis', label: labels.satis || 'BİLET SATIŞ', icon: '💰', url: `satis.html${eventParams}`, show: visibility.satis !== false },
-        { id: 'musteriler', label: labels.musteriler || 'MÜŞTERİLER', icon: '👥', url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false },
-        { id: 'checkin', label: labels.checkin || 'KAPI KONTROL', icon: '🛡️', url: `checkin.html${eventParams}`, show: visibility.checkin !== false },
-        { id: 'personel', label: labels.personel || 'PERSONEL', icon: '🔑', url: 'personel.html', show: isAdmin && visibility.personel !== false },
-        { id: 'report', label: labels.report || 'RAPORLAR', icon: '📈', url: 'rapor.html', show: isAdmin && visibility.report !== false },
-        { id: 'settings', label: labels.settings || 'SİSTEM AYARLARI', icon: '⚙️', url: 'settings.html', show: isAdmin && visibility.settings !== false }
+        { id: 'dashboard',   label: labels.dashboard   || 'DASHBOARD',         icon: '📊', url: 'index.html',                show: visibility.dashboard  !== false },
+        { id: 'gise',        label: labels.gise        || 'GİŞE & MİMARİ',     icon: '🎫', url: `gise.html${eventParams}`,    show: visibility.gise       !== false && _canGise },
+        { id: 'satis',       label: labels.satis       || 'BİLET SATIŞ',       icon: '💰', url: `satis.html${eventParams}`,   show: visibility.satis      !== false && _canSale },
+        { id: 'musteriler',  label: labels.musteriler  || 'MÜŞTERİLER',        icon: '👥', url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false && _canSale },
+        { id: 'checkin',     label: labels.checkin     || 'KAPI KONTROL',      icon: '🛡️', url: `checkin.html${eventParams}`, show: visibility.checkin    !== false && _canDoor },
+        { id: 'personel',    label: labels.personel    || 'PERSONEL',          icon: '🔑', url: 'personel.html',              show: isAdmin && visibility.personel !== false },
+        { id: 'report',      label: labels.report      || 'RAPORLAR',          icon: '📈', url: 'rapor.html',                 show: isAdmin && visibility.report   !== false },
+        { id: 'settings',    label: labels.settings    || 'SİSTEM AYARLARI',   icon: '⚙️', url: 'settings.html',             show: isAdmin && visibility.settings !== false }
     ];
 
     let html = `

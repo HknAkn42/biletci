@@ -314,6 +314,16 @@
         let currentSort = 'paid';
         let blacklist = JSON.parse(localStorage.getItem('BiletPro_Blacklist')) || []; 
 
+        // Sayfa içi yetki yardımcısı
+        function _getMusterilerUserPerms() {
+            const sess = JSON.parse(localStorage.getItem('BiletPro_Session')) || {};
+            const isAdm = sess.role === 'admin' || (sess.username || '').toLowerCase() === 'hakan';
+            if(isAdm) return { isAdmin: true, pManageStaff: true, pCancel: true, pSale: true };
+            const staffList = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
+            const user = staffList.find(s => (s.username || '').toLowerCase() === (sess.username || '').toLowerCase()) || {};
+            return Object.assign({ isAdmin: false }, user.perms || {});
+        }
+
         function notify(msg, color = "#2563EB") {
             const container = document.getElementById('toastContainer');
             const t = document.createElement('div');
@@ -372,6 +382,9 @@
             const search = document.getElementById('custSearch').value.toLowerCase();
             const body = document.getElementById('customerTableBody'); body.innerHTML = "";
             const filtered = customers.filter(c => c.name.toLowerCase().includes(search) || c.phone.includes(search) || c.events.some(e => e.eventTitle.toLowerCase().includes(search)));
+            const _up = _getMusterilerUserPerms();
+            const _canDelete    = _up.isAdmin || _up.pManageStaff === true;
+            const _canBlacklist = _up.isAdmin || _up.pManageStaff === true;
 
             filtered.forEach(c => {
                 const tr = document.createElement('tr');
@@ -410,8 +423,8 @@
                         <div class="flex justify-end gap-3">
                             <button onclick="openHistory('${c.key}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
                             <button onclick="editCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
-                            <button onclick="deleteCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>
-                            <button onclick="toggleBlacklist('${c.phone}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>
+                            ${_canDelete    ? `<button onclick="deleteCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>` : ''}
+                            ${_canBlacklist ? `<button onclick="toggleBlacklist('${c.phone}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>` : ''}
                             ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${c.key}')" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
                         </div>
                     </td>
@@ -535,6 +548,11 @@
             });
 
             localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            const _paidCust = customers.find(x => x.phone === activePayRefPhone);
+            if(typeof writeAuditEvent === 'function') {
+                writeAuditEvent('Müşteri', 'Tahsilat Alındı',
+                    `${_paidCust ? _paidCust.name : activePayRefPhone} / ₺${pool.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} tahsilat`);
+            }
             notify("TAHSİLAT BAŞARIYLA KAYDEDİLDİ", "#10b981");
             closePayModal(); processData(); renderCustomers();
         }
@@ -725,6 +743,10 @@
         function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
 
         function confirmDeleteCustomer() {
+            const _up = _getMusterilerUserPerms();
+            if(!_up.isAdmin && !_up.pManageStaff) {
+                notify('YETKİNİZ YOK — Yalnızca yöneticiler müşteri silebilir', '#ef4444'); return;
+            }
             const c = customers.find(x => x.key === deletingCustomerKey);
             if(!c) return;
 
@@ -741,6 +763,9 @@
             });
 
             localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            if(typeof writeAuditEvent === 'function') {
+                writeAuditEvent('Müşteri', 'Müşteri Silindi', `${c.name} / ${c.phone} — tüm satış kayıtları silindi`);
+            }
             notify("MÜŞTERİ VE SATIŞLARI SİLİNDİ", "#ef4444");
             closeDeleteModal();
             processData();
@@ -748,6 +773,10 @@
         }
 
         function toggleBlacklist(phone) {
+            const _up = _getMusterilerUserPerms();
+            if(!_up.isAdmin && !_up.pManageStaff) {
+                notify('YETKİNİZ YOK — Yalnızca yöneticiler kara liste değiştirebilir', '#ef4444'); return;
+            }
             const index = blacklist.indexOf(phone);
             if(index > -1) {
                 blacklist.splice(index, 1);
@@ -757,6 +786,10 @@
                 notify("MÜŞTERİ KARA LİSTEYE EKLENDİ", "#ef4444");
             }
             localStorage.setItem('BiletPro_Blacklist', JSON.stringify(blacklist));
+            if(typeof writeAuditEvent === 'function') {
+                writeAuditEvent('Müşteri', 'Kara Liste Değiştirildi',
+                    index > -1 ? `${phone} kara listeden çıkarıldı` : `${phone} kara listeye eklendi`);
+            }
             processData();
             renderCustomers();
         }
