@@ -1524,14 +1524,13 @@ window.BiletProAutoSync = {
             });
 
             // Veri değiştiyse sayfayı yenile
-            // Realtime tetiklemelerinde flag kontrolü yok (her değişiklikte reload)
-            // Startup/interval tetiklemelerinde ilk reload'dan sonra tekrar etme
+            // Realtime tetiklemelerinde her zaman reload; diğer tetiklemelerde oturum başına bir kez
             if (anyChanged && requiresReload) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
-                    const forceReloadForConfigOrStaff = !!(configPullRes.changed || staffPullRes.changed || auditPullRes.changed || cLogResetRes.changed);
-                    if (isRealtime || forceReloadForConfigOrStaff || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
+                    // forceReloadForConfigOrStaff kaldırıldı: flag bypass'ı sonsuz döngüye yol açıyordu
+                    if (isRealtime || sessionStorage.getItem(BILETPRO_SYNC_RELOAD_FLAG) !== '1') {
                         if (!isRealtime) sessionStorage.setItem(BILETPRO_SYNC_RELOAD_FLAG, '1');
                         setTimeout(() => window.location.reload(), 300);
                     }

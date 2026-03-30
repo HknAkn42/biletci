@@ -859,22 +859,23 @@
             const staff = staffData[idx];
             if(!staff) return;
             editingStaffIndex = idx;
-            document.getElementById('eName').value = staff.name;
-            document.getElementById('eUser').value = staff.username;
+            document.getElementById('eName').value = staff.name || '';
+            document.getElementById('eUser').value = staff.username || '';
             document.getElementById('ePass').value = '';
-            document.getElementById('eRole').value = staff.role;
+            document.getElementById('eRole').value = staff.role || 'user';
             
-            // Yetkileri yükle
-            document.getElementById('ePSale').checked = staff.perms.pSale;
-            document.getElementById('ePDiscount').checked = staff.perms.pDiscount;
-            document.getElementById('ePCancel').checked = staff.perms.pCancel;
-            document.getElementById('ePDoor').checked = staff.perms.pDoor;
-            document.getElementById('ePDoorPay').checked = staff.perms.pDoorPay;
-            document.getElementById('ePDoorRisk').checked = staff.perms.pDoorRisk;
-            document.getElementById('ePManageEvents').checked = staff.perms.pManageEvents;
-            document.getElementById('ePReports').checked = staff.perms.pReports;
-            document.getElementById('ePManageStaff').checked = staff.perms.pManageStaff;
-            document.getElementById('ePViewLogs').checked = staff.perms.pViewLogs;
+            // Yetkileri yükle — perms undefined olabilir, güvenli erişim
+            const p = staff.perms || {};
+            document.getElementById('ePSale').checked = !!p.pSale;
+            document.getElementById('ePDiscount').checked = !!p.pDiscount;
+            document.getElementById('ePCancel').checked = !!p.pCancel;
+            document.getElementById('ePDoor').checked = !!p.pDoor;
+            document.getElementById('ePDoorPay').checked = !!p.pDoorPay;
+            document.getElementById('ePDoorRisk').checked = !!p.pDoorRisk;
+            document.getElementById('ePManageEvents').checked = !!p.pManageEvents;
+            document.getElementById('ePReports').checked = !!p.pReports;
+            document.getElementById('ePManageStaff').checked = !!p.pManageStaff;
+            document.getElementById('ePViewLogs').checked = !!p.pViewLogs;
             
             handleEditRoleChange();
             document.getElementById('editStaffModal').classList.remove('hidden');
