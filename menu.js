@@ -74,6 +74,12 @@
         if(isAdmin) return true;
 
         const perms = user.perms || {};
+        // Kritik kural: Mimari/Gişe yalnızca yüksek yetkili kullanıcılar için
+        // (admin zaten üstte true döndü)
+        if (page === 'gise.html') {
+            return perms.pManageEvents === true && (perms.pManageStaff === true || perms.pReports === true);
+        }
+
         const pagePermMap = {
             'index.html': null, // Dashboard: herkes görebilir, yönetim butonları index.html içinde kontrol edilir
             'gise.html': 'pManageEvents',

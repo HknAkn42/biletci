@@ -22,7 +22,7 @@
             font-weight: 600;
             transition: 0.3s;
         }
-        .input-silk:focus { border-color: #2563eb !important; background: #fff !important; outline: none; }
+        .input-silk:focus { border-color: #2563eb !important; background: #c61111 !important; outline: none; }
 
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -205,7 +205,7 @@
                             <h5 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-1 mb-3">YÖNETİM VE RAPORLAR</h5>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Dashboard / Etkinlik & Mimari Yönetimi</span>
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Mimari / Etkinlik Yönetimi (Yüksek Yetki)</span>
                                     <label class="switch"><input type="checkbox" id="pManageEvents" class="perm-switch"><span class="slider"></span></label>
                                 </div>
                                 <div class="flex justify-between items-center">
@@ -306,7 +306,7 @@
                             <h5 class="text-[9px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-1 mb-3">YÖNETİM VE RAPORLAR</h5>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Dashboard / Etkinlik & Mimari Yönetimi</span>
+                                    <span class="text-[11px] font-bold uppercase text-slate-700">7. Mimari / Etkinlik Yönetimi (Yüksek Yetki)</span>
                                     <label class="switch"><input type="checkbox" id="ePManageEvents" class="perm-switch"><span class="slider"></span></label>
                                 </div>
                                 <div class="flex justify-between items-center">
@@ -362,12 +362,17 @@
                     <h2 class="text-xl font-black italic uppercase">SİSTEM <span class="text-red-500">GÜVENLİK LOGLARI</span></h2>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Geri Dönülemez Denetim İzi (Audit Trail)</p>
                 </div>
-                <div class="flex items-center gap-2 text-xs">
-                    <label for="logFilterSelect" class="font-black uppercase text-slate-500">Filtre:</label>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <label class="font-black uppercase text-slate-500">Personel:</label>
+                    <select id="logActorSelect" onchange="applyActorFilter(this.value)" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700">
+                        <option value="all">Tüm Personel</option>
+                    </select>
+                    <label for="logFilterSelect" class="font-black uppercase text-slate-500 ml-2">Tür:</label>
                     <select id="logFilterSelect" onchange="applyLogFilter(this.value)" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700">
                         <option value="all">Tümü</option>
                         <option value="cancel">Satış İptalleri</option>
                         <option value="debt">Borçlu Geçişler</option>
+                        <option value="gise">Gişe / Mimari</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
@@ -388,10 +393,31 @@
         
         let staffData = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
         let currentAuditFilter = 'all';
+        let currentActorFilter = 'all';
 
         function applyLogFilter(value) {
             currentAuditFilter = value;
             renderAuditLogs();
+        }
+
+        function applyActorFilter(value) {
+            currentActorFilter = value;
+            renderAuditLogs();
+        }
+
+        function populateActorSelect() {
+            const select = document.getElementById('logActorSelect');
+            if(!select) return;
+            const logs = getAuditLogs();
+            const actors = [...new Set(logs.map(l => l.actor).filter(Boolean))].sort();
+            select.innerHTML = '<option value="all">Tüm Personel</option>';
+            actors.forEach(actor => {
+                const opt = document.createElement('option');
+                opt.value = actor;
+                opt.textContent = actor;
+                select.appendChild(opt);
+            });
+            if(currentActorFilter !== 'all') select.value = currentActorFilter;
         }
 
         function getAuditLogs() {
@@ -441,9 +467,9 @@
                     sw.disabled = false;
                 });
 
-                // Yeni kullanıcıda dashboard erişimi standart açık gelsin
-                const dashboardPerm = document.getElementById('pManageEvents');
-                if (dashboardPerm) dashboardPerm.checked = true;
+                // Mimari yönetimi varsayılan kapalı başlasın (yanlış yetki dağıtımını önler)
+                const manageEventsPerm = document.getElementById('pManageEvents');
+                if (manageEventsPerm) manageEventsPerm.checked = false;
             }
             
             modal.classList.toggle('hidden');
@@ -466,6 +492,7 @@
             const modal = document.getElementById('logModal');
             modal.classList.toggle('hidden');
             if(!modal.classList.contains('hidden')) {
+                populateActorSelect();
                 renderAuditLogs();
             }
         }
@@ -500,10 +527,10 @@
             });
 
             const presets = {
-                sales: ['sale', 'discount', 'manageEvents'],
-                gate: ['door', 'doorPay', 'manageEvents'],
-                hybrid: ['sale', 'discount', 'door', 'doorPay', 'manageEvents'],
-                manager: ['sale', 'discount', 'cancel', 'door', 'doorPay', 'doorRisk', 'manageEvents', 'reports', 'viewLogs']
+                sales: ['sale', 'discount'],
+                gate: ['door', 'doorPay'],
+                hybrid: ['sale', 'discount', 'door', 'doorPay'],
+                manager: ['sale', 'discount', 'cancel', 'door', 'doorPay', 'doorRisk', 'manageEvents', 'reports', 'manageStaff', 'viewLogs']
             };
 
             (presets[preset] || []).forEach(k => {
@@ -533,16 +560,25 @@
         function renderAuditLogs() {
             const container = document.getElementById('auditLogContainer');
             let logs = getAuditLogs();
+
+            // Kullanıcı (aktör) filtresi
+            if(currentActorFilter !== 'all') {
+                logs = logs.filter(log => (log.actor || '') === currentActorFilter);
+            }
             
             if(currentAuditFilter !== 'all') {
                 logs = logs.filter(log => {
                     const action = log.action.toLowerCase();
                     const details = (log.details || '').toLowerCase();
+                    const module  = (log.module  || '').toLowerCase();
                     if(currentAuditFilter === 'cancel') {
                         return action.includes('iptal') || details.includes('iptal');
                     }
                     if(currentAuditFilter === 'debt') {
                         return action.includes('borç') || action.includes('risk') || details.includes('borç') || details.includes('risk');
+                    }
+                    if(currentAuditFilter === 'gise') {
+                        return module === 'gişe' || module.includes('gişe');
                     }
                     return true;
                 });
@@ -920,6 +956,37 @@
             if(typeof showToast === 'function') showToast("Personel silindi.", "error");
         }
         
+        function enforceCriticalPermissionPolicy() {
+            let changed = false;
+
+            staffData = (staffData || []).map((s) => {
+                const role = String((s && s.role) || '').toLowerCase();
+                const isAdmin = role === 'admin' || String((s && s.username) || '').toLowerCase() === 'hakan';
+                if (isAdmin) return s;
+
+                const perms = Object.assign({}, (s && s.perms) || {});
+
+                // Eski presetlerden gelen tehlikeli durum: pManageEvents açık ama yüksek yetki yok
+                if (perms.pManageEvents === true && perms.pManageStaff !== true && perms.pReports !== true) {
+                    perms.pManageEvents = false;
+                    changed = true;
+                    return Object.assign({}, s, { perms });
+                }
+
+                return s;
+            });
+
+            if (changed) {
+                localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
+                safeAuditEvent('Personel', 'Kritik Yetki Politikası Uygulandı', 'Yüksek yetki şartını karşılamayan kullanıcıların mimari yetkisi kapatıldı.');
+                if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') {
+                    window.BiletProOnlineStore.pushStaffToOnline(staffData).catch(() => {});
+                }
+                if(typeof showToast === 'function') showToast('Kritik yetki güvenliği güncellendi.', 'info');
+            }
+        }
+
+        enforceCriticalPermissionPolicy();
         render();
     </script>
 </body>

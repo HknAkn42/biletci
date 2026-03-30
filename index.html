@@ -335,7 +335,10 @@
             const _staff = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
             const _su = _staff.find(s => (s.username || '').toLowerCase() === (_sess.username || '').toLowerCase()) || {};
             const _isAdmin = _su.role === 'admin' || (_sess.username || '').toLowerCase() === 'hakan';
-            const canManage = _isAdmin || (_su.perms && _su.perms.pManageEvents === true);
+            // Gişe erişimi: pManageEvents + (pManageStaff VEYA pReports) şartı (menu.js ile aynı kural)
+            const canManage = _isAdmin || (_su.perms && _su.perms.pManageEvents === true && (_su.perms.pManageStaff === true || _su.perms.pReports === true));
+            const canSale   = _isAdmin || (_su.perms && _su.perms.pSale === true);
+            const canDoor   = _isAdmin || (_su.perms && _su.perms.pDoor === true);
 
             // YENİ ETKİNLİK butonunu yetki durumuna göre göster/gizle
             const newEvBtn = document.getElementById('newEventBtn');
@@ -393,10 +396,10 @@
                             <div class="flex-1 border-l border-slate-200 pl-4"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">BAŞLAMA</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${ev.startTime || '--:--'}</p></div>
                         </div>
                         
-                        <div class="grid grid-cols-3 gap-3 mt-8">
-                            <button onclick="location.href='gise.html?id=${ev.id}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>
-                            <button onclick="location.href='satis.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>
-                            <button onclick="location.href='checkin.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>
+                        <div class="grid gap-3 mt-8" style="grid-template-columns: repeat(${[canManage, canSale, canDoor].filter(Boolean).length || 1}, 1fr)">
+                            ${canManage ? `<button onclick="location.href='gise.html?id=${ev.id}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>` : ''}
+                            ${canSale   ? `<button onclick="location.href='satis.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>` : ''}
+                            ${canDoor   ? `<button onclick="location.href='checkin.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>` : ''}
                         </div>
                     </div>`;
                 container.appendChild(card);

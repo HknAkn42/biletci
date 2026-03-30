@@ -217,12 +217,15 @@
 
             if(editingCatId) {
                 const cat = ev.categories.find(k => k.id === editingCatId);
+                const oldName = cat.name;
                 cat.name = n; cat.pricePerPerson = parseFloat(p); cat.color = c;
                 cancelCatEdit();
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Kategori Düzenlendi', `"${oldName}" → "${n}" | Fiyat: ₺${p} | Etkinlik: ${ev.title}`);
                 showToast("Kategori başarıyla güncellendi.", "success");
             } else {
                 if(!ev.categories) ev.categories = [];
                 ev.categories.push({ id: Date.now(), name: n, pricePerPerson: parseFloat(p), color: c, masalar: [], isOpen: true });
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Kategori Oluşturuldu', `"${n}" kategorisi eklendi | Fiyat: ₺${p} | Etkinlik: ${ev.title}`);
                 showToast("Yeni kategori oluşturuldu.", "success");
             }
             saveAndRender(); clearInputs();
@@ -249,8 +252,11 @@
 
         function deleteCategory(id) { 
             // YENİ: showConfirm kullanımı
+            const _delCat = ev.categories.find(c => c.id === id);
+            const _delCatName = _delCat ? _delCat.name : id;
             showConfirm("KATEGORİYİ SİL", "Tüm kategori ve içindeki masalar kalıcı olarak silinecek. Onaylıyor musunuz?", () => {
                 ev.categories = ev.categories.filter(c => c.id !== id); 
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Kategori Silindi', `"${_delCatName}" kategorisi ve tüm masaları silindi | Etkinlik: ${ev.title}`);
                 saveAndRender(); 
                 showToast("Kategori tamamen silindi.", "success");
             });
@@ -282,6 +288,7 @@
                 isExtra: true 
             });
             
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Tek Masa Eklendi', `Masa ${newNo} | Kategori: ${cat.name} | Kapasite: 4 kişi | Etkinlik: ${ev.title}`);
             saveAndRender();
             showToast(`Masa ${newNo} eklendi.`, "success");
         }
@@ -316,6 +323,7 @@
                 } 
                 start++; 
             }
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Toplu Masa Üretimi', `${count} adet masa üretildi | Kategori: ${ev.categories.find(c=>c.id===currentAddCatId)?.name || '?'} | Kapasite: ${kap} kişi | Etkinlik: ${ev.title}`);
             saveAndRender(); closeAddMasaModal();
             showToast(`${count} adet masa başarıyla üretildi.`, "success");
         }
@@ -335,6 +343,9 @@
             if(masa.isSold) { 
                 // YENİ: showConfirm kullanımı
                 showConfirm("SATIŞI İPTAL ET", "DİKKAT: Satılmış birimi boşa düşürmek istiyor musunuz? Tüm satış verileri silinir.", () => {
+                    const _buyer = masa.soldTo || '?';
+                    const _seller = (masa.saleDetail && masa.saleDetail.soldBy) || '?';
+                    if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Gişeden Satış İptal', `Masa ${masa.no} | Alıcı: ${_buyer} | Satıcı: ${_seller} | Etkinlik: ${ev.title}`);
                     masa.isSold = false; delete masa.soldTo; delete masa.saleDetail; saveAndRender(); showToast("Birim boşa düşürüldü.", "success");
                 });
                 return; 
@@ -356,8 +367,14 @@
                 return showToast("Bu masa numarası zaten kullanımda!", "error");
             }
             
+            const oldNo = masa.no;
+            const oldKap = masa.kapasite;
             masa.no = newNo; 
             masa.kapasite = parseInt(document.getElementById('editMasaKap').value);
+            const changes = [];
+            if(oldNo !== masa.no) changes.push(`No: ${oldNo} → ${masa.no}`);
+            if(oldKap !== masa.kapasite) changes.push(`Kapasite: ${oldKap} → ${masa.kapasite} kişi`);
+            if(typeof window.writeAuditEvent === 'function' && changes.length) writeAuditEvent('Gişe', 'Masa Revizyonu', `Masa ${oldNo} | ${changes.join(', ')} | Kategori: ${cat.name} | Etkinlik: ${ev.title}`);
             saveAndRender(); closeEditMasaModal();
             showToast("Birim revizyonu kaydedildi.", "success");
         }
@@ -370,7 +387,9 @@
             if(masa.isSold) return showToast("Önce satışı iptal etmelisiniz!", "error");
             
             showConfirm("BİRİMİ PASİFE AL", "Masa pasif duruma getirilecek. Numara nizamı bozulmayacak. Onaylıyor musunuz?", () => {
-                masa.isDeleted = true; saveAndRender(); showToast("Birim pasife alındı.", "info");
+                masa.isDeleted = true;
+                if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Masa Pasife Alındı', `Masa ${masa.no} | Kategori: ${ev.categories.find(c=>c.id===catId)?.name || '?'} | Etkinlik: ${ev.title}`);
+                saveAndRender(); showToast("Birim pasife alındı.", "info");
             });
         }
 
