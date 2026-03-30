@@ -55,12 +55,12 @@
     <script>injectMenu('dashboard');</script>
 
     <div class="flex flex-col h-screen">
-        <header class="h-[80px] sm:h-[90px] px-3 sm:px-5 lg:px-[60px] flex items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
-            <div>
+        <header class="px-3 sm:px-5 lg:px-[60px] py-3 sm:py-4 flex flex-wrap items-start sm:items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="min-w-0">
                 <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Operasyonel Sistem</p>
-                <h1 class="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-slate-800">Kontrol Paneli</h1>
+                <h1 class="text-base sm:text-2xl font-black italic uppercase tracking-tighter text-slate-800 truncate">Kontrol Paneli</h1>
             </div>
-            <button id="newEventBtn" onclick="openModal()" class="bg-slate-900 text-white px-4 sm:px-6 lg:px-10 py-3 sm:py-4 lg:py-5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase shadow-xl hover:scale-105 transition-all whitespace-nowrap">+ YENİ ETKİNLİK</button>
+            <button id="newEventBtn" onclick="openModal()" class="bg-slate-900 text-white px-4 sm:px-6 lg:px-10 py-3 sm:py-4 lg:py-5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase shadow-xl hover:scale-105 transition-all whitespace-nowrap w-full sm:w-auto">+ YENİ ETKİNLİK</button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pb-24 lg:pb-[150px] no-scrollbar">
@@ -87,7 +87,7 @@
         <div class="bg-white w-full max-w-[650px] p-4 sm:p-[50px] rounded-[28px] sm:rounded-[45px] shadow-2xl animate-pop max-h-[95vh] overflow-y-auto no-scrollbar">
             <h3 id="modalTitle" class="text-2xl font-black text-slate-800 uppercase mb-10 italic tracking-tight">ETKİNLİK MÜHÜRÜ</h3>
             
-            <div class="grid grid-cols-2 gap-x-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                 <div class="col-span-2">
                     <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Etkinlik Adı</span>
                     <input id="evTitle" type="text" placeholder="Örn: Serdar Ortaç Konseri" class="input-silk">
@@ -109,7 +109,7 @@
                     <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Şehir</span>
                     <input id="evCity" type="text" placeholder="İl" class="input-silk">
                 </div>
-                <div class="col-span-2">
+                <div class="sm:col-span-2">
                     <button onclick="autoScanAddress()" id="scanBtn" class="bg-slate-900 text-white w-full py-5 rounded-[18px] font-black text-[10px] uppercase mb-4 transition-all hover:bg-blue-600 shadow-lg">İnternette Ara ve Adresi Mühürle</button>
                     <input id="evFullAddr" type="text" class="input-silk bg-slate-50 text-slate-500" readonly placeholder="Tam adres internetten çekilip buraya yazılacak...">
                 </div>
@@ -123,20 +123,20 @@
                     <input id="evStartTime" type="time" class="input-silk">
                 </div>
 
-                <div class="col-span-2">
+                <div class="sm:col-span-2">
                     <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Mekan / Etkinlik Logosu (JPEG/PNG)</span>
                     <div class="border-2 border-dashed border-slate-300 rounded-[24px] bg-slate-50 p-8 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all mb-4 mt-1" onclick="document.getElementById('fileInput').click()">
                         <p id="uploadStatus" class="text-[11px] font-black text-slate-500 uppercase tracking-widest">TIKLA VE GÖRSEL DOSYASI SEÇ</p>
                         <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="processFile(this)">
                     </div>
                 </div>
-                <div class="col-span-2">
+                <div class="sm:col-span-2">
                     <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Kapak Görseli URL (Boş bırakılırsa sistem otomatik atar)</span>
                     <input id="evImg" type="text" placeholder="https://..." class="input-silk">
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100">
                 <button onclick="closeModal()" class="py-5 font-bold text-slate-400 uppercase text-xs hover:text-slate-800 transition-all">VAZGEÇ</button>
                 <button id="saveBtn" onclick="saveEvent()" class="bg-blue-600 py-5 rounded-[20px] font-black text-white uppercase text-xs shadow-xl hover:bg-slate-900 transition-all">VERİYİ KAYDET</button>
             </div>

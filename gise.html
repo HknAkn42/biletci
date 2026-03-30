@@ -114,17 +114,17 @@
     </script>
 
     <div class="flex flex-col h-screen">
-        <header class="h-[80px] sm:h-[90px] px-3 sm:px-5 lg:px-[60px] flex items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
-            <div class="flex items-center gap-5">
+        <header class="px-3 sm:px-5 lg:px-[60px] py-3 sm:py-4 flex flex-wrap items-start sm:items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="flex items-center gap-3 sm:gap-5 min-w-0">
                 <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white">
                     <img id="headLogo" class="w-full h-full object-cover">
                 </div>
-                <div class="flex flex-col">
+                <div class="flex flex-col min-w-0">
                     <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Architectural Studio</p>
-                    <h1 id="headTitle" class="text-xl font-black text-slate-800 tracking-tighter uppercase">MİMARİ YAPI</h1>
+                    <h1 id="headTitle" class="text-sm sm:text-xl font-black text-slate-800 tracking-tighter uppercase truncate">MİMARİ YAPI</h1>
                 </div>
             </div>
-            <div class="bg-slate-50 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-2xl border border-slate-100 text-center">
+            <div class="bg-slate-50 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-2xl border border-slate-100 text-center w-full sm:w-auto">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Toplam Kapasite</span>
                 <span id="totalKapUI" class="text-2xl font-black italic text-blue-600">0</span>
             </div>
@@ -167,8 +167,8 @@
         </main>
     </div>
 
-    <div id="addMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-[450px] p-[45px] rounded-[45px] shadow-2xl animate-pop">
+    <div id="addMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-[450px] p-5 sm:p-[45px] rounded-[26px] sm:rounded-[45px] shadow-2xl animate-pop">
             <h3 class="text-center font-black text-slate-800 text-xl uppercase mb-10 italic">TOPLU BİRİM ÜRETİMİ</h3>
             <div class="space-y-6">
                 <div><span class="label-mini">BAŞLANGIÇ NUMARASI</span><input id="startNoInput" type="number" class="input-silk text-center text-xl font-bold"></div>
@@ -182,8 +182,8 @@
         </div>
     </div>
 
-    <div id="editMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-[450px] p-[45px] rounded-[45px] shadow-2xl animate-pop">
+    <div id="editMasaModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-[450px] p-5 sm:p-[45px] rounded-[26px] sm:rounded-[45px] shadow-2xl animate-pop">
             <h3 class="text-center font-black text-slate-800 text-xl uppercase mb-10 italic">MASA REVİZYONU</h3>
             <div class="space-y-6">
                 <div><span class="label-mini">MASA NUMARASI</span><input id="editMasaNo" type="number" class="input-silk text-center text-xl font-bold"></div>

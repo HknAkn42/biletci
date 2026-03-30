@@ -919,7 +919,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
             box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
         }
         .bp-top-info { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
-        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; line-height: 1; }
+        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         .bp-top-role { width: fit-content; font-size: 9px; font-weight: 900; letter-spacing: .8px; border-radius: 999px; padding: 3px 8px; line-height: 1; }
         .bp-top-role.admin { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
         .bp-top-role.user { background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; }
@@ -939,7 +939,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
             :root { --sb-c: 76px; }
             .sidebar-silk { padding: 18px 0; }
             .menu-btn { top: 16px; }
-            .nav-list { padding-top: 64px; }
+            .nav-list { padding-top: 8px; }
             .sidebar-silk.expanded {
                 position: fixed;
                 left: 0;
@@ -950,6 +950,8 @@ function injectMenu(active = 'dashboard', eventId = null) {
             }
             .u-sec { max-height: 52vh; }
             .sb-user-badge { margin-top: 72px; }
+            .sidebar-silk.expanded .sb-user-badge { padding: 10px 14px 12px; }
+            .sidebar-silk.expanded .sb-user-info { width: calc(100% - 44px); }
             .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
             .bp-top-user { font-size: 10px; }
             .bp-top-role { font-size: 8px; padding: 2px 6px; }
