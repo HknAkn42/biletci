@@ -289,7 +289,21 @@
                         if (localMasa.isSold && onlineMasa.isSold) {
                             const localDate = new Date(localMasa.saleDetail?.saleDate || 0);
                             const onlineDate = new Date(onlineMasa.saleDetail?.saleDate || 0);
-                            return localDate <= onlineDate ? localMasa : onlineMasa;
+                            const winner = localDate <= onlineDate ? localMasa : onlineMasa;
+                            const loser  = localDate <= onlineDate ? onlineMasa : localMasa;
+                            // Çift satış çakışmasını log'a yaz
+                            if (winner.soldTo !== loser.soldTo || winner.saleDetail?.ticketHash !== loser.saleDetail?.ticketHash) {
+                                try {
+                                    if (typeof window.writeAuditEvent === 'function') {
+                                        window.writeAuditEvent(
+                                            'Satış',
+                                            '⚠️ Çift Satış Çakışması',
+                                            `Masa ${localMasa.no} aynı anda iki kasadan satıldı! KAZANAN: ${winner.soldTo} (${winner.saleDetail?.soldBy || '?'} @ ${winner.saleDetail?.saleDate?.slice(11,19) || '?'}) | İPTAL: ${loser.soldTo} (${loser.saleDetail?.soldBy || '?'}) — İptal edilen bilet sistemden silindi.`
+                                        );
+                                    }
+                                } catch(_) {}
+                            }
+                            return winner;
                         }
                         if (localMasa.isSold) return localMasa;
                         if (onlineMasa.isSold) return onlineMasa;
@@ -683,28 +697,46 @@
             return data || { ok: false, reason: 'no_data' };
         },
 
-        // Satış oncesi masa musaitlik kontrolu: Supabase'deki en guncel payload_json'a bakar
+        // Satış öncesi masa müsaitlik kontrolü: ÖNCE tickets tablosuna, SONRA payload_json'a bakar
         async checkTablesAvailableOnline(legacyEventId, tableNos) {
             if (this.mode !== 'online' || !this.client) return { ok: true, reason: 'offline' };
             if (!legacyEventId || !tableNos || tableNos.length === 0) return { ok: true, reason: 'invalid_params' };
 
-            const { data, error } = await this.client
+            const tableNosStr = tableNos.map(String);
+            const alreadySold = {};
+
+            // 1) events tablosundan hem id hem payload_json al
+            const { data: evRow, error: evErr } = await this.client
                 .from('events')
-                .select('payload_json')
+                .select('id, payload_json')
                 .eq('legacy_event_id', String(legacyEventId))
                 .single();
 
-            if (error || !data?.payload_json) return { ok: true, reason: 'no_online_data' };
+            // 2) tickets tablosunu doğrudan sorgula (payload_json'dan daha güncel - son yazılanı yansıtır)
+            if (!evErr && evRow?.id) {
+                const { data: ticketRows } = await this.client
+                    .from('tickets')
+                    .select('table_no, customer_name')
+                    .eq('event_id', evRow.id)
+                    .in('table_no', tableNosStr);
 
-            const onlineEv = data.payload_json;
-            const alreadySold = {};
+                if (ticketRows?.length) {
+                    ticketRows.forEach(t => {
+                        alreadySold[String(t.table_no)] = t.customer_name || 'Bilinmiyor';
+                    });
+                }
+            }
 
-            for (const tNo of tableNos) {
-                outer: for (const cat of (onlineEv.categories || [])) {
-                    for (const masa of (cat.masalar || [])) {
-                        if (String(masa.no) === String(tNo) && masa.isSold) {
-                            alreadySold[String(tNo)] = masa.soldTo || 'Bilinmiyor';
-                            break outer;
+            // 3) payload_json kontrolü (tickets'ta yakalanmayan eski veriler için yedek)
+            if (!Object.keys(alreadySold).length && evRow?.payload_json) {
+                const onlineEv = evRow.payload_json;
+                for (const tNo of tableNosStr) {
+                    outerLoop: for (const cat of (onlineEv.categories || [])) {
+                        for (const masa of (cat.masalar || [])) {
+                            if (String(masa.no) === String(tNo) && masa.isSold) {
+                                alreadySold[String(tNo)] = masa.soldTo || 'Bilinmiyor';
+                                break outerLoop;
+                            }
                         }
                     }
                 }

@@ -979,7 +979,9 @@ window.toggleDarkMode = function() {
         _applyDarkModeStyles();
     }
     const btn = document.getElementById('bpDarkToggle');
-    if (btn) btn.innerHTML = isDark ? '<i>🌙</i> KARANLIK MOD' : '<i>☀️</i> AYDINLIK MOD';
+    if (btn) btn.innerHTML = isDark ? '🌙 KARANLIK MOD' : '☀️ AYDINLIK MOD';
+    const ico = document.getElementById('bpDarkToggleIco');
+    if (ico) ico.textContent = isDark ? '🌙' : '☀️';
 };
 
 /* ==========================================
@@ -1024,14 +1026,56 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .nav-link.active { color: var(--silk-accent); background: rgba(37, 99, 235, 0.04); }
         .nav-link.active::before { content: ''; position: absolute; left: 0; top: 15%; bottom: 15%; width: 5px; background: var(--silk-accent); border-radius: 0 5px 5px 0; }
         main, .main-content { flex: 1; height: 100vh; overflow-y: auto; background: #f4f7fa; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
-        .u-sec { width: 100%; padding: 20px; border-top: 1px solid #e2e8f0; opacity: 0; visibility: hidden; transition: 0.3s; background: #f8fafc; display: none; max-height: 42vh; overflow-y: auto; }
-        .expanded .u-sec { opacity: 1; visibility: visible; display: block; }
-        .u-n { font-size: 12px; font-weight: 800; color: var(--silk-text); text-transform: uppercase; display: block; margin-bottom: 8px; }
-        .out-btn { width: 100%; background: #fff; color: #ef4444; border: 1px solid #fee2e2; padding: 10px; border-radius: 14px; cursor: pointer; font-weight: 900; font-size: 9px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; }
-        .quick-actions { width: 100%; padding: 12px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: center; }
-        .quick-logout { width: 56px; height: 42px; border-radius: 14px; background: #fff; border: 1px solid #fee2e2; color: #ef4444; font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.04); transition: 0.2s; }
-        .quick-logout:hover { transform: translateY(-2px); background: #fff1f2; }
-        .sidebar-silk.expanded .quick-actions { display: none; }
+        .u-sec { display: none !important; }
+        .quick-actions { display: none !important; }
+
+        /* Kompakt sidebar alt toolbar */
+        .sb-bottom {
+            width: 100%;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            flex-shrink: 0;
+        }
+        /* Collapsed: ikon sütunu */
+        .sb-ico-col {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 10px 0 14px; gap: 6px;
+        }
+        .sidebar-silk.expanded .sb-ico-col { display: none; }
+        .sb-ico {
+            width: 42px; height: 34px; border-radius: 11px;
+            background: #fff; border: 1px solid #e2e8f0; color: #64748b;
+            font-size: 15px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .sb-ico:hover { background: #f1f5f9; transform: translateY(-1px); }
+        .sb-ico.exit { border-color: #fee2e2; color: #ef4444; }
+        .sb-ico.exit:hover { background: #fff1f2; }
+        .sb-ico.dark-ico { background: #1e293b; border-color: #334155; color: #94a3b8; }
+        /* Expanded: compact 2-col grid */
+        .sb-tool-grid {
+            display: none; padding: 8px 12px 12px;
+            grid-template-columns: 1fr 1fr; gap: 5px;
+        }
+        .sidebar-silk.expanded .sb-tool-grid { display: grid; }
+        .sb-t {
+            display: flex; align-items: center; justify-content: center; gap: 3px;
+            padding: 6px 4px; border-radius: 9px; background: #fff;
+            border: 1px solid #e2e8f0; color: #475569;
+            font-size: 8px; font-weight: 900; text-transform: uppercase;
+            letter-spacing: .5px; cursor: pointer; transition: 0.15s;
+            white-space: nowrap; line-height: 1;
+        }
+        .sb-t:hover { background: #f1f5f9; }
+        .sb-t.wide { grid-column: span 2; }
+        .sb-t.exit { border-color: #fee2e2; color: #ef4444; }
+        .sb-t.exit:hover { background: #fff1f2; }
+        .sb-t.admin-btn { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .sb-t.admin-btn:hover { background: #dbeafe; }
+        .sb-t.dark-btn { background: #1e293b; color: #94a3b8; border-color: #334155; }
+        .sb-t.dark-btn:hover { background: #253352; }
+        .sb-t.warn-btn { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+        .sb-t.warn-btn:hover { background: #ffedd5; }
 
         .sb-user-badge {
             width: 100%;
@@ -1157,18 +1201,22 @@ function injectMenu(active = 'dashboard', eventId = null) {
                     </a>
                 `).join('')}
             </div>
-            <div class="u-sec">
-                <span class="u-n">${session.name}</span>
-                <button onclick="logout(event)" class="out-btn"><i>🚪</i> ÇIKIŞ</button>
-                <button onclick="openGuide()" class="out-btn" style="background:#0f172a;color:#fff;"><i>📘</i> KILAVUZ</button>
-                ${isAdmin ? '<button onclick="openSystemSettings()" class="out-btn" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;"><i>⚙️</i> AYARLAR</button>' : ''}
-                <button onclick="backupAllData()" class="out-btn"><i>💾</i> YEDEK AL</button>
-                <button onclick="triggerRestoreDialog()" class="out-btn"><i>📥</i> GERİ YÜKLE</button>
-                <button onclick="resetDemoData()" class="out-btn" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa;"><i>🧪</i> DEMO SIFIRLA</button>
-                <button id="bpDarkToggle" onclick="toggleDarkMode()" class="out-btn" style="background:#1e293b;color:#94a3b8;border-color:#334155;"><i>🌙</i> KARANLIK MOD</button>
-            </div>
-            <div class="quick-actions">
-                <button onclick="logout(event)" class="quick-logout" title="ÇIKIŞ">🚪</button>
+            <div class="sb-bottom">
+                <!-- Collapsed: ikon sütunu -->
+                <div class="sb-ico-col">
+                    <button onclick="toggleDarkMode()" class="sb-ico dark-ico" id="bpDarkToggleIco" title="Mod Değiştir">🌙</button>
+                    <button onclick="logout(event)" class="sb-ico exit" title="Çıkış">🚪</button>
+                </div>
+                <!-- Expanded: kompakt 2 kolonlu grid -->
+                <div class="sb-tool-grid">
+                    <button id="bpDarkToggle" onclick="toggleDarkMode()" class="sb-t dark-btn wide">🌙 KARANLIK MOD</button>
+                    <button onclick="logout(event)" class="sb-t exit">🚪 ÇIKIŞ</button>
+                    <button onclick="openGuide()" class="sb-t">📘 KILAVUZ</button>
+                    <button onclick="backupAllData()" class="sb-t">💾 YEDEK AL</button>
+                    <button onclick="triggerRestoreDialog()" class="sb-t">📥 GERİ YÜK.</button>
+                    ${isAdmin ? '<button onclick="openSystemSettings()" class="sb-t admin-btn">⚙️ AYARLAR</button>' : '<button onclick="resetDemoData()" class="sb-t warn-btn">🧪 DEMO</button>'}
+                    ${isAdmin ? '<button onclick="resetDemoData()" class="sb-t warn-btn wide">🧪 DEMO SIFIRLA</button>' : ''}
+                </div>
             </div>
         </nav>
     `;
@@ -1177,7 +1225,11 @@ function injectMenu(active = 'dashboard', eventId = null) {
     // Dark mode button text init
     const _dmBtn = document.getElementById('bpDarkToggle');
     if (_dmBtn && document.documentElement.getAttribute('data-theme') === 'dark') {
-        _dmBtn.innerHTML = '<i>☀️</i> AYDINLIK MOD';
+        _dmBtn.innerHTML = '☀️ AYDINLIK MOD';
+    }
+    const _dmIco = document.getElementById('bpDarkToggleIco');
+    if (_dmIco && document.documentElement.getAttribute('data-theme') === 'dark') {
+        _dmIco.textContent = '☀️';
     }
     // Dark mode aktifse style tag'i body'e ekle (DOMContentLoaded'dan önce çalışabilir)
     if (document.documentElement.getAttribute('data-theme') === 'dark') {

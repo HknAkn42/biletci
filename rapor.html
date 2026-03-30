@@ -95,6 +95,24 @@
         @media (max-width: 768px) {
             .report-sticky-head { padding: 10px; }
         }
+
+        /* Tab sistemi */
+        .rp-tab {
+            color: #64748b;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            padding: 8px 4px;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .rp-tab:hover { background: #f1f5f9; color: #334155; }
+        .rp-tab.active { background: #1d4ed8; color: #fff; box-shadow: 0 4px 14px rgba(29,78,216,0.3); }
+        @media (min-width: 640px) { .rp-tab { font-size: 11px; padding: 9px 8px; } }
     </style>
 </head>
 <body>
@@ -106,150 +124,170 @@
         </button>
     </div>
 
-    <main class="report-main p-3 sm:p-5 lg:p-16 w-full">
-        <div class="max-w-7xl mx-auto space-y-8">
-            <header class="report-sticky-head flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <main class="report-main p-3 sm:p-5 lg:p-8 w-full">
+        <div class="max-w-7xl mx-auto space-y-4">
+
+            <!-- Başlık + Aksiyonlar -->
+            <header class="report-sticky-head flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                    <h1 class="text-3xl font-black uppercase tracking-tighter text-slate-900">RAPORLAR</h1>
-                    <p class="text-slate-500 text-sm uppercase tracking-widest mt-1">Personel & denetim analizi</p>
+                    <h1 class="text-2xl font-black uppercase tracking-tighter text-slate-900">RAPORLAR</h1>
+                    <p class="text-slate-400 text-[11px] uppercase tracking-widest mt-0.5">Personel · Finans · Denetim</p>
                 </div>
-                <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onclick="pullLiveReportData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-black uppercase tracking-wider text-[11px]">☁️ Veri Çek</button>
-                    <button onclick="refreshFinancials();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black uppercase tracking-wider text-[11px]">🔄 Finans Yenile</button>
-                    <button onclick="refreshLogs();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-black uppercase tracking-wider text-[11px]">🧾 Log Yenile</button>
-                    <button onclick="resetReportTestData();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black uppercase tracking-wider text-[11px]">🧪 Deneme Verisini Sıfırla</button>
-                    <button onclick="hardResetAllSalesWithCode();" class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 font-black uppercase tracking-wider text-[11px]">💣 Tüm Satışları Sıfırla (Kodlu)</button>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="pullLiveReportData();" class="h-9 px-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5">☁️ <span class="hidden sm:inline">Veri Çek</span></button>
+                    <button onclick="refreshAll();" class="h-9 px-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5">🔄 <span class="hidden sm:inline">Yenile</span></button>
+                    <button onclick="hardResetAllSalesWithCode();" class="h-9 px-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5">💣 <span class="hidden sm:inline">Sıfırla</span></button>
                 </div>
             </header>
 
-            <section class="glass-card p-6">
-                <h2 class="section-title mb-5"><span>📈</span><span>Görsel Analiz</span></h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                        <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Personel Ciro Dağılımı (₺)</p>
-                        <canvas id="chartStaffRevenue" height="220"></canvas>
-                    </div>
-                    <div>
-                        <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">Etkinlik Satış Dağılımı (Masa)</p>
-                        <canvas id="chartEventSales" height="220"></canvas>
-                    </div>
-                </div>
-            </section>
+            <!-- Tab Navigasyon -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-1 flex gap-1 shadow-sm">
+                <button id="tabOzet" onclick="switchTab('ozet')" class="rp-tab active flex-1">📊 Özet</button>
+                <button id="tabPersonel" onclick="switchTab('personel')" class="rp-tab flex-1">👥 Personel</button>
+                <button id="tabArsiv" onclick="switchTab('arsiv')" class="rp-tab flex-1">🗄️ Arşiv</button>
+                <button id="tabLog" onclick="switchTab('log')" class="rp-tab flex-1">🛡️ Audit</button>
+            </div>
 
-            <section class="glass-card p-6">
-                <h2 class="section-title mb-4"><span>📊</span><span>Personel Finansal Performans</span></h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Toplam Etkinlik</span>
-                        <p id="totalEvents" class="text-2xl font-black">0</p>
+            <!-- PANEL: Özet -->
+            <div id="panelOzet" class="space-y-4">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="glass-card p-4">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Etkinlik</p>
+                        <p id="totalEvents" class="text-3xl font-black text-slate-900 mt-1">0</p>
                     </div>
-                    <div>
-                        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Toplam Ciro</span>
-                        <p id="totalRevenue" class="text-2xl font-black">₺0.00</p>
+                    <div class="glass-card p-4">
+                        <p class="text-[10px] font-black text-emerald-500 uppercase tracking-wider">Ciro</p>
+                        <p id="totalRevenue" class="text-2xl font-black text-emerald-600 mt-1">₺0</p>
                     </div>
-                    <div>
-                        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Toplam Satış</span>
-                        <p id="totalSales" class="text-2xl font-black">0</p>
+                    <div class="glass-card p-4">
+                        <p class="text-[10px] font-black text-blue-500 uppercase tracking-wider">Satış</p>
+                        <p id="totalSales" class="text-3xl font-black text-blue-600 mt-1">0</p>
                     </div>
                 </div>
+                <div class="glass-card p-5">
+                    <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-4">📈 Görsel Analiz</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Personel Ciro (₺)</p>
+                            <canvas id="chartStaffRevenue" height="200"></canvas>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Etkinlik Satışları (Masa)</p>
+                            <canvas id="chartEventSales" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-left text-xs sm:text-sm">
-                        <thead class="bg-slate-50 text-xs uppercase tracking-widest text-slate-600 font-black">
-                            <tr>
-                                <th class="p-3 border-b border-slate-200">Personel</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Ciro</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Satış</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Geciken Borç</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Maks. Gecikme</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Ort. Gecikme</th>
-                                <th class="p-3 border-b border-slate-200 text-right">İptal Oranı</th>
-                                <th class="p-3 border-b border-slate-200 text-right">Hata Payı</th>
-                            </tr>
-                        </thead>
-                        <tbody id="staffFinanceList"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section id="debtListSection" class="glass-card p-6">
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-                    <h2 class="section-title"><span>⏳</span><span>Borçlu Liste (Geciken)</span></h2>
-                    <button onclick="sendOverdueReminders()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-xs uppercase tracking-wider font-black hover:bg-amber-600">Hatırlatma Gönder</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-left text-[11px] sm:text-xs">
-                        <thead class="bg-slate-50 text-slate-600 uppercase tracking-widest">
-                            <tr>
-                                <th class="p-2">Müşteri</th>
-                                <th class="p-2">Personel</th>
-                                <th class="p-2 text-right">Borç</th>
-                                <th class="p-2 text-right">Gecikme</th>
-                                <th class="p-2">İletişim</th>
-                                <th class="p-2">Eylem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="debtListBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section id="archiveSection" class="glass-card p-6">
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-                    <div>
-                        <h2 class="section-title"><span>🗄️</span><span>Finans Arşivi Yönetimi</span></h2>
-                        <p class="text-[11px] text-slate-500 font-semibold mt-1">Silinmiş etkinliklerin ciro/borç kayıtları burada tutulur.</p>
-                    </div>
-                    <button onclick="exportArchiveCSV()" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-xs uppercase tracking-wider font-black hover:bg-blue-700">Arşivi CSV İndir</button>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Arşivlenmiş Etkinlik</p>
-                        <p id="arcEvtCount" class="text-2xl font-black">0</p>
-                    </div>
-                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                        <p class="text-[10px] font-black text-emerald-600 uppercase">Arşiv Ciro</p>
-                        <p id="arcRevenue" class="text-2xl font-black text-emerald-700">₺0.00</p>
-                    </div>
-                    <div class="bg-red-50 border border-red-200 rounded-xl p-3">
-                        <p class="text-[10px] font-black text-red-500 uppercase">Açık Arşiv Borcu</p>
-                        <p id="arcDebt" class="text-2xl font-black text-red-600">₺0.00</p>
+            <!-- PANEL: Personel -->
+            <div id="panelPersonel" class="space-y-4 hidden">
+                <div class="glass-card p-5">
+                    <h2 class="text-xs font-black uppercase tracking-widest text-slate-600 mb-4">Finansal Performans</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-left text-[11px]">
+                            <thead class="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 font-black">
+                                <tr>
+                                    <th class="p-3 border-b border-slate-200">Personel</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Ciro</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Satış</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Geciken Borç</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Maks.</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Ort.</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">İptal %</th>
+                                    <th class="p-3 border-b border-slate-200 text-right">Hata %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffFinanceList"></tbody>
+                        </table>
                     </div>
                 </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-left text-[11px] sm:text-xs">
-                        <thead class="bg-slate-50 text-slate-600 uppercase tracking-widest">
-                            <tr>
-                                <th class="p-2">Etkinlik</th>
-                                <th class="p-2">Müşteri</th>
-                                <th class="p-2">Telefon</th>
-                                <th class="p-2 text-right">Borç</th>
-                                <th class="p-2">Durum</th>
-                                <th class="p-2">Eylem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="archiveDebtBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="glass-card p-6">
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
-                    <h2 class="section-title"><span>🛡️</span><span>Audit Log Filtreleme</span></h2>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="clearAuditLogsWithPin();" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs uppercase tracking-wider font-black hover:bg-red-700">Logları Sıfırla (PIN)</button>
-                        <label for="auditFilter" class="font-black text-xs uppercase tracking-wider">Filtre</label>
-                        <select id="auditFilter" class="border border-slate-200 rounded-lg px-2 py-2" onchange="applyLogFilter(this.value)">
-                            <option value="all">Tümü</option>
-                            <option value="cancel">Satış İptalleri</option>
-                            <option value="debt">Borçlu Geçişler</option>
-                        </select>
+                <div id="debtListSection" class="glass-card p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xs font-black uppercase tracking-widest text-slate-600">⏳ Geciken Borçlular</h2>
+                        <button onclick="sendOverdueReminders()" class="h-8 px-3 rounded-lg bg-amber-500 text-white text-[10px] uppercase font-black hover:bg-amber-600">📲 Hatırlatma</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-left text-[11px]">
+                            <thead class="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-widest font-black">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-200">Müşteri</th>
+                                    <th class="p-2 border-b border-slate-200">Personel</th>
+                                    <th class="p-2 border-b border-slate-200 text-right">Borç</th>
+                                    <th class="p-2 border-b border-slate-200 text-right">Gecikme</th>
+                                    <th class="p-2 border-b border-slate-200">İletişim</th>
+                                    <th class="p-2 border-b border-slate-200">Eylem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="debtListBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div id="auditLogContainer" class="overflow-y-auto no-scrollbar" style="max-height:45vh;"></div>
-            </section>
+            </div>
+
+            <!-- PANEL: Arşiv -->
+            <div id="panelArsiv" class="space-y-4 hidden">
+                <div id="archiveSection" class="glass-card p-5">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                        <div>
+                            <h2 class="text-xs font-black uppercase tracking-widest text-slate-600">Finans Arşivi</h2>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Silinmiş etkinliklerin ciro/borç kayıtları</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportArchiveCSV()" class="h-8 px-3 rounded-lg bg-blue-600 text-white text-[10px] uppercase font-black">📥 CSV</button>
+                            <button onclick="resetReportTestData();" class="h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-red-600 text-[10px] uppercase font-black">🧪 Sıfırla</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Arşivlenen</p>
+                            <p id="arcEvtCount" class="text-2xl font-black">0</p>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-emerald-600 uppercase">Ciro</p>
+                            <p id="arcRevenue" class="text-2xl font-black text-emerald-700">₺0.00</p>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+                            <p class="text-[10px] font-black text-red-500 uppercase">Açık Borç</p>
+                            <p id="arcDebt" class="text-2xl font-black text-red-600">₺0.00</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-left text-[11px]">
+                            <thead class="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-widest font-black">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-200">Etkinlik</th>
+                                    <th class="p-2 border-b border-slate-200">Müşteri</th>
+                                    <th class="p-2 border-b border-slate-200">Telefon</th>
+                                    <th class="p-2 border-b border-slate-200 text-right">Borç</th>
+                                    <th class="p-2 border-b border-slate-200">Durum</th>
+                                    <th class="p-2 border-b border-slate-200">Eylem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="archiveDebtBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL: Audit Log -->
+            <div id="panelLog" class="space-y-4 hidden">
+                <div class="glass-card p-5">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                        <h2 class="text-xs font-black uppercase tracking-widest text-slate-600">🛡️ Audit Log</h2>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <select id="auditFilter" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-black" onchange="applyLogFilter(this.value)">
+                                <option value="all">Tümü</option>
+                                <option value="cancel">İptaller</option>
+                                <option value="debt">Borçlu Geçişler</option>
+                            </select>
+                            <button onclick="refreshLogs();" class="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-[10px] uppercase font-black">🔄 Yenile</button>
+                            <button onclick="clearAuditLogsWithPin();" class="h-8 px-3 rounded-lg bg-red-600 text-white text-[10px] uppercase font-black">🗑️ Sıfırla (PIN)</button>
+                        </div>
+                    </div>
+                    <div id="auditLogContainer" class="overflow-y-auto no-scrollbar" style="max-height:55vh;"></div>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -344,6 +382,30 @@
                 const inputEl = overlay.querySelector('#actionCodeInput');
                 if (inputEl) inputEl.focus();
             });
+        }
+
+        /* Tab sistemi */
+        let _activeTab = 'ozet';
+        function switchTab(tab) {
+            _activeTab = tab;
+            ['ozet','personel','arsiv','log'].forEach(p => {
+                const panel = document.getElementById('panel' + p.charAt(0).toUpperCase() + p.slice(1));
+                const btn   = document.getElementById('tab'   + p.charAt(0).toUpperCase() + p.slice(1));
+                if(!panel || !btn) return;
+                const active = p === tab;
+                panel.classList.toggle('hidden', !active);
+                btn.classList.toggle('active', active);
+            });
+        }
+
+        function refreshAll() {
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+            renderStaffFinancials();
+            renderArchiveManager();
+            renderCharts();
+            renderAuditLogs();
+            notifyRefresh('Tüm veriler yenilendi');
         }
 
         function refreshFinancials() {
