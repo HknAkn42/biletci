@@ -1016,7 +1016,7 @@
             document.getElementById('tkHash').innerText = hash;
             
             // ecLevel=H: En yüksek hata düzeltme (%30 hasar toleransı) — taramayı kolaylaştırır
-            document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=600&dark=0a0f1e&light=ffffff&margin=3&ecLevel=H`;
+            document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=600&dark=000000&light=ffffff&margin=3&ecLevel=H`;
 
             // Firma logosu ve adı — settings'den çek
             const _cfg = (window.BiletProCore && window.BiletProCore.getConfig()) || {};

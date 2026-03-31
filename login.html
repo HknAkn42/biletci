@@ -72,10 +72,23 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .shake { animation: shake 0.4s; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+        /* Toast bildirim */
+        .login-toast {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            padding: 14px 28px; border-radius: 16px; font-size: 13px; font-weight: 800;
+            letter-spacing: 0.5px; z-index: 9999; opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(20px); pointer-events: none;
+        }
+        .login-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .login-toast.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+        .login-toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
     </style>
 </head>
 <body>
 
+    <div id="loginToast" class="login-toast"></div>
     <div class="glass-terminal" id="terminal">
         
         <div class="mb-10">
@@ -206,6 +219,7 @@
                 if(typeof window.writeAuditEvent === 'function') {
                     window.writeAuditEvent('Güvenlik', 'Giriş Başarısız (Şifre)', `Kullanıcı: ${u || 'boş'} için hatalı giriş denemesi.`);
                 }
+                showLoginToast('❌ Kullanıcı adı veya şifre hatalı!', 'error');
                 shakeTerminal();
             }
         }
@@ -269,6 +283,7 @@
                     if(typeof window.writeAuditEvent === 'function') {
                         window.writeAuditEvent('Güvenlik', 'PIN Hatası', `${lastUser || 'bilinmeyen'} hesabında hatalı PIN denemesi.`);
                     }
+                    showLoginToast('❌ PIN kodu hatalı!', 'error');
                     inputPin = "";
                     pinSubmitLock = false;
                     updatePinDots('login');
@@ -291,11 +306,15 @@
 
             sessionStorage.setItem('BiletPro_LoggedInTab', '1');
             
-            document.getElementById('terminal').style.opacity = "0";
-            document.getElementById('terminal').style.transform = "scale(0.9)";
-            document.getElementById('terminal').style.transition = "0.5s";
+            showLoginToast(`✅ Hoş geldin, ${userData.name || userData.username}!`, 'success');
+
+            setTimeout(() => {
+                document.getElementById('terminal').style.opacity = "0";
+                document.getElementById('terminal').style.transform = "scale(0.9)";
+                document.getElementById('terminal').style.transition = "0.5s";
+            }, 600);
             
-            setTimeout(() => { window.location.href = 'index.html'; }, 500);
+            setTimeout(() => { window.location.href = 'index.html'; }, 1100);
         }
 
         function switchAccount() {
@@ -310,6 +329,16 @@
             const t = document.getElementById('terminal');
             t.classList.add('shake');
             setTimeout(() => t.classList.remove('shake'), 400);
+        }
+
+        let __toastTimer = null;
+        function showLoginToast(message, type) {
+            const toast = document.getElementById('loginToast');
+            toast.textContent = message;
+            toast.className = 'login-toast ' + type;
+            clearTimeout(__toastTimer);
+            requestAnimationFrame(() => { toast.classList.add('show'); });
+            __toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
     </script>
 </body>

@@ -643,7 +643,7 @@
             _scanning = true;
             try {
             loadData();
-            if(!/^EV\d+-M[\w]+-T\d+$/.test(raw)){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
+            if(!/^EV[\w]+-M[\w.,]+-T[\w]+$/.test(raw)){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
             let found=null,ei,ci,mi;
 
             // 1. Cache'e bak (anlık, 0ms)

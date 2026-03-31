@@ -128,9 +128,21 @@
     const rawPage = path.split("/").pop();
     const currentPage = rawPage && rawPage.trim() ? rawPage.trim() : 'index.html';
 
+    // Tarayıcı/sekme kapatılıp tekrar açıldıysa sessionStorage boş olur → oturumu sil
+    if (session && currentPage !== 'login.html' && !sessionStorage.getItem('BiletPro_LoggedInTab')) {
+        localStorage.removeItem('BiletPro_Session');
+        localStorage.removeItem('BiletPro_LastActivity');
+        session = null;
+    }
+
     if (!session && currentPage !== 'login.html') {
         window.location.href = 'login.html';
         return;
+    }
+
+    // Aktif sekme işareti (her sayfa yüklemesinde yenile)
+    if (session && currentPage !== 'login.html') {
+        sessionStorage.setItem('BiletPro_LoggedInTab', '1');
     }
 
     // 3. PERSONEL VERİTABANINA HAKAN'I ÇAK
@@ -182,6 +194,46 @@
             }
         }
     }
+})();
+
+/* ==========================================
+   OTOMATİK ÇIKIŞ — 30 DAKİKA İNAKTİVİTE
+   ========================================== */
+(function() {
+    const IDLE_TIMEOUT = 30 * 60 * 1000; // 30 dakika (ms)
+    const STORAGE_KEY = 'BiletPro_LastActivity';
+    const currentPage = (window.location.pathname.split("/").pop() || '').trim() || 'index.html';
+
+    // Login sayfasında zamanlayıcı çalışmasın
+    if (currentPage === 'login.html') return;
+
+    function updateActivity() {
+        localStorage.setItem(STORAGE_KEY, Date.now().toString());
+    }
+
+    function checkIdle() {
+        const last = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+        if (last && (Date.now() - last > IDLE_TIMEOUT)) {
+            localStorage.removeItem('BiletPro_Session');
+            localStorage.removeItem(STORAGE_KEY);
+            alert('⏱️ 30 dakika hareketsizlik nedeniyle oturumunuz sonlandırıldı. Lütfen tekrar giriş yapın.');
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Sayfa açılışında son aktiviteyi kontrol et
+    checkIdle();
+
+    // Aktiviteyi kaydeden olaylar
+    ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(evt => {
+        document.addEventListener(evt, updateActivity, { passive: true });
+    });
+
+    // İlk aktivite kaydı
+    updateActivity();
+
+    // Her 60 saniyede bir kontrol
+    setInterval(checkIdle, 60 * 1000);
 })();
 
 /* ==========================================
