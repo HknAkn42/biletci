@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -51,8 +51,11 @@
 
         /* SAYAÇ KARTLARI */
         .counter-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 15px; text-align: center; }
-        .cv { font-family:'Space Mono',monospace; font-size:24px; font-weight:800; color: #0f172a; line-height: 1; }
-        .cl { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color: #64748b; margin-top: 4px; }
+        .cv { font-family:'Space Mono',monospace; font-size:48px; font-weight:800; color: #0f172a; line-height: 1; }
+        .cl { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color: #64748b; margin-top: 6px; }
+        /* İçeridekiler sayacı özellikle büyük ve vurgulu */
+        #cntIn { font-size: 64px; color: #059669; }
+        #cntIn-box { background: linear-gradient(135deg,#d1fae5,#ecfdf5); border: 2px solid #34d399; border-radius: 24px; padding: 18px 12px; text-align:center; box-shadow: 0 4px 20px rgba(16,185,129,0.12); }
 
         /* SONUÇ KARTLARI (PREMIUM YAPI) */
         .res-card { border-radius: 28px; padding: 25px; margin-top: 20px; animation: pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; display: none; border: 2px solid transparent; }
@@ -98,6 +101,17 @@
         #logDrawer.open { right:0; }
         .litem { padding:15px; border-radius:16px; background:#f8fafc; margin-bottom:10px; border:1px solid #f1f5f9; border-left: 4px solid #cbd5e1; }
         .lok { border-left-color: #10b981; } .ldebt { border-left-color: #f59e0b; } .lskip { border-left-color: #ef4444; } .lout { border-left-color: #3b82f6; }
+            /* ─── BÜYÜK KİŞİ SAYISI (showValid hero) ─── */
+            .guest-hero { background: linear-gradient(135deg,#dcfce7,#f0fdf4); border:2px solid #34d399; border-radius:22px; padding:22px 16px 18px; text-align:center; margin-bottom:18px; }
+            .guest-big  { font-family:'Space Mono',monospace; font-size:80px; font-weight:800; color:#10b981; line-height:1; display:inline-block; }
+            .guest-sfx  { font-size:20px; font-weight:900; color:#059669; margin-left:5px; vertical-align:bottom; line-height:1.9; }
+            .guest-lbl  { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:2px; color:#065f46; margin-top:6px; display:block; }
+
+            /* ─── KİŞİ SAYISI SEÇİM MODAL ─── */
+            #enterCountModal > div { animation:pop 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+            .count-btn { width:68px; height:68px; border-radius:20px; font-size:32px; font-weight:900; cursor:pointer; transition:0.12s; display:flex; align-items:center; justify-content:center; border:none; }
+            .count-btn:active { transform:scale(0.9); }
+            .count-display { font-family:'Space Mono',monospace; font-size:96px; font-weight:800; color:#0f172a; line-height:1; min-width:120px; text-align:center; }
     </style>
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
@@ -138,6 +152,10 @@
                     <div class="absolute bottom-6 left-0 right-0 text-center z-20 pointer-events-none">
                         <span class="bg-black/50 backdrop-blur-md text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest border border-white/20 shadow-xl">QR Kodu Çerçeve İçine Alın</span>
                     </div>
+                    <!-- MEŞALE BUTONU -->
+                    <button id="torchBtn" onclick="toggleTorch()" title="Işık aç/kapat"
+                        class="absolute bottom-6 right-5 z-20 w-12 h-12 rounded-full flex items-center justify-center text-xl border border-white/25 shadow-xl transition-all"
+                        style="background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);">🔦</button>
 
                     <div id="camPerm">
                         <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-3xl mb-4">📷</div>
@@ -150,18 +168,23 @@
             <div class="w-full lg:w-5/12 xl:w-4/12 flex flex-col">
                 <div class="silk-card flex-1 flex flex-col h-full overflow-hidden !p-4 sm:!p-[25px]">
                     
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 shrink-0">
-                        <div class="counter-box">
-                            <div class="cv" id="cntTotal">0</div><div class="cl">Satılan</div>
+                    <div class="flex flex-col gap-3 mb-6 shrink-0">
+                        <!-- İÇERİDE SAYACI (büyük/dominant) -->
+                        <div class="!border-2 !border-green-300 !bg-gradient-to-br from-green-50 to-emerald-50 !rounded-3xl !p-5 text-center shadow-md">
+                            <div class="font-['Space_Mono'] font-black text-green-600 leading-none" id="cntIn" style="font-size:80px;">0</div>
+                            <div class="text-[12px] font-black uppercase tracking-widest text-green-700 mt-2">Şu An İçeride</div>
                         </div>
-                        <div class="counter-box !border-green-200 !bg-green-50">
-                            <div class="cv !text-green-600" id="cntIn">0</div><div class="cl !text-green-600">İçeride</div>
-                        </div>
-                        <div class="counter-box !border-blue-200 !bg-blue-50">
-                            <div class="cv !text-blue-600" id="cntOut">0</div><div class="cl !text-blue-600">Dışarıda</div>
-                        </div>
-                        <div class="counter-box !border-amber-200 !bg-amber-50">
-                            <div class="cv !text-amber-600" id="cntWait">0</div><div class="cl !text-amber-600">Bekleyen</div>
+                        <!-- KÜÇÜK SAYAÇLAR -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="counter-box">
+                                <div class="cv" id="cntTotal">0</div><div class="cl">Satılan</div>
+                            </div>
+                            <div class="counter-box !border-blue-200 !bg-blue-50">
+                                <div class="cv !text-blue-600" id="cntOut">0</div><div class="cl !text-blue-600">Dışarıda</div>
+                            </div>
+                            <div class="counter-box !border-amber-200 !bg-amber-50">
+                                <div class="cv !text-amber-600" id="cntWait">0</div><div class="cl !text-amber-600">Bekleyen</div>
+                            </div>
                         </div>
                     </div>
 
@@ -214,6 +237,28 @@
             <button class="btn-action btn-warning !mt-0 !mb-3 shadow-xl" onclick="confirmDebt()">💰 TAHSİLAT YAP VE İÇERİ AL</button>
             <button class="w-full py-4 rounded-xl border border-red-200 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all mb-3" onclick="skipDebt()">⚠️ BORÇLU GEÇİR (SORUMLULUK AL)</button>
             <button class="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-800" onclick="closeDebtModal()">VAZGEÇ</button>
+        </div>
+    </div>
+
+    <!-- KİŞİ SAYISI SEÇİM MODAL -->
+    <div id="enterCountModal" class="hidden fixed inset-0 modal-bg z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-[400px] rounded-[32px] shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 px-8 pt-8 pb-6 text-center">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-[3px]">GİRİŞ YAPILIYOR</span>
+                <h3 id="ecm-name" class="font-black text-white text-xl mt-1 truncate">—</h3>
+                <p id="ecm-sub" class="text-xs font-bold text-slate-400 mt-1">—</p>
+            </div>
+            <div class="px-8 py-8">
+                <p class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">KAÇ KİŞİ GİRİYOR?</p>
+                <div class="flex items-center justify-center gap-5 mb-4">
+                    <button class="count-btn bg-red-50 text-red-500 hover:bg-red-100" onclick="adjustCount(-1)">−</button>
+                    <div id="ecm-count" class="count-display">1</div>
+                    <button class="count-btn bg-green-50 text-green-500 hover:bg-green-100" onclick="adjustCount(1)">+</button>
+                </div>
+                <p id="ecm-max" class="text-center text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">MAX — KİŞİ</p>
+                <button onclick="confirmEnterCount()" class="btn-action btn-success !mt-0 !mb-3 !py-5 !text-sm shadow-xl">✅ GİRİŞ YAP</button>
+                <button onclick="cancelEnterCount()" class="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-800">VAZGEÇ</button>
+            </div>
         </div>
     </div>
 
@@ -312,6 +357,23 @@
         }
 
         function updateCounters(){
+            // Önce cache'deki online biletleri say (hızlı, anlık)
+            if (_ticketCache && _ticketCache.size > 0) {
+                let tot=0, ins=0, outs=0;
+                _ticketCache.forEach(function(entry) {
+                    const sd = entry && entry.masa && entry.masa.saleDetail;
+                    if (!sd) return;
+                    tot++;
+                    if (sd.status === 'INSIDE') ins++;
+                    else if (sd.status === 'OUTSIDE') outs++;
+                });
+                if(document.getElementById('cntTotal')) document.getElementById('cntTotal').textContent=tot;
+                if(document.getElementById('cntIn')) document.getElementById('cntIn').textContent=ins;
+                if(document.getElementById('cntOut')) document.getElementById('cntOut').textContent=outs;
+                if(document.getElementById('cntWait')) document.getElementById('cntWait').textContent=tot-ins-outs;
+                return;
+            }
+            // Fallback: localStorage
             let tot=0, ins=0, outs=0;
             events.forEach(ev=>{
                 if(eventId&&String(ev.id)!==String(eventId)) return;
@@ -331,7 +393,8 @@
 
         /* ─── KAMERA YÖNETİMİ ─── */
         let stream=null, scanTick=null, lastQ='', lastT=0;
-        const COOL=2500;
+        const COOL=1500; // 2500'den kısaltıldı: daha hızlı tekrar tarama
+        let _torchOn=false, _torchTrack=null;
 
         function isOnlineMode() {
             return !!(window.BiletProOnlineStore && window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() === 'online');
@@ -343,6 +406,58 @@
 
         async function initCamera(){
             console.log('[KAMERA] initCamera() çağırıldı');
+        /* ─── TICKET CACHE: anlık QR okuma ─── */
+        const _ticketCache = new Map();
+        let _scanning = false;
+
+        function _buildCacheEntry(data, evRow) {
+            var mesa = data.payload_json && data.payload_json.masa ? data.payload_json.masa : null;
+            var sd   = data.payload_json && data.payload_json.saleDetail ? data.payload_json.saleDetail : null;
+            if (!mesa) mesa = { no: data.table_no, isSold: true, soldTo: data.customer_name || '', id: data.ticket_hash };
+            if (!sd)   sd   = { ticketHash: data.ticket_hash, status: data.status || 'READY',
+                insideCount: data.inside_count || 0, people: data.people_count || 1,
+                paid: data.paid || 0, debt: data.debt || 0,
+                phone: data.customer_phone || '', categoryName: data.category_name || '',
+                soldBy: data.sold_by_username || '' };
+            sd = Object.assign({}, sd, { ticketHash: data.ticket_hash,
+                status: data.status || sd.status || 'READY',
+                insideCount: data.inside_count != null ? data.inside_count : (sd.insideCount || 0),
+                people: data.people_count || sd.people || 1,
+                paid: data.paid != null ? data.paid : sd.paid,
+                debt: data.debt != null ? data.debt : sd.debt });
+            mesa = Object.assign({}, mesa, { isSold: true, soldTo: data.customer_name || mesa.soldTo, saleDetail: sd });
+            return { masa: mesa, legacyEventId: (evRow && evRow.legacy_event_id) || null, eventPayload: (evRow && evRow.payload_json) || null };
+        }
+
+        async function preloadTicketsForEvent() {
+            if (!isOnlineMode() || !window.BiletProOnlineStore || !window.BiletProOnlineStore.client || !eventId) return;
+            var client = window.BiletProOnlineStore.client;
+            try {
+                var evRes = await client.from('events').select('id, legacy_event_id, payload_json').eq('legacy_event_id', String(eventId)).maybeSingle();
+                var evRow = evRes.data;
+                if (!evRow || !evRow.id) return;
+                var tRes = await client.from('tickets').select('ticket_hash, status, inside_count, people_count, paid, debt, customer_name, customer_phone, table_no, category_name, sold_by_username, payload_json').eq('event_id', evRow.id);
+                var tickets = tRes.data;
+                if (!tickets) return;
+                tickets.forEach(function(t){ _ticketCache.set(t.ticket_hash, _buildCacheEntry(t, evRow)); });
+                console.log('[BiletPro Cache] ' + tickets.length + ' bilet önbelleğe alındı');
+                try {
+                    client.channel('checkin-tix-' + eventId)
+                        .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: 'event_id=eq.' + evRow.id }, function(p) {
+                            if (p.new && p.new.ticket_hash) { _ticketCache.set(p.new.ticket_hash, _buildCacheEntry(p.new, evRow)); updateCounters(); }
+                        }).subscribe();
+                } catch(_e) {}
+            } catch(e) { console.warn('[BiletPro Cache] Önbellek yüklenemedi:', e); }
+        }
+
+        function _waitForOnline(fn, tries) {
+            tries = (tries == null) ? 10 : tries;
+            if (isOnlineMode() && window.BiletProOnlineStore && window.BiletProOnlineStore.client) { fn(); return; }
+            if (tries <= 0) return;
+            setTimeout(function(){ _waitForOnline(fn, tries - 1); }, 1200);
+        }
+        _waitForOnline(preloadTicketsForEvent);
+
             const permScreen = document.getElementById('camPerm');
             const msgEl = document.getElementById('camPermMsg');
             
@@ -446,35 +561,118 @@
         function startScan(){
             const v=document.getElementById('videoFeed'),c=document.getElementById('qrCanvas'),x=c.getContext('2d');
             if(scanTick) clearInterval(scanTick);
+            // Kamera stream'ini sakla (meşale için)
+            if(stream) _torchTrack = stream.getVideoTracks && stream.getVideoTracks()[0];
             scanTick=setInterval(()=>{
                 if(!v || v.readyState!==v.HAVE_ENOUGH_DATA) return;
-                c.width=v.videoWidth; c.height=v.videoHeight; x.drawImage(v,0,0,c.width,c.height);
+                c.width=v.videoWidth; c.height=v.videoHeight;
+                // Kontrast + parlaklık filtresi: QR modülleri daha keskin okunur
+                x.filter='contrast(1.35) brightness(1.08)';
+                x.drawImage(v,0,0,c.width,c.height);
+                x.filter='none';
                 const img=x.getImageData(0,0,c.width,c.height);
-                const qr=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+                // attemptBoth: normal + ters renk QR'ları da okur
+                const qr=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
                 if(qr?.data){
                     const now=Date.now();
                     if(qr.data===lastQ&&now-lastT<COOL) return;
                     lastQ=qr.data; lastT=now;
                     processQR(qr.data.trim());
                 }
-            },120);
+            },80); // 120ms'den 80ms'ye düşürüldü: daha sık kare tarama
+        }
+
+        /* ─── FENER (MEŞALE) ─── */
+        async function toggleTorch(){
+            if(!_torchTrack) return;
+            _torchOn=!_torchOn;
+            try{
+                await _torchTrack.applyConstraints({advanced:[{torch:_torchOn}]});
+                const btn=document.getElementById('torchBtn');
+                if(btn) btn.style.background=_torchOn?'rgba(251,191,36,0.7)':'rgba(0,0,0,0.5)';
+            }catch(e){ _torchOn=!_torchOn; /* Cihaz desteklemiyor */ }
         }
 
         /* ─── QR KONTROL VE YÖNLENDİRME ─── */
         let pM=null,pEi=null,pCi=null,pMi=null;
 
-        async function processQR(raw){
-            loadData();
-            if(!/^EV\d+-M[\w]+-T\d+$/.test(raw)){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
-            let found=null,ei,ci,mi;
-            outer:for(let e=0;e<events.length;e++){
+        function _searchTicketInEvents(raw) {
+            for(let e=0;e<events.length;e++){
                 if(eventId&&String(events[e].id)!==String(eventId)) continue;
                 const cats=events[e].categories||[];
                 for(let c=0;c<cats.length;c++){
                     const ms=cats[c].masalar||[];
-                    for(let m=0;m<ms.length;m++){ if(ms[m].saleDetail?.ticketHash===raw){found=ms[m];ei=e;ci=c;mi=m;break outer;} }
+                    for(let m=0;m<ms.length;m++){ if(ms[m].saleDetail?.ticketHash===raw) return {found:ms[m],ei:e,ci:c,mi:m}; }
                 }
             }
+            return null;
+        }
+
+        // Supabase'den gelen bilet verisini local events dizisine enjekte et (commitIn yazabilsin diye)
+        function _injectOnlineTicketToLocal(masa, legacyEventId, eventPayload) {
+            let ei = events.findIndex(e => String(e.id) === String(legacyEventId));
+            if (ei === -1) {
+                const evObj = (eventPayload && typeof eventPayload === 'object') ? {...eventPayload} : { id: legacyEventId, title: 'Etkinlik', categories: [] };
+                if (!Array.isArray(evObj.categories)) evObj.categories = [];
+                events.push(evObj);
+                ei = events.length - 1;
+            }
+            const ev = events[ei];
+            if (!Array.isArray(ev.categories)) ev.categories = [];
+            const catName = (masa.saleDetail && masa.saleDetail.categoryName) || 'Genel';
+            let ci = ev.categories.findIndex(c => c.name === catName);
+            if (ci === -1) {
+                ev.categories.push({ id: Date.now(), name: catName, masalar: [] });
+                ci = ev.categories.length - 1;
+            }
+            const cat = ev.categories[ci];
+            if (!Array.isArray(cat.masalar)) cat.masalar = [];
+            const hash = masa.saleDetail && masa.saleDetail.ticketHash;
+            let mi = cat.masalar.findIndex(m => m.saleDetail && m.saleDetail.ticketHash === hash);
+            if (mi === -1) {
+                cat.masalar.push(masa);
+                mi = cat.masalar.length - 1;
+            } else {
+                cat.masalar[mi] = masa;
+            }
+            return { ei, ci, mi };
+        }
+
+        async function processQR(raw){
+            if (_scanning) return;
+            _scanning = true;
+            try {
+            loadData();
+            if(!/^EV\d+-M[\w]+-T\d+$/.test(raw)){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
+            let found=null,ei,ci,mi;
+
+            // 1. Cache'e bak (anlık, 0ms)
+            const _cached = _ticketCache.get(raw);
+            if (_cached && _cached.masa) {
+                const _inj = _injectOnlineTicketToLocal(_cached.masa, _cached.legacyEventId, _cached.eventPayload);
+                found = events[_inj.ei].categories[_inj.ci].masalar[_inj.mi];
+                ei = _inj.ei; ci = _inj.ci; mi = _inj.mi;
+            }
+
+            // 2. Cache miss: Supabase'den direkt çek
+            if(!found && isOnlineMode() && window.BiletProOnlineStore && typeof window.BiletProOnlineStore.findTicketByHash === 'function') {
+                try {
+                    const onlineRes = await window.BiletProOnlineStore.findTicketByHash(raw);
+                    if(onlineRes && onlineRes.ok && onlineRes.masa && onlineRes.legacyEventId) {
+                        _ticketCache.set(raw, onlineRes);
+                        const injected = _injectOnlineTicketToLocal(onlineRes.masa, onlineRes.legacyEventId, onlineRes.eventPayload);
+                        found = events[injected.ei].categories[injected.ci].masalar[injected.mi];
+                        ei = injected.ei; ci = injected.ci; mi = injected.mi;
+                    }
+                } catch(err) { console.warn('[BiletPro] findTicketByHash hata:', err); }
+            }
+
+            // 3. Offline yedek
+            if(!found) {
+                const res = _searchTicketInEvents(raw);
+                if(res){ found=res.found; ei=res.ei; ci=res.ci; mi=res.mi; }
+            }
+
             if(!found){ showInvalid('BİLET BULUNAMADI','Kayıtlarda eşleşme yok.',raw); sndErr();flash('r'); return; }
             pM=found;pEi=ei;pCi=ci;pMi=mi;
             if(!found.saleDetail.status) found.saleDetail.status = 'READY';
@@ -491,45 +689,81 @@
             const remainingPeople = Math.max(0, totalPeople - insideCount);
             if(remainingPeople <= 0){ showInvalid('KAPASİTE DOLDU','Bu bilete ait tüm kişi girişi tamamlanmış.',raw); sndErr();flash('r'); return; }
 
-            let enterCount = parseInt(prompt(`Kaç kişi giriyor? (1-${remainingPeople})`, `${remainingPeople}`), 10);
-            if(isNaN(enterCount) || enterCount < 1 || enterCount > remainingPeople){ showInvalid('GEÇERSİZ SAYI','Lütfen geçerli kişi sayısı girin.',raw); sndErr();flash('r'); return; }
+            // Tek kişiyse direkt geçir, çok kişiyse modal aç
+            if(remainingPeople === 1) { await _doCheckin(found, ei, ci, mi, 1, raw); }
+            else { showEnterCountModal(found, remainingPeople, raw); }
+            } finally { _scanning = false; }
+        }
 
-            // Online mod: eşzamanlı çift okutmayı atomik RPC ile engelle
+        /* ─── KİŞİ SAYISI MODAL ─── */
+        let _ecmPending = null, _ecmMax = 1;
+        function showEnterCountModal(found, remainingPeople, raw) {
+            _ecmPending = { found, ei: pEi, ci: pCi, mi: pMi, raw };
+            _ecmMax = remainingPeople;
+            const sd = found.saleDetail;
+            document.getElementById('ecm-name').textContent = found.soldTo || '—';
+            document.getElementById('ecm-sub').textContent = (sd.categoryName || '') + ' | Masa ' + found.no;
+            document.getElementById('ecm-count').textContent = String(remainingPeople);
+            document.getElementById('ecm-max').textContent = 'MAX ' + remainingPeople + ' KİŞİ';
+            document.getElementById('enterCountModal').classList.remove('hidden');
+        }
+        function adjustCount(delta) {
+            const el = document.getElementById('ecm-count');
+            el.textContent = String(Math.max(1, Math.min(_ecmMax, parseInt(el.textContent,10) + delta)));
+        }
+            function showValid(masa, enterCount){
+                const sd=masa.saleDetail;
+                const ec = enterCount || 1;
+                const kalan = sd.remainingCount != null ? sd.remainingCount : Math.max(0,(sd.people||1)-(sd.insideCount||0));
+                showRC(`<div class="res-card res-green shadow-2xl">
+                    <div class="res-header"><div class="res-icon">✅</div><div><div class="res-title">GİRİŞ ONAYLI</div><div class="res-subtitle">${masa.soldTo||'—'} • ${sd.categoryName||''} / Masa ${masa.no}</div></div></div>
+                    <div class="guest-hero" style="padding:28px 16px 22px;">
+                        <div><span class="guest-big" style="font-size:100px;">${ec}</span><span class="guest-sfx" style="font-size:24px;">KİŞİ</span></div>
+                        <span class="guest-lbl" style="font-size:11px;letter-spacing:3px;">BU SEFERDEN GİRDİ</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:14px;text-align:center;">
+                            <div style="font-family:monospace;font-size:36px;font-weight:900;color:#16a34a;line-height:1;">${sd.insideCount||0}</div>
+                            <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#166534;margin-top:4px;">Toplam İçeride</div>
+                        </div>
+                        <div style="background:${kalan===0?'#fef2f2':'#f0fdf4'};border:1px solid ${kalan===0?'#fca5a5':'#bbf7d0'};border-radius:16px;padding:14px;text-align:center;">
+                            <div style="font-family:monospace;font-size:36px;font-weight:900;color:${kalan===0?'#dc2626':'#16a34a'};line-height:1;">${kalan}</div>
+                            <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:${kalan===0?'#7f1d1d':'#166534'};margin-top:4px;">Kalan Hak</div>
+                        </div>
+                    </div>
+                    ${sd.gateNote?`<div class="gnote"><span class="gnl">📌 KAPI NOTU</span><span class="gnv">${sd.gateNote}</span></div>`:''}
+                    <button class="btn-action btn-success mt-2" onclick="reset()">YENİ TARAMA BEKLENİYOR</button>
+                </div>`);
+            }
+        /* ─── ATOMİK CHECKIN ─── */
+        async function _doCheckin(found, ei, ci, mi, enterCount, raw) {
             if(isOnlineMode() && window.BiletProOnlineStore && typeof window.BiletProOnlineStore.gateAction === 'function') {
                 const gateRes = await window.BiletProOnlineStore.gateAction(raw, 'IN', getGateUser(), {
-                    gateId: `gate-${eventId || 'main'}`,
-                    peopleDelta: enterCount
+                    gateId: 'gate-' + (eventId || 'main'), peopleDelta: enterCount
                 });
-
-                if(!gateRes?.ok) {
-                    if(gateRes?.reason === 'already_inside') {
-                        showInsideCard(found); sndDouble(); flash('r');
-                    } else if(gateRes?.reason === 'debt_pending') {
-                        showDebtCard(found); sndDebt(); flash('a');
-                    } else if(gateRes?.reason === 'not_found') {
-                        showInvalid('BİLET BULUNAMADI','Online kayıtlarda eşleşme yok.',raw); sndErr(); flash('r');
-                    } else {
-                        showInvalid('ONLINE KİLİT HATASI','Kapı kilidi alınamadı. Lütfen tekrar deneyin.',raw); sndErr(); flash('r');
-                    }
+                if(!gateRes || !gateRes.ok) {
+                    _ticketCache.delete(raw);
+                    const r = gateRes ? gateRes.reason : '';
+                    if(r==='already_inside'){ found.saleDetail.status='INSIDE'; showInsideCard(found); sndDouble(); flash('r'); }
+                    else if(r==='debt_pending'){ showDebtCard(found); sndDebt(); flash('a'); }
+                    else if(r==='not_found'){ showInvalid('BİLET BULUNAMADI','Online kayıtlarda eşleşme yok.',raw); sndErr(); flash('r'); }
+                    else { showInvalid('ONLINE KİLİT HATASI','Kapı kilidi alınamadı. Tekrar deneyin.',raw); sndErr(); flash('r'); }
                     return;
                 }
+                const ce = _ticketCache.get(raw);
+                if(ce&&ce.masa&&ce.masa.saleDetail){ ce.masa.saleDetail.status='INSIDE'; ce.masa.saleDetail.insideCount=(ce.masa.saleDetail.insideCount||0)+enterCount; }
             } else {
-                // Offline mod: başka bir sekme/cihazın aynı bileti lokalde okutup okutmadığını kontrol et
-                const _freshEvs = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
-                const _freshMasa = _freshEvs?.[ei]?.categories?.[ci]?.masalar?.[mi];
-                if (_freshMasa?.saleDetail?.status === 'INSIDE') {
-                    found.saleDetail.status = 'INSIDE';
-                    showInsideCard(found); sndDouble(); flash('r'); return;
-                }
+                const _fe = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')||'[]');
+                const _fm = _fe[ei]&&_fe[ei].categories&&_fe[ei].categories[ci]&&_fe[ei].categories[ci].masalar&&_fe[ei].categories[ci].masalar[mi];
+                if(_fm&&_fm.saleDetail&&_fm.saleDetail.status==='INSIDE'){ found.saleDetail.status='INSIDE'; showInsideCard(found); sndDouble(); flash('r'); return; }
             }
-
-            commitIn(found,ei,ci,mi,0,0,'',enterCount); sndOK();flash('g');
+            commitIn(found,ei,ci,mi,0,0,'',enterCount); sndOK(); flash('g');
         }
 
         function commitIn(masa,ei,ci,mi,paid,remain,method,enterCount=1){
             const t=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
             const sd=masa.saleDetail;
-            sd.status='INSIDE'; 
+            sd.status='INSIDE';
             if(!sd.checkinTime) sd.checkinTime=t;
             sd.checkinBy = (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name) || 'Kapı Personeli';
             if(paid>0) sd.checkinPaid = (sd.checkinPaid||0) + paid;
@@ -540,9 +774,8 @@
             addLog(masa,paid,remain,'Kapı Personeli',t,`İÇERİ ALINDI (${enterCount} kişi)`);
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("KAPI", "İçeri Alındı", `${masa.no} numaralı masa, ${enterCount} kişi içeri alındı. Kalan: ${sd.remainingCount}`);
             updateCounters();
-            showValid(masa);
+            showValid(masa, enterCount);
         }
-
         async function setTempOut() {
             if(!pM) return;
 
@@ -605,18 +838,7 @@
             pM=null; 
         }
 
-        function showValid(masa){
-            const sd=masa.saleDetail;
-            showRC(`<div class="res-card res-green shadow-2xl">
-                <div class="res-header"><div class="res-icon">✅</div><div><div class="res-title">GİRİŞ ONAYLI</div><div class="res-subtitle">${sd.checkinTime}</div></div></div>
-                ${sd.gateNote?`<div class="gnote"><span class="gnl">📌 KAPI NOTU</span><span class="gnv">${sd.gateNote}</span></div>`:''}
-                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${masa.soldTo||'—'}</span></div>
-                <div class="irow"><span class="il">KATEGORİ / MASA</span><span class="iv">${sd.categoryName||'—'} / ${masa.no}</span></div>
-                <div class="irow"><span class="il">İÇERİ ALINAN</span><span class="iv">${sd.insideCount||0} / ${sd.people||1}</span></div>
-                <div class="irow"><span class="il">KALAN HAK</span><span class="iv">${sd.remainingCount || Math.max(0,(sd.people||1)-(sd.insideCount||0))}</span></div>
-                <button class="btn-action btn-success mt-8" onclick="reset()">YENİ TARAMA BEKLENİYOR</button>
-            </div>`);
-        }
+        /* showValid: üstteki 'enterCount' parametreli versiyon kullanılır, bu satır kaldırıldı */
 
         function showDebtCard(masa){
             const sd=masa.saleDetail;
@@ -632,9 +854,12 @@
         function showInsideCard(masa){
             const sd=masa.saleDetail;
             showRC(`<div class="res-card res-red shadow-2xl">
-                <div class="res-header"><div class="res-icon">🚨</div><div><div class="res-title">ZATEN İÇERİDE</div><div class="res-subtitle">Giriş: ${sd.checkinTime}</div></div></div>
-                <div class="mt-6 p-4 bg-red-50 rounded-xl text-center">
-                    <button class="btn-action btn-danger mt-2" onclick="setTempOut()">🚬 GEÇİCİ ÇIKIŞ YAP (WC)</button>
+                <div class="res-header"><div class="res-icon">🚨</div><div><div class="res-title">ZATEN İÇERİDE</div><div class="res-subtitle">Giriş: ${sd.checkinTime||'—'}</div></div></div>
+                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${masa.soldTo||'—'}</span></div>
+                <div class="irow"><span class="il">MASA</span><span class="iv">${sd.categoryName||'—'} / ${masa.no}</span></div>
+                <div class="irow !mb-0"><span class="il">İÇERİDE</span><span class="iv text-red-600 font-black">${sd.insideCount||1} / ${sd.people||1} kişi</span></div>
+                <div class="mt-4 p-4 bg-red-50 rounded-xl">
+                    <button class="btn-action btn-danger !mt-0" onclick="setTempOut()">🚬 GEÇİCİ ÇIKIŞ YAP (WC)</button>
                 </div>
                 <button class="btn-action btn-ghost mt-3" onclick="reset()">YENİ TARAMA</button>
             </div>`);
@@ -737,7 +962,7 @@
         }
 
         function pick(obj){ pM=obj.m; pEi=obj.ei; pCi=obj.ci; pMi=obj.mi; processQR(obj.m.saleDetail.ticketHash); }
-        function pickByHash(hash){ loadData(); events.forEach((ev,ei)=>{ if(eventId&&String(ev.id)!==String(eventId))return; (ev.categories||[]).forEach((cat,ci)=>{ (cat.masalar||[]).forEach((m,mi)=>{ if(m.saleDetail?.ticketHash===hash) pick({m,ei,ci,mi}); }); }); }); }
+        function pickByHash(hash){ loadData(); const r=_searchTicketInEvents(hash); if(r) pick({m:r.found,ei:r.ei,ci:r.ci,mi:r.mi}); }
         
         function addLog(masa,paid,remain,staff,time,actionText){ 
             log.unshift({name:masa.soldTo||'Müşteri',masa:masa.no,cat:masa.saleDetail.categoryName,time,staff,paid,remain,type:remain>0?'skip':paid>0?'debt':actionText.includes('ÇIKIŞ')?'out':'ok', action: actionText}); 
@@ -766,6 +991,13 @@
         }
         
         console.log('[APP] Sayfa yükü tamamlandı. Kamera tuşu: onclick="initCamera()"');
+
+        // Realtime: başka cihaz check-in/ticket değişikliği → sayaçları güncelle
+        window.addEventListener('biletpro:data-updated', function(e) {
+            e.preventDefault();
+            loadData();
+            renderLog();
+        });
     </script>
 </body>
 </html>

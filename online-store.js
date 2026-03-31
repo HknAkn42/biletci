@@ -899,6 +899,68 @@
             }
 
             return { ok: true, changed };
+        },
+
+        // Kapı: ticket_hash ile bilet satırını Supabase'den direkt sorgula
+        // Döner: { ok, masa, saleDetail, legacyEventId } veya { ok: false, reason }
+        async findTicketByHash(ticketHash) {
+            if (!ticketHash) return { ok: false, reason: 'no_hash' };
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+
+            const { data, error } = await this.client
+                .from('tickets')
+                .select('ticket_hash, status, inside_count, people_count, paid, debt, customer_name, customer_phone, table_no, category_name, sold_by_username, payload_json, event_id, events!inner(legacy_event_id, payload_json)')
+                .eq('ticket_hash', ticketHash)
+                .maybeSingle();
+
+            if (error) {
+                console.error('[BiletPro OnlineStore] findTicketByHash error:', error);
+                return { ok: false, reason: 'query_failed' };
+            }
+            if (!data) return { ok: false, reason: 'not_found' };
+
+            // payload_json'dan masa nesnesini al; yoksa satır kolonlarından yeniden kur
+            let masa = data.payload_json?.masa || null;
+            let saleDetail = data.payload_json?.saleDetail || null;
+
+            if (!masa) {
+                // Eski kayıt: payload_json yoksa kolonlardan minimal masa oluştur
+                masa = {
+                    no: data.table_no,
+                    isSold: true,
+                    soldTo: data.customer_name || '',
+                    id: data.ticket_hash
+                };
+            }
+            if (!saleDetail) {
+                saleDetail = {
+                    ticketHash: data.ticket_hash,
+                    status: data.status || 'READY',
+                    insideCount: data.inside_count || 0,
+                    people: data.people_count || 1,
+                    paid: data.paid || 0,
+                    debt: data.debt || 0,
+                    phone: data.customer_phone || '',
+                    categoryName: data.category_name || '',
+                    soldBy: data.sold_by_username || ''
+                };
+            }
+            // Supabase kolonları her zaman en güncel durumu yansıtır → override et
+            saleDetail = {
+                ...saleDetail,
+                ticketHash: data.ticket_hash,
+                status: data.status || saleDetail.status || 'READY',
+                insideCount: data.inside_count != null ? data.inside_count : (saleDetail.insideCount || 0),
+                people: data.people_count || saleDetail.people || 1,
+                paid: data.paid != null ? data.paid : saleDetail.paid,
+                debt: data.debt != null ? data.debt : saleDetail.debt
+            };
+            masa = { ...masa, isSold: true, soldTo: data.customer_name || masa.soldTo, saleDetail };
+
+            const legacyEventId = data.events?.legacy_event_id || null;
+            const eventPayload = data.events?.payload_json || null;
+
+            return { ok: true, masa, saleDetail, legacyEventId, eventPayload };
         }
     };
 

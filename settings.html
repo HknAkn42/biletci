@@ -50,6 +50,23 @@
                             <button type="button" onclick="clearLogo()" class="bg-slate-100 text-slate-700 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">Logoyu Temizle</button>
                         </div>
                     </div>
+
+                    <!-- ────── FİRMA MARKASI (BİLET ALT KISMI) ────── -->
+                    <div class="md:col-span-2 mt-2 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                        <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4">🏷️ Bilet Alt Kısmı — Firma Markası</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <span class="label-mini">Firma / Organizatör Adı</span>
+                                <input id="cfgFirmaAdi" type="text" class="input-silk" placeholder="ÖRNEK ORGANİZASYON">
+                            </div>
+                            <div>
+                                <span class="label-mini">Firma Logo URL</span>
+                                <input id="cfgFirmaLogoUrl" type="url" class="input-silk" placeholder="https://...">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-amber-600 font-semibold mt-3">Bu bilgiler her biletin alt kısmında "Organizatör" olarak otomatik gösterilir.</p>
+                    </div>
+
                     <div>
                         <span class="label-mini">Ana Renk</span>
                         <input id="cfgColor" type="color" class="input-silk h-[52px] p-2">
@@ -174,6 +191,8 @@
             next.brand.subtitle = document.getElementById('cfgSubtitle').value.trim() || 'GÜVENLİ ERİŞİM SİSTEMİ';
             next.brand.logoUrl = document.getElementById('cfgLogo').value.trim();
             next.brand.primaryColor = document.getElementById('cfgColor').value || '#2563eb';
+            next.brand.firmaAdi = document.getElementById('cfgFirmaAdi').value.trim();
+            next.brand.firmaLogoUrl = document.getElementById('cfgFirmaLogoUrl').value.trim();
 
             next.online = next.online || {};
             next.online.enabled = document.getElementById('cfgOnlineEnabled').checked;
@@ -198,6 +217,8 @@
             document.getElementById('cfgSubtitle').value = cfg.brand.subtitle || '';
             document.getElementById('cfgLogo').value = cfg.brand.logoUrl || '';
             document.getElementById('cfgColor').value = cfg.brand.primaryColor || '#2563eb';
+            document.getElementById('cfgFirmaAdi').value = cfg.brand.firmaAdi || '';
+            document.getElementById('cfgFirmaLogoUrl').value = cfg.brand.firmaLogoUrl || '';
 
             const online = cfg.online || {};
             document.getElementById('cfgOnlineEnabled').checked = online.enabled === true;

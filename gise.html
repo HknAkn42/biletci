@@ -450,6 +450,17 @@
         }
         
         render();
+
+        // Realtime: başka cihaz mimariyi değiştirirse güncelle
+        window.addEventListener('biletpro:data-updated', function(e) {
+            e.preventDefault();
+            const freshEvts = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+            const freshEv = freshEvts.find(x => String(x.id) === String(eventId));
+            if (freshEv) { ev = freshEv; render(); }
+        });
+        window.addEventListener('biletpro:presence-updated', function() {
+            if (ev) render();
+        });
     </script>
 </body>
 </html>

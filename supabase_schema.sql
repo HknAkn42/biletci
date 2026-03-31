@@ -97,6 +97,8 @@ create or replace function ticket_checkin_atomic(
 )
 returns jsonb
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_ticket tickets%rowtype;
@@ -144,6 +146,8 @@ create or replace function ticket_gate_action_atomic(
 )
 returns jsonb
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_ticket tickets%rowtype;
@@ -246,6 +250,20 @@ $$;
 create unique index if not exists uq_tickets_event_table_no
   on tickets(event_id, table_no)
   where table_no is not null and table_no <> '';
+
+-- ─── PERFORMANS İNDEXLERİ (kapı hız optimizasyonu) ───
+-- ticket_hash unique constraint zaten index oluşturuyor;
+-- ek olarak gate action sorgularını hızlandırmak için composite index:
+create index if not exists idx_tickets_hash_status
+  on tickets(ticket_hash, status);
+
+-- İçerideki kişi sayısı sorgusunu hızlandır
+create index if not exists idx_tickets_event_status
+  on tickets(event_id, status);
+
+-- RPC fonksiyonlarını anonim/authenticated rollerinden çağrılabilir yap
+grant execute on function ticket_gate_action_atomic(text,text,text,text,int,numeric,numeric) to anon, authenticated;
+grant execute on function ticket_checkin_atomic(text,text,text) to anon, authenticated;
 
 -- Atomik satış fonksiyonu (aynı anda 2 kasa aynı masayı satamaz)
 -- p_tickets örneği:

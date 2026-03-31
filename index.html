@@ -155,8 +155,19 @@
                     </div>
                 </div>
                 <div class="sm:col-span-2">
-                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Kapak Görseli URL (Boş bırakılırsa sistem otomatik atar)</span>
-                    <input id="evImg" type="text" placeholder="https://..." class="input-silk">
+                    <span class="text-[9px] font-black text-slate-400 ml-2 uppercase tracking-widest">Kapak / Sanatçı Görseli</span>
+                    <!-- Dosya yükleme -->
+                    <div class="border-2 border-dashed border-purple-300 rounded-[24px] bg-purple-50 p-6 text-center cursor-pointer hover:bg-purple-100 hover:border-purple-500 transition-all mb-3 mt-1" onclick="document.getElementById('coverFileInput').click()">
+                        <p id="coverUploadStatus" class="text-[11px] font-black text-purple-400 uppercase tracking-widest">TIKLA VE KAPAK DOSYASI SEÇ (JPEG/PNG)</p>
+                        <input type="file" id="coverFileInput" accept="image/*" class="hidden" onchange="processCoverFile(this)">
+                    </div>
+                    <!-- VEYA URL -->
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="flex-1 h-px bg-slate-200"></div>
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">veya URL ile gir</span>
+                        <div class="flex-1 h-px bg-slate-200"></div>
+                    </div>
+                    <input id="evImg" type="text" placeholder="https://... (Boş bırakılırsa sistem otomatik atar)" class="input-silk mt-2">
                 </div>
             </div>
 
@@ -170,6 +181,7 @@
     <script>
         let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
         let tempLogo = "";
+        let tempCover = "";
         let editEventId = null;
         let _searchQuery = '';
 
@@ -257,10 +269,13 @@
         function openModal(isEdit = false) { 
             if(!isEdit) {
                 editEventId = null;
-                tempLogo = ""; 
+                tempLogo = "";
+                tempCover = "";
                 ['evTitle','evCompany','evVenue','evCity','evDate','evDoorTime','evStartTime','evImg','evFullAddr'].forEach(id => document.getElementById(id).value = ""); 
                 document.getElementById('uploadStatus').innerText = "TIKLA VE GÖRSEL DOSYASI SEÇ"; 
                 document.getElementById('uploadStatus').style.color = "#64748b";
+                document.getElementById('coverUploadStatus').innerText = "TIKLA VE KAPAK DOSYASI SEÇ (JPEG/PNG)";
+                document.getElementById('coverUploadStatus').style.color = "#a78bfa";
                 document.getElementById('modalTitle').innerText = "ETKİNLİK MÜHÜRÜ";
                 document.getElementById('saveBtn').innerText = "VERİYİ KAYDET";
             }
@@ -283,12 +298,17 @@
             document.getElementById('evFullAddr').value = ev.fullAddress || "";
             document.getElementById('evDoorTime').value = ev.doorTime || "";
             document.getElementById('evStartTime').value = ev.startTime || "";
-            document.getElementById('evImg').value = ev.cover || "";
+            document.getElementById('evImg').value = ev.cover && !ev.coverBase64 ? ev.cover : "";
 
             tempLogo = ev.logo || "";
+            tempCover = ev.coverBase64 || "";
             if(tempLogo) {
                 document.getElementById('uploadStatus').innerText = "GÖRSEL MEVCUT (DEĞİŞTİRMEK İÇİN TIKLA)"; 
                 document.getElementById('uploadStatus').style.color = "#10b981";
+            }
+            if(tempCover) {
+                document.getElementById('coverUploadStatus').innerText = "KAPAK MEVCUT (DEĞİŞTİRMEK İÇİN TIKLA)";
+                document.getElementById('coverUploadStatus').style.color = "#7c3aed";
             }
 
             document.getElementById('modalTitle').innerText = "ETKİNLİĞİ DÜZENLE";
@@ -322,6 +342,22 @@
                     tempLogo = e.target.result; 
                     document.getElementById('uploadStatus').innerText = "GÖRSEL HAZIR: " + file.name; 
                     document.getElementById('uploadStatus').style.color = "#10b981"; 
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // KAPAK GÖRSELİ BASE64 ÇEVİRİCİ
+        function processCoverFile(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    tempCover = e.target.result;
+                    document.getElementById('coverUploadStatus').innerText = "KAPAK HAZIR: " + file.name;
+                    document.getElementById('coverUploadStatus').style.color = "#7c3aed";
+                    // URL alanını temizle — dosya öncelikli
+                    document.getElementById('evImg').value = '';
                 };
                 reader.readAsDataURL(file);
             }
@@ -386,7 +422,7 @@
             });
 
             sortedEvents.forEach(ev => {
-                const cover = ev.cover || `https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000&auto=format&fit=crop`;
+                const cover = ev.coverBase64 || ev.cover || `https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000&auto=format&fit=crop`;
                 
                 // Aktiflik Durumu
                 const isActive = ev.isActive !== false; // Varsayılan true
@@ -535,6 +571,7 @@
                     events[idx].doorTime = document.getElementById('evDoorTime').value;
                     events[idx].startTime = document.getElementById('evStartTime').value;
                     events[idx].cover = document.getElementById('evImg').value;
+                    if(tempCover) events[idx].coverBase64 = tempCover;
                     if(tempLogo) events[idx].logo = tempLogo;
                 }
                 if(typeof showToast === 'function') showToast("Etkinlik güncellendi!", "success");
@@ -550,6 +587,7 @@
                     doorTime: document.getElementById('evDoorTime').value, 
                     startTime: document.getElementById('evStartTime').value, 
                     cover: document.getElementById('evImg').value, 
+                    coverBase64: tempCover,
                     logo: tempLogo, categories: [],
                     isActive: true
                 };
@@ -637,6 +675,13 @@
         
         // BAŞLANGIÇ RENDER
         render();
+
+        // Realtime: veri güncellenince dashboard'u yenile
+        window.addEventListener('biletpro:data-updated', function(e) {
+            e.preventDefault();
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+            render();
+        });
     </script>
 </body>
 </html>

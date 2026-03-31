@@ -1685,23 +1685,120 @@ window.bpSoftLock = {
         const filtered = locks.filter(l => l.id !== id);
         filtered.push({ id, eventId: String(eventId), masaNo: String(masaNo), lockedBy: userName, lockedAt: Date.now() });
         this._save(filtered);
+        // Cross-device: Supabase Presence üzerinden yayınla
+        if (window.BiletProPresence) {
+            window.BiletProPresence.track(eventId, masaNo, userName);
+        }
         return true;
     },
 
     // Kilit bırak
     release(eventId, masaNo) {
         this._save(this._read().filter(l => l.id !== this._id(eventId, masaNo)));
+        // Cross-device: Presence kilidini de bırak
+        if (window.BiletProPresence) {
+            window.BiletProPresence.release(eventId, masaNo);
+        }
     },
 
     // Başkasının kilidi varsa lock objesini döndür, yoksa null
     getConflict(eventId, masaNo, currentUser) {
+        // 1) Aynı cihaz (localStorage)
         const lock = this._read().find(l => l.id === this._id(eventId, masaNo));
-        if (!lock || lock.lockedBy === currentUser) return null;
-        return lock;
+        if (lock && lock.lockedBy !== currentUser) return lock;
+        // 2) Diğer cihazlar (Supabase Presence)
+        if (window.BiletProPresence) {
+            const remote = window.BiletProPresence.getConflict(eventId, masaNo, currentUser);
+            if (remote) return { id: this._id(eventId, masaNo), ...remote };
+        }
+        return null;
     },
 
     // Tüm kilit listesini döndür (render için)
     getAll() { return this._read(); }
+};
+
+/* ==========================================
+   PRESENCE — Supabase Realtime tabanlı çapraz cihaz masa kilidi
+   ========================================== */
+window.BiletProPresence = {
+    _ch: null,
+    _state: {},
+    _user: null,
+    _myLocks: [], // bu kullanıcının track'inde tutulan kilitler
+
+    async init(client, userName) {
+        if (!client || !userName) return;
+        this._user = userName;
+        // Eski kanalı temizle
+        if (this._ch) {
+            try { client.removeChannel(this._ch); } catch(_) {}
+            this._ch = null;
+        }
+        const ch = client.channel('biletpro-presence', {
+            config: { presence: { key: userName } }
+        });
+        ch.on('presence', { event: 'sync' }, () => {
+            this._state = ch.presenceState() || {};
+            try {
+                window.dispatchEvent(new CustomEvent('biletpro:presence-updated', { detail: { state: this._state } }));
+            } catch(_) {}
+        });
+        await ch.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                // Mevcut kilitleri tekrar yayınla (reconnect durumunda)
+                if (this._myLocks.length > 0) {
+                    await ch.track({ user: this._user, locks: this._myLocks });
+                }
+            }
+        });
+        this._ch = ch;
+    },
+
+    // Bu kullanıcı için bir masa kilidi ekle ve yayınla
+    track(eventId, masaNo, userName) {
+        if (!this._ch) return;
+        const key = `${eventId}::${masaNo}`;
+        const existing = this._myLocks.findIndex(l => l._key === key);
+        const entry = { _key: key, eventId: String(eventId), masaNo: String(masaNo), at: Date.now() };
+        if (existing === -1) this._myLocks.push(entry);
+        else this._myLocks[existing] = entry;
+        try { this._ch.track({ user: userName || this._user, locks: this._myLocks }); } catch(_) {}
+    },
+
+    // Bu kullanıcının belirli masa kilidini bırak
+    release(eventId, masaNo) {
+        if (!this._ch) return;
+        const key = `${eventId}::${masaNo}`;
+        this._myLocks = this._myLocks.filter(l => l._key !== key);
+        try { this._ch.track({ user: this._user, locks: this._myLocks }); } catch(_) {}
+    },
+
+    // Diğer kullanıcıların kilitlerini döndür
+    getRemoteLocks() {
+        const result = [];
+        const state = this._state || {};
+        Object.keys(state).forEach(key => {
+            const presences = Array.isArray(state[key]) ? state[key] : [];
+            presences.forEach(p => {
+                if (p.user && p.user !== this._user && Array.isArray(p.locks)) {
+                    p.locks.forEach(l => {
+                        result.push({ ...l, lockedBy: p.user, lockedAt: l.at || Date.now() });
+                    });
+                }
+            });
+        });
+        return result;
+    },
+
+    // Belirli bir masa için başka kullanıcının kilidi var mı?
+    getConflict(eventId, masaNo, currentUser) {
+        return this.getRemoteLocks().find(
+            l => String(l.eventId) === String(eventId) &&
+                 String(l.masaNo) === String(masaNo) &&
+                 l.lockedBy !== currentUser
+        ) || null;
+    }
 };
 
 /* ==========================================
@@ -1820,6 +1917,18 @@ window.BiletProAutoSync = {
                 } catch (_) {}
             }
 
+            // Veri değiştiyse önce sayfaya event gönder; sayfa kendi handle ederse reload gerekmez
+            let pageHandledUpdate = false;
+            if (anyChanged && requiresReload) {
+                try {
+                    const dataEvt = new CustomEvent('biletpro:data-updated', {
+                        detail: { trigger, changed: anyChanged },
+                        cancelable: true
+                    });
+                    pageHandledUpdate = !window.dispatchEvent(dataEvt); // false = preventDefault çağrıldı
+                } catch (_) {}
+            }
+
             const ok = failed === 0 && (pullRes.ok !== false);
             this.saveStatus({
                 ok,
@@ -1836,8 +1945,8 @@ window.BiletProAutoSync = {
                 cLogResetChanged: !!cLogResetRes.changed
             });
 
-            // Veri değiştiyse sayfayı akıllı yenile (flash'sız, modal/input koruma ile)
-            if (anyChanged && requiresReload) {
+            // Sayfa kendi handle etmediyse klasik smart reload devreye girer
+            if (anyChanged && requiresReload && !pageHandledUpdate) {
                 const page = (location.pathname.split('/').pop() || 'index.html').trim() || 'index.html';
                 if (page !== 'login.html') {
                     const isRealtime = trigger === 'realtime_events' || trigger === 'realtime_staff';
@@ -1906,6 +2015,12 @@ window.BiletProAutoSync = {
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
                         this.schedule('realtime_events', 300);
                     })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+                        this.schedule('realtime_tickets', 200);
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, () => {
+                        this.schedule('realtime_checkins', 200);
+                    })
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config' }, () => {
                         this.schedule('realtime_staff', 300);
                     })
@@ -1916,6 +2031,13 @@ window.BiletProAutoSync = {
                         console.info('[BiletPro Realtime]', status);
                     });
                 this._realtimeChannel = channel;
+
+                // Supabase Presence: çapraz cihaz masa kilidi
+                const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+                const presUser = sess.name || sess.username || 'Kullanıcı';
+                if (window.BiletProPresence && typeof window.BiletProPresence.init === 'function') {
+                    window.BiletProPresence.init(window.BiletProOnlineStore.client, presUser).catch(() => {});
+                }
             } catch (e) {
                 console.warn('[BiletPro Realtime] bağlantı kurulamadı:', e);
             }
@@ -1936,7 +2058,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.__BiletProOnlineStoreScriptLoaded = true;
 
     const script = document.createElement('script');
-    script.src = 'online-store.js?v=20260329';
+    script.src = 'online-store.js?v=20260331';
     script.defer = true;
     script.onerror = () => {
         console.warn('[BiletPro] online-store.js yüklenemedi; local modda devam ediliyor.');
