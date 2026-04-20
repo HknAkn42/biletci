@@ -93,7 +93,7 @@
 
         @media (max-width: 420px) {
             #ticketCaptureArea div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
-            #qrcodeImg { width: 168px !important; height: 168px !important; }
+            #qrcodeImg { width: 184px !important; height: 184px !important; }
         }
         .m-no { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
         .m-kap { font-size: 24px; font-weight: 900; color: #0f172a; font-style: italic; line-height: 1; }
@@ -447,7 +447,7 @@
                         <!-- GÜVENLİK ROZET -->
                         <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.22);border-radius:30px;padding:5px 15px;margin-bottom:18px;">
                             <span style="font-size:10px;">🔐</span>
-                            <span style="font-size:7px;font-weight:900;color:rgba(255,215,0,0.65);text-transform:uppercase;letter-spacing:2.5px;font-family:'Space Mono',monospace;">KAPI GÜVENLİK MÜHÜRÜ</span>
+                            <span style="font-size:7px;font-weight:900;color:rgba(255,215,0,0.65);text-transform:uppercase;letter-spacing:2.5px;font-family:'Space Mono',monospace;">GİRİŞ DOĞRULAMA QR</span>
                         </div>
 
                         <!-- QR KUTU — altın çerçeve halkası -->
@@ -461,17 +461,21 @@
                                 <div style="position:absolute;top:7px;right:7px;width:24px;height:24px;border-top:3px solid #fbbf24;border-right:3px solid #fbbf24;border-radius:0 5px 0 0;"></div>
                                 <div style="position:absolute;bottom:7px;left:7px;width:24px;height:24px;border-bottom:3px solid #fbbf24;border-left:3px solid #fbbf24;border-radius:0 0 0 5px;"></div>
                                 <div style="position:absolute;bottom:7px;right:7px;width:24px;height:24px;border-bottom:3px solid #fbbf24;border-right:3px solid #fbbf24;border-radius:0 0 5px 0;"></div>
-                                <img id="qrcodeImg" crossOrigin="anonymous" style="display:block;width:200px;height:200px;border-radius:10px;">
+                                <img id="qrcodeImg" crossOrigin="anonymous" style="display:block;width:228px;height:228px;border-radius:10px;">
                             </div>
                         </div>
 
                         <!-- SERİ NUMARASI -->
-                        <div style="margin-top:18px;">
-                            <div style="font-size:6.5px;font-weight:900;color:rgba(255,215,0,0.35);text-transform:uppercase;letter-spacing:2.5px;margin-bottom:5px;font-family:'Space Mono',monospace;">BİLET SERİ NUMARASI</div>
-                            <p id="tkHash" style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.3);font-family:'Space Mono',monospace;letter-spacing:1.5px;word-break:break-all;margin:0;">—</p>
+                        <div style="margin-top:18px;display:flex;justify-content:center;">
+                            <div style="max-width:92%;min-width:72%;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,255,255,0.02));border:1px solid rgba(255,215,0,0.22);border-radius:14px;padding:10px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 24px rgba(0,0,0,0.35);">
+                                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">
+                                    <span style="font-size:9px;color:rgba(251,191,36,0.8);">◈</span>
+                                    <span style="font-size:6.5px;font-weight:900;color:rgba(255,215,0,0.5);text-transform:uppercase;letter-spacing:2.3px;font-family:'Space Mono',monospace;">BİLET SERİ KODU</span>
+                                    <span style="font-size:9px;color:rgba(251,191,36,0.8);">◈</span>
+                                </div>
+                                <p id="tkHash" style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.72);font-family:'Space Mono',monospace;letter-spacing:1.7px;word-break:break-word;margin:0;line-height:1.35;text-align:center;">—</p>
+                            </div>
                         </div>
-
-                        <div id="tkGateStatus" style="margin-top:14px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);font-size:9px;font-weight:800;color:rgba(226,232,240,0.95);line-height:1.45;text-transform:uppercase;letter-spacing:.6px;">KAPI DURUMU: HENÜZ OKUTULMADI</div>
 
                         <!-- ADMIT ONE / FOOTER BANTLARI -->
                         <div style="margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;">
@@ -1254,22 +1258,10 @@
             return null;
         }
 
-        function buildGateStatusText(sd) {
-            const insideCount = Number(sd?.insideCount || 0);
-            const people = Number(sd?.people || 1);
-            const checker = String(sd?.debtOverrideBy || sd?.lastGateApprovedBy || sd?.checkinBy || '').trim();
-            const reason = String(sd?.debtOverrideReason || '').trim();
-            const checkinTime = String(sd?.checkinTime || '').trim();
-
-            if (!sd || (sd.status !== 'INSIDE' && sd.status !== 'OUTSIDE')) {
-                return 'KAPI DURUMU: HENÜZ OKUTULMADI';
-            }
-
-            if (sd.status === 'OUTSIDE') {
-                return `KAPI DURUMU: GEÇİCİ ÇIKIŞTA • SON İÇERİ ALIM: ${insideCount}/${people}${checker ? ` • ONAY: ${checker}` : ''}${reason ? ` • NEDEN: ${reason}` : ''}`;
-            }
-
-            return `KAPI DURUMU: ${insideCount}/${people} KİŞİ ONAYLI (OKUNDU)${checker ? ` • ONAYLAYAN: ${checker}` : ''}${reason ? ` • NEDEN: ${reason}` : ''}${checkinTime ? ` • SAAT: ${checkinTime}` : ''}`;
+        function formatTicketHashDisplay(hash) {
+            const clean = String(hash || '').replace(/\s+/g, '').trim();
+            if (!clean) return '—';
+            return clean.match(/.{1,4}/g)?.join(' · ') || clean;
         }
 
         function showTicketModal(custName, masaDetails, paid, hash) {
@@ -1326,14 +1318,10 @@
                 tkCatSub.innerText = '';
                 tkCatSub.style.display = 'none';
             }
-            document.getElementById('tkHash').innerText = hash;
+            const hashEl = document.getElementById('tkHash');
+            hashEl.innerText = formatTicketHashDisplay(hash);
+            hashEl.title = hash;
 
-            const tkGateStatusEl = document.getElementById('tkGateStatus');
-            if (tkGateStatusEl) {
-                const saleDetail = findSaleDetailByHash(hash);
-                tkGateStatusEl.textContent = buildGateStatusText(saleDetail);
-            }
-            
             // ecLevel=H: En yüksek hata düzeltme (%30 hasar toleransı) — taramayı kolaylaştırır
             document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=600&dark=000000&light=ffffff&margin=3&ecLevel=H`;
 

@@ -48,6 +48,37 @@
         .is-passive .logo-mühür { filter: grayscale(100%); opacity: 0.8; }
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; pointer-events: none; }
 
+        .audit-shell {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            padding: 8px;
+            box-shadow: 0 8px 24px rgba(15,23,42,.04);
+            max-height: 440px;
+            overflow: hidden;
+        }
+        .audit-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 8px 10px;
+            transition: .18s ease;
+        }
+        .audit-item:hover {
+            border-color: #bfdbfe;
+            background: #f0f7ff;
+        }
+        .audit-details {
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         @media (max-width: 640px) {
             .logo-mühür { width: 72px; height: 72px; left: 18px; bottom: -28px; border-radius: 22px; }
         }
@@ -95,17 +126,19 @@
             <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
             </div>
 
-            <!-- SÖN İŞLEMLER (AUDIT LOG) BÖLÜMÜ -->
-            <div class="mt-[60px] pt-[40px] border-t-2 border-slate-200 max-w-[1850px]">
-                <div class="flex items-center justify-between mb-6">
+            <!-- SON İŞLEMLER (AUDIT LOG) BÖLÜMÜ -->
+            <div class="mt-8 sm:mt-10 pt-5 sm:pt-6 border-t border-slate-200/80 max-w-[1850px]">
+                <div class="flex items-center justify-between mb-3 sm:mb-4">
                     <div>
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[4px] mb-2">SİSTEM AUDİTİ</p>
-                        <h3 class="text-xl font-black uppercase text-slate-800 tracking-tight">Son İşlemler</h3>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[3px] mb-1">SİSTEM AKIŞI</p>
+                        <h3 class="text-base sm:text-lg font-black uppercase text-slate-800 tracking-tight">Son İşlemler</h3>
                     </div>
-                    <a href="rapor.html" class="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all">TÜM LOGLAR →</a>
+                    <a href="rapor.html" class="text-[10px] font-black text-blue-700 hover:text-blue-800 uppercase px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all">TÜMÜ →</a>
                 </div>
-                <div id="dashboardAuditLogs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="audit-shell">
+                    <div id="dashboardAuditLogs" class="flex flex-col gap-2 max-h-[424px] overflow-y-auto pr-1 no-scrollbar">
                     <!-- Loglar buraya gelecek -->
+                    </div>
                 </div>
             </div>
         </main>
@@ -492,10 +525,10 @@
         function renderAuditLogs() {
             const logs = JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
             const container = document.getElementById('dashboardAuditLogs');
-            const recentLogs = logs.slice(0, 6); // Son 6 işlem
+            const recentLogs = logs.slice(0, 10); // Kompakt panel: son 10 işlem
             
             if(!recentLogs.length) {
-                container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-sm">Henüz kayıtlı işlem yok.</div>';
+                container.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">Henüz kayıtlı işlem yok.</div>';
                 return;
             }
             
@@ -508,24 +541,26 @@
                 }[log.role] || 'bg-slate-100 text-slate-700';
                 
                 const moduleColor = {
-                    'Satış': 'border-l-4 border-green-500',
-                    'Müşteri': 'border-l-4 border-orange-500',
-                    'Kapı': 'border-l-4 border-blue-500',
-                    'Arşiv': 'border-l-4 border-purple-500',
-                    'Sistem': 'border-l-4 border-slate-500'
-                }[log.module] || 'border-l-4 border-slate-300';
+                    'Satış': 'bg-green-50 text-green-700',
+                    'Müşteri': 'bg-orange-50 text-orange-700',
+                    'Kapı': 'bg-blue-50 text-blue-700',
+                    'Arşiv': 'bg-purple-50 text-purple-700',
+                    'Sistem': 'bg-slate-100 text-slate-700'
+                }[log.module] || 'bg-slate-100 text-slate-700';
                 
-                return `<div class="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all ${moduleColor}">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex-1">
-                            <p class="text-xs font-black text-slate-800 uppercase">${esc(log.module)}</p>
-                            <p class="text-sm font-bold text-slate-700 mt-1">${esc(log.action)}</p>
+                return `<div class="audit-item">
+                    <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[8px] font-black px-2 py-1 rounded-md uppercase tracking-wide ${moduleColor}">${esc(log.module)}</span>
+                                <span class="text-[8px] text-slate-400">${esc(time)}</span>
+                            </div>
+                            <p class="text-[11px] font-black text-slate-800 truncate">${esc(log.action)}</p>
+                            <p class="text-[9px] text-slate-500 truncate mt-0.5">${esc(log.actor)}</p>
                         </div>
-                        <span class="text-[10px] font-black ${roleColor} px-2 py-1 rounded">${esc(log.role)}</span>
+                        <span class="text-[8px] font-black ${roleColor} px-2 py-1 rounded-md uppercase">${esc(log.role)}</span>
                     </div>
-                    <p class="text-xs text-slate-500 mb-2">${esc(log.actor)}</p>
-                    <div class="text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">${esc(log.details || '-')}</div>
-                    <p class="text-[9px] text-slate-400 mt-2">${esc(time)}</p>
+                    <p class="audit-details">${esc(log.details || '-')}</p>
                 </div>`;
             }).join('');
         }
