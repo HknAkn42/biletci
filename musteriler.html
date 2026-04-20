@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>EventPro | Müşteri İstihbarat & Finans</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -20,6 +20,7 @@
         .table-silk td:first-child { border-left: 1px solid #f1f5f9; border-top-left-radius: 20px; border-bottom-left-radius: 20px; }
         .table-silk td:last-child { border-right: 1px solid #f1f5f9; border-top-right-radius: 20px; border-bottom-right-radius: 20px; }
         .table-silk tr:hover td { background: #f8fafc; border-color: #e2e8f0; }
+        .table-silk td:last-child > div { display: flex; flex-wrap: wrap; justify-content: flex-end; }
 
         .badge { padding: 6px 12px; border-radius: 10px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
         .badge-debt { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
@@ -52,6 +53,18 @@
         @media (max-width: 1023px) {
             #historyPanel { width: min(100vw, 380px); padding: 20px; }
             .promo-pilot { left: 12px; right: 12px; bottom: 12px; width: auto; padding: 18px; border-radius: 24px; }
+        }
+
+        @media (max-width: 640px) {
+            .silk-card { border-radius: 20px; padding: 14px; }
+            .stat-widget { border-radius: 18px; padding: 16px; }
+            .table-silk { border-spacing: 0 8px; }
+            .table-silk td { padding: 12px 10px; }
+            .table-silk td:first-child,
+            .table-silk td:last-child { border-radius: 14px; }
+            .table-silk .w-12.h-12 { width: 40px; height: 40px; border-radius: 12px; }
+            .table-silk td:last-child > div { gap: 8px !important; }
+            #historyPanel { width: 100vw; right: -100vw; padding: 14px; }
         }
     </style>
 </head>
@@ -313,6 +326,9 @@
         let promoMessageTemplate = "";
         let currentSort = 'paid';
         let blacklist = JSON.parse(localStorage.getItem('BiletPro_Blacklist')) || []; 
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
+        const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
         // Sayfa içi yetki yardımcısı
         function _getMusterilerUserPerms() {
@@ -414,14 +430,14 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="px-6 text-center"><input type="checkbox" class="cust-check" data-phone="${c.phone}" data-name="${c.name}"></td>
+                    <td class="px-6 text-center"><input type="checkbox" class="cust-check" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}"></td>
                     <td class="px-6">
                         <div class="flex items-center gap-5">
-                            <div class="w-12 h-12 rounded-[18px] bg-slate-900 flex items-center justify-center font-black text-white text-xs">${c.name.substring(0,2).toUpperCase()}</div>
+                            <div class="w-12 h-12 rounded-[18px] bg-slate-900 flex items-center justify-center font-black text-white text-xs">${esc(c.name.substring(0,2).toUpperCase())}</div>
                             <div>
                                 <p class="font-black text-[15px] uppercase text-slate-800 flex items-center">
                                     ${c.totalDebt > 1 ? '<span class="pulse-red"></span>' : ''}
-                                    ${c.name}
+                                    ${esc(c.name)}
                                 </p>
                                 <div class="flex gap-2 mt-1.5">
                                     ${isVIP ? '<span class="badge badge-vip">VIP MÜŞTERİ</span>' : ''} 
@@ -431,10 +447,10 @@
                             </div>
                         </div>
                     </td>
-                    <td class="px-6"><p class="font-extrabold text-sm text-slate-500 tracking-tight">${c.phone}</p></td>
+                    <td class="px-6"><p class="font-extrabold text-sm text-slate-500 tracking-tight">${esc(c.phone)}</p></td>
                     <td class="px-6">
-                        <p class="font-bold text-xs text-slate-800 uppercase italic tracking-tighter">${lastEv.eventTitle}</p>
-                        <p class="text-[9px] text-slate-400 font-black uppercase mt-1">MASA ${lastEv.masa}</p>
+                        <p class="font-bold text-xs text-slate-800 uppercase italic tracking-tighter">${esc(lastEv.eventTitle)}</p>
+                        <p class="text-[9px] text-slate-400 font-black uppercase mt-1">MASA ${esc(lastEv.masa)}</p>
                         ${_lev_badge}
                     </td>
                     <td class="px-6">
@@ -443,11 +459,11 @@
                     </td>
                     <td class="px-6 text-right">
                         <div class="flex justify-end gap-3">
-                            <button onclick="openHistory('${c.key}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
-                            <button onclick="editCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
-                            ${_canDelete    ? `<button onclick="deleteCustomer('${c.key}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>` : ''}
-                            ${_canBlacklist ? `<button onclick="toggleBlacklist('${c.phone}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>` : ''}
-                            ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${c.key}')" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
+                            <button onclick="openHistory('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
+                            <button onclick="editCustomer('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
+                            ${_canDelete    ? `<button onclick="deleteCustomer('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>` : ''}
+                            ${_canBlacklist ? `<button onclick="toggleBlacklist('${escAttr(c.phone)}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>` : ''}
+                            ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${escAttr(c.key)}')" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
                         </div>
                     </td>
                 `;
@@ -493,7 +509,7 @@
                 document.getElementById('pilotFireBtn').querySelector('span').innerText = "WHATSAPP'A FIRLAT VE İLERLE";
             } else {
                 document.getElementById('nextPersonName').innerText = "KAMPANYA TAMAMLANDI!";
-                document.getElementById('nextPersonPhone').innerText = "Tüm hedefler mühürlendi.";
+                document.getElementById('nextPersonPhone').innerText = "Tüm hedefler tamamlandı.";
                 document.getElementById('pilotFireBtn').innerHTML = "PİLOTU KAPAT";
             }
         }
@@ -649,10 +665,10 @@
                     </div>` : '';
                 div.innerHTML = `
                     <div class="flex justify-between items-start mb-3">
-                        <p class="font-black text-xs uppercase text-slate-800 tracking-tighter">${e.eventTitle}</p>
-                        <span class="text-[9px] font-bold text-slate-400">${e.date}</span>
+                        <p class="font-black text-xs uppercase text-slate-800 tracking-tighter">${esc(e.eventTitle)}</p>
+                        <span class="text-[9px] font-bold text-slate-400">${esc(e.date)}</span>
                     </div>
-                    <p class="text-[10px] font-bold text-blue-600 uppercase mb-3">${e.category} / MASA ${e.masa}</p>
+                    <p class="text-[10px] font-bold text-blue-600 uppercase mb-3">${esc(e.category)} / MASA ${esc(e.masa)}</p>
                     <div class="mb-3">${_ci_badge}</div>
                     ${_ci_detail}
                     <div class="flex justify-between border-t border-slate-200 pt-3 mt-3">

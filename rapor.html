@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>EventPro | Raporlar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -150,7 +150,7 @@
 
             <!-- PANEL: Özet -->
             <div id="panelOzet" class="space-y-4">
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     <div class="glass-card p-4">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Etkinlik</p>
                         <p id="totalEvents" class="text-3xl font-black text-slate-900 mt-1">0</p>
@@ -162,6 +162,14 @@
                     <div class="glass-card p-4">
                         <p class="text-[10px] font-black text-blue-500 uppercase tracking-wider">Satış</p>
                         <p id="totalSales" class="text-3xl font-black text-blue-600 mt-1">0</p>
+                    </div>
+                    <div class="glass-card p-4">
+                        <p class="text-[10px] font-black text-red-500 uppercase tracking-wider">Açık Borç</p>
+                        <p id="totalOpenDebt" class="text-2xl font-black text-red-600 mt-1">₺0</p>
+                    </div>
+                    <div class="glass-card p-4">
+                        <p class="text-[10px] font-black text-amber-500 uppercase tracking-wider">Geciken Kayıt</p>
+                        <p id="totalOverdueCases" class="text-3xl font-black text-amber-600 mt-1">0</p>
                     </div>
                 </div>
                 <div class="glass-card p-5">
@@ -205,6 +213,10 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xs font-black uppercase tracking-widest text-slate-600">⏳ Geciken Borçlular</h2>
                         <button onclick="sendOverdueReminders()" class="h-8 px-3 rounded-lg bg-amber-500 text-white text-[10px] uppercase font-black hover:bg-amber-600">📲 Hatırlatma</button>
+                    </div>
+                    <div class="mb-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                        <input id="debtSearchInput" oninput="setDebtSearch(this.value)" type="text" placeholder="Müşteri / personel / telefon ara..." class="w-full sm:max-w-sm border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-700 outline-none focus:border-amber-400" />
+                        <span id="debtCountInfo" class="text-[10px] font-black uppercase tracking-wider text-slate-400">0 kayıt</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full border-collapse text-left text-[11px]">
@@ -275,6 +287,7 @@
                     <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
                         <h2 class="text-xs font-black uppercase tracking-widest text-slate-600">🛡️ Audit Log</h2>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <input id="auditSearch" oninput="setAuditSearch(this.value)" type="text" placeholder="Aktör / modül / detay ara..." class="border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-slate-700 outline-none focus:border-blue-400" />
                             <select id="auditFilter" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-black" onchange="applyLogFilter(this.value)">
                                 <option value="all">Tümü</option>
                                 <option value="cancel">İptaller</option>
@@ -284,6 +297,7 @@
                             <button onclick="clearAuditLogsWithPin();" class="h-8 px-3 rounded-lg bg-red-600 text-white text-[10px] uppercase font-black">🗑️ Sıfırla (PIN)</button>
                         </div>
                     </div>
+                    <div id="auditCountInfo" class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">0 kayıt</div>
                     <div id="auditLogContainer" class="overflow-y-auto no-scrollbar" style="max-height:55vh;"></div>
                 </div>
             </div>
@@ -295,6 +309,13 @@
         let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
         let financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
         let currentAuditFilter = 'all';
+        let currentAuditSearch = '';
+        let currentDebtSearch = '';
+        let _auditSearchTimer = null;
+        let _debtSearchTimer = null;
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
+        const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
         function getAuditLogs() {
             return JSON.parse(localStorage.getItem('BiletPro_AuditLogs') || '[]');
@@ -318,12 +339,36 @@
             renderAuditLogs();
         }
 
+        function setAuditSearch(value) {
+            clearTimeout(_auditSearchTimer);
+            _auditSearchTimer = setTimeout(() => {
+                currentAuditSearch = String(value || '').trim().toLowerCase();
+                renderAuditLogs();
+            }, 120);
+        }
+
+        function setDebtSearch(value) {
+            clearTimeout(_debtSearchTimer);
+            _debtSearchTimer = setTimeout(() => {
+                currentDebtSearch = String(value || '').trim().toLowerCase();
+                renderOverdueDebtors();
+            }, 120);
+        }
+
         function notifyRefresh(action) {
             if(typeof showToast === 'function') showToast(action + ' tamamlandı', 'success');
         }
 
         function getSettingsPinFromConfig() {
-            return '52655265';
+            const cfg = (window.BiletProCore && typeof window.BiletProCore.getConfig === 'function')
+                ? window.BiletProCore.getConfig()
+                : {};
+            return String((cfg && cfg.security && cfg.security.settingsPin) || '52655265').trim();
+        }
+
+        function hydrateLocalData() {
+            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
+            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
         }
 
         function openActionDialog(opts = {}) {
@@ -399,8 +444,7 @@
         }
 
         function refreshAll() {
-            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+            hydrateLocalData();
             renderStaffFinancials();
             renderArchiveManager();
             renderCharts();
@@ -411,8 +455,7 @@
         function refreshFinancials() {
             const btn = event?.target;
             if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
-            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+            hydrateLocalData();
             renderStaffFinancials();
             renderArchiveManager();
             renderCharts();
@@ -427,11 +470,11 @@
                 }
             } catch(_) {}
 
-            events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
-            financeArchive = JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
+            hydrateLocalData();
             await syncAuditLogsFromOnline();
             renderStaffFinancials();
             renderArchiveManager();
+            renderCharts();
             renderAuditLogs();
             notifyRefresh('Canlı veri çekme');
         }
@@ -592,6 +635,8 @@
             let stats = {};
             let totalRevenue = 0;
             let totalSales = 0;
+            let totalOpenDebt = 0;
+            let totalOverdueCases = 0;
 
             events.forEach(ev => {
                 (ev.categories || []).forEach(cat => {
@@ -612,6 +657,7 @@
 
                             const now = Date.now();
                             const debt = parseFloat(m.saleDetail.debt) || 0;
+                            if(debt > 0) totalOpenDebt += debt;
                             const eventDate = ev.date ? new Date(ev.date) : null;
                             let dueDate = m.saleDetail.dueDate ? new Date(m.saleDetail.dueDate) : null;
                             if(!dueDate || Number.isNaN(dueDate.getTime())) {
@@ -621,6 +667,7 @@
                             if(debt > 0 && now > dueDate.getTime()) {
                                 stats[seller].overdueCount += 1;
                                 stats[seller].overdueAmount += debt;
+                                totalOverdueCases += 1;
                                 const baseDate = eventDate ? eventDate.getTime() : dueDate.getTime();
                                 const overdueDays = Math.floor((now - baseDate) / (24 * 60 * 60 * 1000)) + 1;
                                 stats[seller].totalOverdueDays += overdueDays;
@@ -634,6 +681,7 @@
             financeArchive.forEach(arc => {
                 totalRevenue += parseFloat(arc.totalRevenue) || 0;
                 totalSales += parseInt(arc.totalSales || 0, 10) || 0;
+                totalOpenDebt += parseFloat(arc.totalDebt) || 0;
 
                 (arc.staffSummary || []).forEach(ss => {
                     const name = (ss.name || 'Merkez Kasa').trim();
@@ -673,21 +721,36 @@
                 rec.errorRate = total ? (rec.error / total) * 100 : 0;
                 rec.overdueAmount = rec.overdueAmount || 0;
                 rec.avgOverdueDays = rec.overdueCount ? (rec.totalOverdueDays || 0) / rec.overdueCount : 0;
+                totalOverdueCases += rec.overdueCount || 0;
             });
 
-            return { stats, totalRevenue, totalSales, totalEvents: events.length + financeArchive.length };
+            const topStaffEntry = Object.entries(stats).sort((a,b) => b[1].revenue - a[1].revenue)[0] || null;
+
+            return {
+                stats,
+                totalRevenue,
+                totalSales,
+                totalEvents: events.length + financeArchive.length,
+                totalOpenDebt,
+                totalOverdueCases,
+                topStaff: topStaffEntry ? topStaffEntry[0] : '—'
+            };
         }
 
         function renderStaffFinancials() {
-            const { stats, totalRevenue, totalSales, totalEvents } = calculateStaffFinancials();
+            const { stats, totalRevenue, totalSales, totalEvents, totalOpenDebt, totalOverdueCases } = calculateStaffFinancials();
             document.getElementById('totalEvents').innerText = totalEvents;
             document.getElementById('totalRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById('totalSales').innerText = totalSales;
+            const debtEl = document.getElementById('totalOpenDebt');
+            if(debtEl) debtEl.innerText = '₺' + totalOpenDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const overdueEl = document.getElementById('totalOverdueCases');
+            if(overdueEl) overdueEl.innerText = totalOverdueCases;
 
             const tb = document.getElementById('staffFinanceList');
             const rows = Object.entries(stats).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, rec]) => {
                 return `<tr class="border-t border-slate-100">
-                    <td class="p-3 font-black text-slate-800">${name}</td>
+                    <td class="p-3 font-black text-slate-800">${esc(name)}</td>
                     <td class="p-3 text-right text-green-600">₺${rec.revenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="p-3 text-right">${rec.sales}</td>
                     <td class="p-3 text-right text-red-600">${rec.overdueCount} / ₺${rec.overdueAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -765,22 +828,33 @@
                 });
             });
 
-            if(!overdueRecords.length) {
+            let filteredRecords = overdueRecords;
+            if(currentDebtSearch) {
+                filteredRecords = overdueRecords.filter(r => {
+                    const hay = `${r.customer} ${r.seller} ${r.phone} ${r.eventTitle}`.toLowerCase();
+                    return hay.includes(currentDebtSearch);
+                });
+            }
+
+            const countInfo = document.getElementById('debtCountInfo');
+            if(countInfo) countInfo.innerText = `${filteredRecords.length} kayıt`;
+
+            if(!filteredRecords.length) {
                 debtBody.innerHTML = '<tr><td class="p-3 text-center text-slate-500" colspan="6">Gecikmiş borçlu kayıt bulunamadı.</td></tr>';
                 return;
             }
 
-            debtBody.innerHTML = overdueRecords.sort((a,b) => b.overdueDays - a.overdueDays).map(r => {
+            debtBody.innerHTML = filteredRecords.sort((a,b) => b.overdueDays - a.overdueDays).map(r => {
                 const phoneHint = r.phone ? `+${r.phone.replace(/\D/g, '')}` : '';
                 const wtext = encodeURIComponent(`Merhaba ${r.customer},\n${r.eventTitle} için ₺${r.debt.toFixed(2)} borcunuz ${r.overdueDays} gündür ödenmemiş durumda. Lütfen güncelleyiniz.`);
                 const mailto = `mailto:?subject=${encodeURIComponent('Borç Hatırlatma')}&body=${encodeURIComponent(`${r.customer} merhaba,\nBorç: ₺${r.debt.toFixed(2)}\nGecikme: ${r.overdueDays} gün\nLütfen ivedilikle tahsilat yapınız.`)}`;
 
                 return `<tr class="border-t border-slate-100 ${r.overdueDays >= 5 ? 'bg-red-50' : ''}">
-                    <td class="p-2">${r.customer}${r.archived ? ' <span class="text-[9px] font-black text-amber-600">(ARŞİV)</span>' : ''}</td>
-                    <td class="p-2">${r.seller}</td>
+                    <td class="p-2">${esc(r.customer)}${r.archived ? ' <span class="text-[9px] font-black text-amber-600">(ARŞİV)</span>' : ''}</td>
+                    <td class="p-2">${esc(r.seller)}</td>
                     <td class="p-2 text-right">₺${r.debt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="p-2 text-right">${r.overdueDays} gün</td>
-                    <td class="p-2">${r.phone || '-'} <br><small class="text-slate-500">${r.dueDate}</small></td>
+                    <td class="p-2">${esc(r.phone || '-')} <br><small class="text-slate-500">${esc(r.dueDate)}</small></td>
                     <td class="p-2">
                         <a href="${mailto}" class="text-blue-600 text-[10px] font-black">E-Posta</a><br>
                         <a target="_blank" href="https://api.whatsapp.com/send?phone=${phoneHint}&text=${wtext}" class="text-green-700 text-[10px] font-black">WhatsApp</a>
@@ -807,20 +881,37 @@
                 });
             }
 
+            if(currentAuditSearch) {
+                logs = logs.filter(log => {
+                    const hay = `${log.actor || ''} ${log.module || ''} ${log.action || ''} ${log.details || ''}`.toLowerCase();
+                    return hay.includes(currentAuditSearch);
+                });
+            }
+
+            const countInfo = document.getElementById('auditCountInfo');
+            if(countInfo) countInfo.innerText = `${logs.length} kayıt`;
+
+            const MAX_LOG_RENDER = 300;
+            const visibleLogs = logs.slice(0, MAX_LOG_RENDER);
+
             const container = document.getElementById('auditLogContainer');
-            if(!logs.length) {
+            if(!visibleLogs.length) {
                 container.innerHTML = '<div class="text-center text-sm text-slate-500">Filtreye uygun kayıt bulunamadı.</div>';
                 return;
             }
 
-            container.innerHTML = logs.map(log => `
+            const truncInfo = logs.length > MAX_LOG_RENDER
+                ? `<div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">İlk ${MAX_LOG_RENDER} kayıt gösteriliyor (toplam ${logs.length})</div>`
+                : '';
+
+            container.innerHTML = truncInfo + visibleLogs.map(log => `
                 <div class="border p-3 rounded-xl mb-2 bg-white">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-black">${log.actor} (${log.role})</span>
-                        <span class="text-[10px] text-slate-400">${log.time}</span>
+                        <span class="text-xs font-black">${esc(log.actor)} (${esc(log.role)})</span>
+                        <span class="text-[10px] text-slate-400">${esc(log.time)}</span>
                     </div>
-                    <div class="text-sm font-bold text-slate-700 uppercase">${log.module} - ${log.action}</div>
-                    <p class="text-xs text-slate-500 mt-1">${log.details || ''}</p>
+                    <div class="text-sm font-bold text-slate-700 uppercase">${esc(log.module)} - ${esc(log.action)}</div>
+                    <p class="text-xs text-slate-500 mt-1">${esc(log.details || '')}</p>
                 </div>
             `).join('');
         }
@@ -922,19 +1013,19 @@
             financeArchive.forEach(arc => {
                 const debtors = arc.debtors || [];
                 if(!debtors.length) {
-                    rows.push(`<tr class="border-t border-slate-100"><td class="p-2">${arc.eventTitle}</td><td class="p-2" colspan="5">Borçlu kayıt yok</td></tr>`);
+                    rows.push(`<tr class="border-t border-slate-100"><td class="p-2">${esc(arc.eventTitle)}</td><td class="p-2" colspan="5">Borçlu kayıt yok</td></tr>`);
                     return;
                 }
 
                 debtors.forEach((d, idx) => {
                     const debt = parseFloat(d.debt) || 0;
                     rows.push(`<tr class="border-t border-slate-100 ${debt > 0 ? 'bg-red-50/40' : ''}">
-                        <td class="p-2">${arc.eventTitle}</td>
-                        <td class="p-2">${d.customer || '-'}</td>
-                        <td class="p-2">${d.phone || '-'}</td>
+                        <td class="p-2">${esc(arc.eventTitle)}</td>
+                        <td class="p-2">${esc(d.customer || '-')}</td>
+                        <td class="p-2">${esc(d.phone || '-')}</td>
                         <td class="p-2 text-right ${debt > 0 ? 'text-red-600' : 'text-green-600'}">₺${debt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td class="p-2">${debt > 0 ? '<span class="text-red-600 font-black">AÇIK</span>' : '<span class="text-green-600 font-black">KAPALI</span>'}</td>
-                        <td class="p-2">${debt > 0 ? `<button onclick="closeArchiveDebt('${arc.id}', ${idx})" class="px-2 py-1 rounded bg-emerald-600 text-white text-[10px] font-black uppercase">Kapat</button>` : '-'}</td>
+                        <td class="p-2">${debt > 0 ? `<button onclick="closeArchiveDebt('${escAttr(arc.id)}', ${idx})" class="px-2 py-1 rounded bg-emerald-600 text-white text-[10px] font-black uppercase">Kapat</button>` : '-'}</td>
                     </tr>`);
                 });
             });
@@ -1011,6 +1102,7 @@
         }
 
         (async () => {
+            hydrateLocalData();
             renderStaffFinancials();
             renderArchiveManager();
             renderCharts();

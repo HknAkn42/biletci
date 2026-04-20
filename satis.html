@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>EventPro | Bilet Satış Terminali</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
@@ -26,12 +26,16 @@
         .radar-box input:focus { border-color: #0f172a !important; }
         .radar-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
 
-        .basket-item { background: #ffffff; border: 1px solid #edf2f7; border-radius: 20px; padding: 15px 20px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: 0.2s; }
+        .live-lock-shell { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 14px 16px; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04); }
+        .live-lock-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .basket-item { background: #ffffff; border: 1px solid #edf2f7; border-radius: 20px; padding: 15px 20px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: 0.2s; }
+        .basket-item > * { min-width: 0; }
         .btn-pay { padding: 16px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; font-size: 10px; font-weight: 800; color: #64748b; transition: 0.3s; cursor: pointer; text-transform: uppercase; }
         .btn-pay.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 5px 15px rgba(15, 23, 42, 0.2); }
 
         .category-shell { background: #fff; border-radius: 42px; border: 1px solid #e2e8f0; margin-bottom: 25px; overflow: hidden; transition: 0.3s; box-shadow: 0 15px 40px rgba(0,0,0,0.02); }
-        .cat-header { padding: 25px 40px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fcfdfe; cursor: pointer; user-select: none; transition: 0.2s; }
+        .cat-header { padding: 25px 40px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fcfdfe; cursor: pointer; user-select: none; transition: 0.2s; }
         .cat-header:hover { background: #f8fafc; }
         .masalar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 20px; padding: 35px 40px; }
         .category-shell.collapsed .masalar-grid { display: none; }
@@ -42,6 +46,55 @@
         .masa-silk:hover { border-color: #2563eb; transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 40px rgba(37,99,235,0.14); }
         .masa-silk.sold { background: #f8fafc; border-style: dashed; opacity: 0.7; }
         .masa-silk.selected { border-color: #2563eb; background: #eff6ff; border-width: 2px; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15); }
+        .masa-silk.locked-shake { animation: lockedShakeDesktop 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+        @keyframes lockedShakeDesktop {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes lockedShakeMobile {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(1px); }
+            30%, 50%, 70% { transform: translateX(-2px); }
+            40%, 60% { transform: translateX(2px); }
+            100% { transform: translateX(0); }
+        }
+        @media (hover: none), (pointer: coarse), (max-width: 768px) {
+            .masa-silk.locked-shake { animation: lockedShakeMobile 0.30s ease-out; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .masa-silk.locked-shake { animation: none; }
+        }
+        @media (max-width: 1023px) {
+            .silk-card { border-radius: 26px; padding: 20px; }
+            .category-shell { border-radius: 26px; }
+            .cat-header { padding: 18px; gap: 12px; align-items: flex-start; }
+            .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 12px; padding: 16px 18px; }
+            .masa-silk { border-radius: 18px; padding: 14px 8px; }
+            .m-kap { font-size: 20px; }
+            .finance-summary { padding: 16px; border-radius: 18px; margin-top: 16px; }
+            .btn-confirm { padding: 16px; border-radius: 16px; font-size: 11px; margin-top: 16px; }
+            .live-lock-shell { border-radius: 14px; padding: 10px 12px; }
+        }
+        @media (max-width: 640px) {
+            .silk-card { border-radius: 22px; padding: 14px; }
+            .cat-header { padding: 14px; }
+            .cat-header h3 { font-size: 13px !important; }
+            .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; padding: 12px 14px; }
+            .masa-silk { border-radius: 16px; padding: 12px 6px; }
+            .m-no { font-size: 9px; }
+            .m-kap { font-size: 18px; }
+            .m-alt { font-size: 8px; }
+            .btn-pay { padding: 12px 8px; font-size: 9px; }
+            #ticketModal > div { max-width: 94vw; }
+        }
+
+        @media (max-width: 420px) {
+            #ticketCaptureArea div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+            #qrcodeImg { width: 168px !important; height: 168px !important; }
+        }
         .m-no { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
         .m-kap { font-size: 24px; font-weight: 900; color: #0f172a; font-style: italic; line-height: 1; }
         .m-alt { font-size: 9px; font-weight: 800; color: #64748b; margin-top: 4px; text-transform: uppercase; }
@@ -268,6 +321,13 @@
                         </svg>
                         <input type="text" id="searchInput" placeholder="Masa Numarası veya Müşteri Adı Ara..." class="input-silk !mb-0 !rounded-[24px]" onkeyup="handleSearch(this.value)">
                     </div>
+                    <div class="live-lock-shell">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-700">Canlı İşlem Takibi</p>
+                            <span id="liveLockCount" class="text-[10px] font-black text-slate-400">0</span>
+                        </div>
+                        <div id="liveLockPanel" class="flex flex-wrap gap-2"></div>
+                    </div>
                     <div id="masterList" class="space-y-8"></div>
                 </section>
             </div>
@@ -360,6 +420,7 @@
                         <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);border-radius:14px;padding:13px 14px;">
                             <div style="font-size:6.5px;font-weight:900;color:rgba(251,191,36,0.65);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-family:'Space Mono',monospace;">KATEGORİ / MASA</div>
                             <div id="tkCategoryAndMasa" style="font-size:13px;font-weight:900;color:#fbbf24;text-transform:uppercase;line-height:1.2;">—</div>
+                            <div id="tkCategoryAndMasaSub" style="display:none;font-size:9px;font-weight:700;color:rgba(251,191,36,0.78);line-height:1.35;margin-top:6px;word-break:break-word;">—</div>
                         </div>
                     </div>
                 </div>
@@ -410,6 +471,8 @@
                             <p id="tkHash" style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.3);font-family:'Space Mono',monospace;letter-spacing:1.5px;word-break:break-all;margin:0;">—</p>
                         </div>
 
+                        <div id="tkGateStatus" style="margin-top:14px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);font-size:9px;font-weight:800;color:rgba(226,232,240,0.95);line-height:1.45;text-transform:uppercase;letter-spacing:.6px;">KAPI DURUMU: HENÜZ OKUTULMADI</div>
+
                         <!-- ADMIT ONE / FOOTER BANTLARI -->
                         <div style="margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;">
                             <div style="height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.22));"></div>
@@ -455,9 +518,8 @@
         // (Şimdilik admin olarak simüle ediliyor, login.html yapıldığında buradan asıl veriyi çekecek)
         let session = JSON.parse(localStorage.getItem('BiletPro_Session'));
         if(!session) {
-            // Eğer session yoksa, test için Merkez Kasa (Admin) olarak farz et
-            session = { name: "Merkez Kasa", username: "merkez", role: "admin" };
-            // localStorage.setItem('BiletPro_Session', JSON.stringify(session)); // İsteğe bağlı
+            window.location.href = 'login.html';
+            throw new Error('Oturum bulunamadı. Satış ekranı login olmadan açılamaz.');
         }
 
         let ev = events.find(e => e.id == eventId);
@@ -470,8 +532,16 @@
         let lastPhone = ""; 
         let lastDebt = 0; 
         let lastMasaDetails = "";
+        let __lockWarnAt = 0;
+        let __lockWarnKey = '';
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
+        const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
-        if(!ev) window.location.href = 'index.html';
+        if(!ev) {
+            window.location.href = 'index.html';
+            throw new Error('Geçerli etkinlik bulunamadı.');
+        }
         
         document.getElementById('headLogo').src = ev.logo || 'https://via.placeholder.com/150';
         document.getElementById('headTitle').innerText = ev.title + " | SATIŞ";
@@ -518,15 +588,17 @@
         function loadStaff() {
             const select = document.getElementById('staffSelect');
             const lockIcon = document.getElementById('staffLockIcon');
-            
-            let optionsHtml = '<option value="Merkez Kasa">Merkez Kasa</option>';
-            
+
+            select.innerHTML = '';
+            select.appendChild(new Option('Merkez Kasa', 'Merkez Kasa'));
+
             // Sadece aktif olanları listele
             const activeStaff = staffData.filter(s => s.isActive !== false);
             activeStaff.forEach(s => {
-                optionsHtml += `<option value="${s.name}">${s.name}</option>`;
+                const nm = String(s && s.name ? s.name : '').trim();
+                if (!nm) return;
+                select.appendChild(new Option(nm, nm));
             });
-            select.innerHTML = optionsHtml;
 
             // Eğer oturan kişi listede varsa onu seçili hale getir
             if (Array.from(select.options).some(opt => opt.value === session.name)) {
@@ -597,6 +669,140 @@
             render(); 
         }
 
+        function getCurrentSellerName() {
+            const _session = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            return _session.name || _session.username || 'Kasa';
+        }
+
+        function playLockWarningTone() {
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                const now = ctx.currentTime;
+
+                const o1 = ctx.createOscillator();
+                const g1 = ctx.createGain();
+                o1.type = 'square';
+                o1.frequency.value = 880;
+                g1.gain.setValueAtTime(0.0001, now);
+                g1.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+                g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+                o1.connect(g1).connect(ctx.destination);
+                o1.start(now);
+                o1.stop(now + 0.15);
+
+                const o2 = ctx.createOscillator();
+                const g2 = ctx.createGain();
+                o2.type = 'square';
+                o2.frequency.value = 660;
+                g2.gain.setValueAtTime(0.0001, now + 0.16);
+                g2.gain.exponentialRampToValueAtTime(0.055, now + 0.18);
+                g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.33);
+                o2.connect(g2).connect(ctx.destination);
+                o2.start(now + 0.16);
+                o2.stop(now + 0.34);
+
+                setTimeout(() => { try { ctx.close(); } catch(_) {} }, 500);
+            } catch(_) {}
+        }
+
+        function warnLockedTable(conflict, masaNo) {
+            const now = Date.now();
+            const key = `${ev?.id || 'E'}-${masaNo}-${conflict?.lockedBy || 'Kasa'}`;
+            const remainMs = Math.max(0, 90000 - (now - (conflict?.lockedAt || now)));
+            const remainSec = Math.round(remainMs / 1000);
+
+            if (typeof showToast === 'function') {
+                showToast(`⛔ Masa ${masaNo} şu an ${conflict?.lockedBy || 'başka satıcı'} tarafından işlemde (${remainSec}s kaldı)`, 'error');
+            }
+
+            // Aynı kilit için çok sık ses çalmasını engelle
+            if (__lockWarnKey === key && (now - __lockWarnAt) < 1500) return;
+            __lockWarnKey = key;
+            __lockWarnAt = now;
+            playLockWarningTone();
+        }
+
+        function shakeLockedMasaCard(cId, mId) {
+            const card = document.getElementById(`masa-card-${cId}-${mId}`);
+            if (!card) return;
+
+            card.classList.remove('locked-shake');
+            // reflow: class yeniden eklendiğinde animasyonun tekrar başlaması için
+            void card.offsetWidth;
+            card.classList.add('locked-shake');
+
+            setTimeout(() => card.classList.remove('locked-shake'), 500);
+        }
+
+        function getActiveLiveLocks() {
+            const ownUser = getCurrentSellerName();
+            const map = {};
+
+            // Aynı cihaz/sekme kilitleri
+            const localLocks = (window.bpSoftLock && typeof window.bpSoftLock.getAll === 'function')
+                ? (window.bpSoftLock.getAll() || [])
+                : [];
+
+            localLocks.forEach(l => {
+                if (!l) return;
+                if (String(l.eventId) !== String(ev.id)) return;
+                const key = `${l.eventId}::${l.masaNo}`;
+                map[key] = {
+                    masaNo: String(l.masaNo),
+                    lockedBy: l.lockedBy || 'Kasa',
+                    lockedAt: l.lockedAt || Date.now(),
+                    isMine: (l.lockedBy || '') === ownUser
+                };
+            });
+
+            // Çapraz cihaz kilitleri (Supabase Presence)
+            const remoteLocks = (window.BiletProPresence && typeof window.BiletProPresence.getRemoteLocks === 'function')
+                ? (window.BiletProPresence.getRemoteLocks() || [])
+                : [];
+
+            remoteLocks.forEach(l => {
+                if (!l) return;
+                if (String(l.eventId) !== String(ev.id)) return;
+                const key = `${l.eventId}::${l.masaNo}`;
+                map[key] = {
+                    masaNo: String(l.masaNo),
+                    lockedBy: l.lockedBy || 'Kasa',
+                    lockedAt: l.lockedAt || Date.now(),
+                    isMine: (l.lockedBy || '') === ownUser
+                };
+            });
+
+            return Object.values(map)
+                .sort((a, b) => {
+                    const am = parseInt(a.masaNo, 10);
+                    const bm = parseInt(b.masaNo, 10);
+                    if (!Number.isNaN(am) && !Number.isNaN(bm)) return am - bm;
+                    return String(a.masaNo).localeCompare(String(b.masaNo), 'tr');
+                });
+        }
+
+        function renderLiveLocks() {
+            const panel = document.getElementById('liveLockPanel');
+            const countEl = document.getElementById('liveLockCount');
+            if (!panel || !countEl) return;
+
+            const locks = getActiveLiveLocks();
+            const foreignLocks = locks.filter(l => !l.isMine);
+            countEl.textContent = String(foreignLocks.length);
+
+            if (foreignLocks.length === 0) {
+                panel.innerHTML = '<span class="text-[10px] font-bold text-slate-500 uppercase">Şu an başka satıcı aktif işlemde değil.</span>';
+                return;
+            }
+
+            panel.innerHTML = foreignLocks.map(l => {
+                const elapsed = Math.max(0, Math.round((Date.now() - (l.lockedAt || Date.now())) / 1000));
+                return `<span class="live-lock-chip">⏳ Masa ${esc(l.masaNo)} • ${esc(l.lockedBy)} (${elapsed}s)</span>`;
+            }).join('');
+        }
+
         function selectMasa(cId, mId) {
             const cat = ev.categories.find(c => c.id === cId);
             const m = cat.masalar.find(m => m.id === mId);
@@ -613,8 +819,8 @@
             if (window.bpSoftLock) {
                 const conflict = window.bpSoftLock.getConflict(ev.id, m.no, _slUser);
                 if (conflict) {
-                    const _secs = Math.round((90000 - (Date.now() - conflict.lockedAt)) / 1000);
-                    if(typeof showToast === 'function') showToast(`⏳ Masa ${m.no} şu an ${conflict.lockedBy} tarafından işlemde (${_secs}s kaldı)`, 'error');
+                    warnLockedTable(conflict, m.no);
+                    shakeLockedMasaCard(cId, mId);
                     return;
                 }
                 window.bpSoftLock.acquire(ev.id, m.no, _slUser);
@@ -643,6 +849,8 @@
                 render(); 
                 recalc(); 
             }
+
+            renderLiveLocks();
         }
 
         // DÜZENLEME MODU (GEÇMİŞİ KORUYAN PERSONEL KALKANI)
@@ -664,7 +872,7 @@
             let exists = Array.from(staffSelect.options).some(opt => opt.value === seller);
             if (!exists) {
                 // Sadece göstermelik olarak eski personeli listeye ekle
-                staffSelect.innerHTML += `<option value="${seller}">${seller} (Pasif/Eski)</option>`;
+                staffSelect.appendChild(new Option(`${seller} (Pasif/Eski)`, String(seller || '')));
             }
             staffSelect.value = seller;
             
@@ -746,6 +954,8 @@
                 render(); 
                 recalc(); 
             } 
+
+            renderLiveLocks();
         }
 
         function recalc() {
@@ -772,7 +982,7 @@
             return net;
         }
 
-        // SATIŞI MÜHÜRLE
+        // SATIŞI ONAYLA
         async function finalize() {
             const perms = getCurrentUserPerms();
             if(!perms.pSale) return showToast("Satış yetkiniz yok!", "error");
@@ -981,6 +1191,87 @@
             }
         }
 
+        function getTicketMasaDisplay(detailsRaw) {
+            const raw = String(detailsRaw || '').trim();
+            if (!raw) {
+                return { main: '—', sub: '', isMulti: false };
+            }
+
+            const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+            const tableNos = [];
+            const categories = [];
+
+            parts.forEach(part => {
+                const m = part.match(/^(.*?)\s*\(\s*MASA\s*([^\)]+)\s*\)\s*$/i);
+                if (m) {
+                    const cat = (m[1] || '').trim();
+                    const no = (m[2] || '').trim();
+                    if (cat) categories.push(cat);
+                    if (no) tableNos.push(no);
+                    return;
+                }
+
+                const noOnly = part.match(/\d+/);
+                if (noOnly) tableNos.push(noOnly[0]);
+            });
+
+            const uniqueCats = Array.from(new Set(categories.filter(Boolean)));
+            const uniqueTableNos = Array.from(new Set(tableNos.filter(Boolean)));
+            const sortedTables = uniqueTableNos.sort((a, b) => {
+                const an = parseInt(a, 10);
+                const bn = parseInt(b, 10);
+                if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+                return String(a).localeCompare(String(b), 'tr');
+            });
+
+            if (sortedTables.length <= 2 || parts.length <= 2) {
+                return { main: raw, sub: '', isMulti: sortedTables.length > 1 || parts.length > 1 };
+            }
+
+            const headCat = uniqueCats.length === 1
+                ? uniqueCats[0]
+                : (uniqueCats.length > 1 ? 'KARMA KATEGORİ' : 'KATEGORİ');
+            const main = `${headCat} • ${sortedTables.length} MASA`;
+            const previewLimit = 8;
+            const preview = sortedTables.slice(0, previewLimit).join(', ');
+            const extraCount = Math.max(0, sortedTables.length - previewLimit);
+            const sub = `Masalar: ${preview}${extraCount > 0 ? ` +${extraCount}` : ''}`;
+
+            return { main, sub, isMulti: true };
+        }
+
+        function findSaleDetailByHash(hash) {
+            if (!hash || !ev || !Array.isArray(ev.categories)) return null;
+            for (const cat of ev.categories) {
+                const masalar = Array.isArray(cat?.masalar) ? cat.masalar : [];
+                for (const masa of masalar) {
+                    const sd = masa && masa.saleDetail;
+                    if (sd && String(sd.ticketHash || '') === String(hash)) {
+                        return sd;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function buildGateStatusText(sd) {
+            const insideCount = Number(sd?.insideCount || 0);
+            const people = Number(sd?.people || 1);
+            const checker = String(sd?.debtOverrideBy || sd?.lastGateApprovedBy || sd?.checkinBy || '').trim();
+            const reason = String(sd?.debtOverrideReason || '').trim();
+            const checkinTime = String(sd?.checkinTime || '').trim();
+
+            if (!sd || (sd.status !== 'INSIDE' && sd.status !== 'OUTSIDE')) {
+                return 'KAPI DURUMU: HENÜZ OKUTULMADI';
+            }
+
+            if (sd.status === 'OUTSIDE') {
+                return `KAPI DURUMU: GEÇİCİ ÇIKIŞTA • SON İÇERİ ALIM: ${insideCount}/${people}${checker ? ` • ONAY: ${checker}` : ''}${reason ? ` • NEDEN: ${reason}` : ''}`;
+            }
+
+            return `KAPI DURUMU: ${insideCount}/${people} KİŞİ ONAYLI (OKUNDU)${checker ? ` • ONAYLAYAN: ${checker}` : ''}${reason ? ` • NEDEN: ${reason}` : ''}${checkinTime ? ` • SAAT: ${checkinTime}` : ''}`;
+        }
+
         function showTicketModal(custName, masaDetails, paid, hash) {
             document.getElementById('tkEventLogo').src = ev.logo || 'https://via.placeholder.com/150/ffffff/0f172a?text=LOGO';
 
@@ -1009,11 +1300,39 @@
             const venueText = ev.venue ? ev.venue : 'MEKAN BELİRSİZ';
             const cityText = ev.city ? ev.city : '';
             const fullAddrText = ev.fullAddress ? ev.fullAddress : '';
-            document.getElementById('tkVenue').innerHTML = `${venueText} ${cityText ? '- ' + cityText : ''} <br><span class="text-[9px] text-slate-500 font-bold tracking-normal">${fullAddrText}</span>`;
+            const tkVenueEl = document.getElementById('tkVenue');
+            if (tkVenueEl) {
+                tkVenueEl.textContent = `${venueText}${cityText ? ' - ' + cityText : ''}`;
+                if (fullAddrText) {
+                    tkVenueEl.appendChild(document.createElement('br'));
+                    const addr = document.createElement('span');
+                    addr.className = 'text-[9px] text-slate-500 font-bold tracking-normal';
+                    addr.textContent = fullAddrText;
+                    tkVenueEl.appendChild(addr);
+                }
+            }
             
             document.getElementById('tkCustName').innerText = custName;
-            document.getElementById('tkCategoryAndMasa').innerText = masaDetails;
+            const masaDisplay = getTicketMasaDisplay(masaDetails);
+            const tkCatMain = document.getElementById('tkCategoryAndMasa');
+            const tkCatSub = document.getElementById('tkCategoryAndMasaSub');
+            tkCatMain.innerText = masaDisplay.main;
+            tkCatMain.style.fontSize = masaDisplay.isMulti ? '11px' : '13px';
+            tkCatMain.style.lineHeight = masaDisplay.isMulti ? '1.25' : '1.2';
+            if (masaDisplay.sub) {
+                tkCatSub.innerText = masaDisplay.sub;
+                tkCatSub.style.display = 'block';
+            } else {
+                tkCatSub.innerText = '';
+                tkCatSub.style.display = 'none';
+            }
             document.getElementById('tkHash').innerText = hash;
+
+            const tkGateStatusEl = document.getElementById('tkGateStatus');
+            if (tkGateStatusEl) {
+                const saleDetail = findSaleDetailByHash(hash);
+                tkGateStatusEl.textContent = buildGateStatusText(saleDetail);
+            }
             
             // ecLevel=H: En yüksek hata düzeltme (%30 hasar toleransı) — taramayı kolaylaştırır
             document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=600&dark=000000&light=ffffff&margin=3&ecLevel=H`;
@@ -1072,6 +1391,9 @@
                 const tkDate = document.getElementById('tkDate').innerText || '';
                 const tkTime = document.getElementById('tkTime').innerText || '';
                 const tkVenue = document.getElementById('tkVenue').innerText || '';
+                const ticketMasaMain = (document.getElementById('tkCategoryAndMasa').innerText || '').trim();
+                const ticketMasaSub = (document.getElementById('tkCategoryAndMasaSub').innerText || '').trim();
+                const isMultiMasaTicket = /\b\d+\s*MASA\b/i.test(ticketMasaMain) || /^Masalar:/i.test(ticketMasaSub);
 
                 let msg = `🎫 *${ev.title.toUpperCase()} - VIP GİRİŞ KARTI*\n\n`;
                 msg += `Merhaba ${custName},\n`;
@@ -1080,12 +1402,15 @@
                 msg += `📅 *Tarih:* ${tkDate}\n`;
                 msg += `⏰ *Saat:* ${tkTime}\n`;
                 if (tkVenue) msg += `📍 *Mekan:* ${tkVenue}\n`;
+                if (ticketMasaMain) msg += `🪑 *Masa:* ${ticketMasaMain}${ticketMasaSub ? ` (${ticketMasaSub.replace(/^Masalar:\s*/i,'')})` : ''}\n`;
                 msg += `🔐 *Güvenlik Kodunuz:* ${lastTicketHash}\n`;
                 if(lastDebt > 0.5) { msg += `💰 *Kalan Bakiye:* ${lastDebt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL (Kapıda Tahsil Edilecektir)\n`; }
                 msg += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
                 msg += `⚠️ *ÖNEMLİ BİLGİLENDİRME*\n\n`;
                 msg += `• Bu bilet girişte yanınızda bulunması zorunludur.\n`;
-                msg += `• Her bilet yalnızca *tek masa* ve ilgili *kişi sayısı* için geçerlidir.\n`;
+                msg += isMultiMasaTicket
+                    ? `• Bu biletteki *tüm seçili masalar* için giriş hakkı geçerlidir.\n`
+                    : `• Bu bilet yalnızca *tek masa* ve ilgili *kişi sayısı* için geçerlidir.\n`;
                 msg += `• Girişte biletinizdeki kişi sayısını güvenlik ekibine belirtiniz.\n`;
                 msg += `• Bilet başkasına devredilemez ve iade edilemez.\n`;
                 msg += `• QR kod kapıda taratılacaktır; ekran görüntüsü geçerlidir.\n`;
@@ -1220,8 +1545,8 @@
                 d.className = "basket-item animate-pop";
                 d.innerHTML = `
                     <div>
-                        <p class="text-[11px] font-black uppercase text-slate-800">MASA ${i.masa.no}</p>
-                        <p class="text-[10px] text-blue-600 font-bold">${i.p} KİŞİ x ₺${i.cat.pricePerPerson}</p>
+                        <p class="text-[11px] font-black uppercase text-slate-800">MASA ${esc(i.masa.no)}</p>
+                        <p class="text-[10px] text-blue-600 font-bold">${esc(i.p)} KİŞİ x ₺${esc(i.cat.pricePerPerson)}</p>
                     </div>
                     <button onclick="removeB(${i.masa.id})" class="w-8 h-8 rounded-xl bg-red-50 text-red-500 font-black text-sm hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">×</button>
                 `;
@@ -1245,7 +1570,7 @@
                         <div class="flex items-center gap-5">
                             <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"></path></svg></div>
                             <div class="w-5 h-5 rounded-full shadow-lg" style="background:${cat.color}"></div>
-                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${cat.name} <span class="ml-2 text-slate-400 font-bold">(${filteredMasalar.length})</span></h3>
+                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${esc(cat.name)} <span class="ml-2 text-slate-400 font-bold">(${filteredMasalar.length})</span></h3>
                         </div>
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">₺${cat.pricePerPerson.toLocaleString()} / KİŞİ</span>
                     </div>
@@ -1256,14 +1581,14 @@
                             const _slUser = _slSession.name || _slSession.username || '';
                             const _softConflict = !m.isSold && window.bpSoftLock?.getConflict(ev.id, m.no, _slUser);
                             const _conflictBadge = _softConflict
-                                ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${_softConflict.lockedBy}</div>`
+                                ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${esc(_softConflict.lockedBy)}</div>`
                                 : '';
                             return `
-                                <div onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
+                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
                                     ${_conflictBadge}
                                     <p class="m-no">MASA</p>
                                     <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
-                                    <p class="m-alt">${m.isSold ? m.soldTo : m.kapasite + ' KİŞİLİK'}</p>
+                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) : esc(m.kapasite + ' KİŞİLİK')}</p>
                                     ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
                                     <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${m.isSold ? '0.2' : '0.6'}"></div>
                                 </div>
@@ -1273,6 +1598,8 @@
                 `;
                 container.appendChild(section);
             });
+
+            renderLiveLocks();
         }
         
         // Başlangıçta personelleri listeye ekle
@@ -1292,7 +1619,19 @@
         // Presence: başka cihaz masa kilitleri değişince overlay'leri güncelle
         window.addEventListener('biletpro:presence-updated', function() {
             render();
+            renderLiveLocks();
         });
+
+        // Aynı cihazda başka sekmelerden gelen localStorage lock değişimlerini anlık izle
+        window.addEventListener('storage', function(evt) {
+            if (evt && evt.key === 'BiletPro_SoftLocks') {
+                renderLiveLocks();
+                render();
+            }
+        });
+
+        // Sayaçların akıcı görünmesi için küçük canlı yenileme
+        setInterval(renderLiveLocks, 1000);
     </script>
 </body>
 </html>

@@ -7,6 +7,11 @@
     --border: #e2e8f0; 
 }
 
+/* TEMEL RESPONSIVE GÜVENLİĞİ */
+*, *::before, *::after { box-sizing: border-box; }
+img, svg, video, canvas { max-width: 100%; height: auto; }
+input, select, textarea, button { max-width: 100%; }
+
 /* TÜM SAYFALAR İÇİN SCROLL GİZLEME (TEMİZ GÖRÜNÜM) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -200,4 +205,41 @@ html[data-theme="dark"] .out-btn { background: #1e293b !important; color: #cbd5e
 @media print {
     html[data-theme="dark"] body { background: #fff !important; color: #000 !important; }
     html[data-theme="dark"] * { color: #000 !important; background: #fff !important; }
+}
+
+/* ===== MOBİL VERİMLİLİK & EKRANA TAM OTURMA ===== */
+/* iOS/Safari dinamik adres çubuğu kaynaklı 100vh taşmalarını engeller */
+:root {
+    --bp-vh: 1vh;
+}
+
+/* Tailwind h-screen kullanan tüm ekranlar için güvenli viewport yüksekliği */
+.h-screen {
+    height: 100dvh !important;
+    min-height: calc(var(--bp-vh, 1vh) * 100) !important;
+}
+
+/* Legacy 100vh kullanan layoutlarda da taşmayı azalt */
+body,
+main,
+.main-content,
+.sidebar-silk {
+    min-height: calc(var(--bp-vh, 1vh) * 100);
+}
+
+/* Çentik/home-indicator alanlarına saygı */
+@supports (padding: env(safe-area-inset-bottom)) {
+    main,
+    .main-content {
+        padding-bottom: calc(env(safe-area-inset-bottom) + 6px) !important;
+    }
+}
+
+/* Mobilde gereksiz yatay taşmayı engelle */
+@media (max-width: 1023px) {
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: hidden !important;
+    }
 }

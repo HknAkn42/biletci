@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>BiletPro | VIP Kapı Kontrol</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
@@ -71,9 +71,9 @@
         .res-title { font-size: 20px; font-weight: 900; text-transform: uppercase; color: #0f172a; line-height: 1; }
         .res-subtitle { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-top: 4px; }
 
-        .irow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .irow { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
         .il { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-        .iv { font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; }
+        .iv { font-size: 13px; font-weight: 800; color: #0f172a; text-align: right; max-width: 66%; overflow-wrap: anywhere; }
 
         .gnote { background: rgba(245,158,11,0.1); border: 1px dashed rgba(245,158,11,0.4); border-radius: 16px; padding: 15px; margin-bottom: 15px; }
         .gnl { font-size: 9px; font-weight: 900; text-transform: uppercase; color: #d97706; display: block; margin-bottom: 4px; }
@@ -100,7 +100,7 @@
         #logDrawer { position:fixed; top:0; right:-100%; width:100%; max-width:400px; height:100vh; background:white; border-left:1px solid #e2e8f0; z-index:5000; transition:0.4s cubic-bezier(0.16,1,0.3,1); display:flex; flex-direction:column; overflow:hidden; box-shadow: -20px 0 50px rgba(0,0,0,0.05); }
         #logDrawer.open { right:0; }
         .litem { padding:15px; border-radius:16px; background:#f8fafc; margin-bottom:10px; border:1px solid #f1f5f9; border-left: 4px solid #cbd5e1; }
-        .lok { border-left-color: #10b981; } .ldebt { border-left-color: #f59e0b; } .lskip { border-left-color: #ef4444; } .lout { border-left-color: #3b82f6; }
+        .lok { border-left-color: #10b981; } .ldebt { border-left-color: #f59e0b; } .lskip { border-left-color: #ef4444; } .lout { border-left-color: #3b82f6; } .lscan { border-left-color: #8b5cf6; }
             /* ─── BÜYÜK KİŞİ SAYISI (showValid hero) ─── */
             .guest-hero { background: linear-gradient(135deg,#dcfce7,#f0fdf4); border:2px solid #34d399; border-radius:22px; padding:22px 16px 18px; text-align:center; margin-bottom:18px; }
             .guest-big  { font-family:'Space Mono',monospace; font-size:80px; font-weight:800; color:#10b981; line-height:1; display:inline-block; }
@@ -112,6 +112,32 @@
             .count-btn { width:68px; height:68px; border-radius:20px; font-size:32px; font-weight:900; cursor:pointer; transition:0.12s; display:flex; align-items:center; justify-content:center; border:none; }
             .count-btn:active { transform:scale(0.9); }
             .count-display { font-family:'Space Mono',monospace; font-size:96px; font-weight:800; color:#0f172a; line-height:1; min-width:120px; text-align:center; }
+
+            @media (max-width: 1023px) {
+                #logDrawer { max-width: 100vw; }
+                #scanFrame { width: 210px; height: 210px; }
+                .cv { font-size: 38px; }
+                #cntIn { font-size: 62px !important; }
+                .count-display { font-size: 80px; min-width: 100px; }
+                .count-btn { width: 62px; height: 62px; font-size: 30px; }
+            }
+
+            @media (max-width: 640px) {
+                #scanFrame { width: 180px; height: 180px; }
+                .cv { font-size: 30px; }
+                #cntIn { font-size: 52px !important; }
+                .cl { font-size: 9px; }
+                .count-display { font-size: 66px; min-width: 84px; }
+                .count-btn { width: 54px; height: 54px; font-size: 26px; border-radius: 16px; }
+                .guest-big { font-size: 62px !important; }
+                .guest-sfx { font-size: 17px !important; }
+                .iv { max-width: 60%; font-size: 12px; }
+            }
+
+            @media (max-width: 420px) {
+                .irow { flex-direction: column; align-items: flex-start; gap: 4px; }
+                .iv { max-width: 100%; text-align: left; }
+            }
     </style>
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
@@ -235,8 +261,44 @@
             </div>
             
             <button class="btn-action btn-warning !mt-0 !mb-3 shadow-xl" onclick="confirmDebt()">💰 TAHSİLAT YAP VE İÇERİ AL</button>
-            <button class="w-full py-4 rounded-xl border border-red-200 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all mb-3" onclick="skipDebt()">⚠️ BORÇLU GEÇİR (SORUMLULUK AL)</button>
+            <button class="w-full py-4 rounded-xl border border-red-200 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all mb-3" onclick="openRiskApproveModal()">⚠️ BORÇLU GEÇİR (ŞİFRELİ ONAY)</button>
             <button class="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-800" onclick="closeDebtModal()">VAZGEÇ</button>
+        </div>
+    </div>
+
+    <div id="riskApproveModal" class="hidden fixed inset-0 modal-bg z-[99999] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-[460px] p-5 sm:p-[34px] rounded-[26px] sm:rounded-[30px] shadow-2xl animate-pop">
+            <div class="text-center mb-6">
+                <h3 class="font-black text-red-500 text-lg uppercase">BORÇLU GEÇİŞ ONAYI</h3>
+                <p class="text-[11px] font-bold text-slate-500 mt-2">Ödeme alınmadan giriş için yetkili kullanıcı ve şifre gerekli.</p>
+            </div>
+
+            <span class="label-mini">ONAYLAYAN KULLANICI ADI</span>
+            <input id="riskApproveUser" type="text" class="input-silk" placeholder="kullanici_adi">
+
+            <span class="label-mini mt-2">ONAY ŞİFRESİ</span>
+            <input id="riskApprovePin" type="password" class="input-silk" placeholder="••••••••">
+
+            <span class="label-mini mt-2">ONAY NEDENİ</span>
+            <textarea id="riskApproveReason" class="input-silk !h-24 resize-none" placeholder=""></textarea>
+
+            <div class="mt-3 border border-slate-200 rounded-2xl bg-slate-50/70 overflow-hidden">
+                <button type="button" onclick="toggleRiskQuickPanel()" class="w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all">
+                    ⚡ İSTEĞE BAĞLI HAZIR MESAJLAR
+                </button>
+                <div id="riskQuickPanel" class="hidden px-4 pb-4">
+                    <div class="flex gap-2 mb-2">
+                        <input id="riskQuickInput" type="text" class="input-silk !py-3 !text-xs" placeholder="Kendi hazır mesajını yaz">
+                        <button type="button" onclick="addRiskQuickReason()" class="px-4 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-wide hover:bg-blue-600 transition-all">Ekle</button>
+                    </div>
+                    <div id="riskQuickList" class="flex flex-col gap-2"></div>
+                </div>
+            </div>
+
+            <p id="riskApproveError" class="hidden text-xs font-black text-red-500 mb-3">Yetki doğrulanamadı.</p>
+
+            <button class="btn-action btn-danger !mt-0 !mb-3 shadow-xl" onclick="confirmRiskApprove()">🔐 ŞİFREYİ DOĞRULA VE GEÇİR</button>
+            <button class="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-800" onclick="closeRiskApproveModal()">VAZGEÇ</button>
         </div>
     </div>
 
@@ -274,6 +336,9 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
+        const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
         // 🛑 KİLİT MEKANİZMASI: Etkinlik ID yoksa sayfayı durdur ve uyar!
         if (!eventId) {
@@ -343,6 +408,15 @@
         function saveData(){ localStorage.setItem('EventPro_DB_Ultimate_Final',JSON.stringify(events)); }
         function saveLog() { localStorage.setItem('BiletPro_CLog_'+eventId,JSON.stringify(log)); }
 
+        function getCurrentGateSession() {
+            return JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+        }
+
+        function getCurrentGateActorName() {
+            const s = getCurrentGateSession();
+            return s.name || s.username || 'Kapı Personeli';
+        }
+
         function getCurrentCheckinPerms() {
             const session = JSON.parse(localStorage.getItem('BiletPro_Session')) || {};
             const staff = JSON.parse(localStorage.getItem('BiletPro_Staff')) || [];
@@ -392,9 +466,293 @@
         }
 
         /* ─── KAMERA YÖNETİMİ ─── */
-        let stream=null, scanTick=null, lastQ='', lastT=0;
-        const COOL=1500; // 2500'den kısaltıldı: daha hızlı tekrar tarama
+        let stream=null, scanRaf=null, lastQ='', lastT=0;
+        let _scanRunning=false, _decodeBusy=false, _scanCtx=null, _barcodeDetector=null;
+        const _ticketCache = new Map();
+        let _scanning = false;
+        const COOL=900; // Aynı kodun kısa aralıkta tekrar tetiklenmesini engelle
+        const SCAN_INTERVAL_BASE_MS = 26;
+        const SCAN_INTERVAL_MIN_MS = 14;
+        const SCAN_INTERVAL_MAX_MS = 72;
+        const SCAN_REGION_RATIO = 0.62; // Merkez odaklı tarama alanı
+        const SCAN_MAX_DIM = 960; // CPU yükünü dengelerken netlik koruma
+        const LOW_LIGHT_LUMA_THRESHOLD = 66;
+        const LOW_LIGHT_STREAK_ON = 4;
+        const LOW_LIGHT_STREAK_OFF = 2;
+        const AUTO_TORCH_DEBOUNCE_MS = 1400;
+        const REFOCUS_IDLE_MS = 1800;
+        let _lastScanAt = 0;
+        let _lastDecodeSuccessAt = 0;
+        let _lastFocusTryAt = 0;
+        let _focusNudgeFlip = false;
+        let _lowLightStreak = 0;
+        let _brightStreak = 0;
+        let _lowLightMode = false;
+        let _lowLightSince = 0;
+        let _autoTorchByLowLight = false;
+        let _cameraLowLightApplied = false;
+        let _adaptiveScanIntervalMs = SCAN_INTERVAL_BASE_MS;
+        let _avgDecodeMs = 16;
+        let _emptyFrameStreak = 0;
+        let _decodeErrorStreak = 0;
         let _torchOn=false, _torchTrack=null;
+
+        function tuneAdaptiveScanCadence(meta) {
+            const info = meta || {};
+            const decoded = !!info.decoded;
+            const hadError = !!info.hadError;
+            const decodeMs = Number(info.decodeMs || 0);
+            const lowLight = !!info.lowLight;
+
+            if (decodeMs > 0) {
+                _avgDecodeMs = (_avgDecodeMs * 0.8) + (decodeMs * 0.2);
+            }
+
+            if (decoded) {
+                _emptyFrameStreak = 0;
+                _decodeErrorStreak = 0;
+                _adaptiveScanIntervalMs = Math.max(
+                    SCAN_INTERVAL_MIN_MS,
+                    _adaptiveScanIntervalMs - (_avgDecodeMs < 14 ? 3 : 2)
+                );
+                return;
+            }
+
+            _emptyFrameStreak++;
+            if (hadError) {
+                _decodeErrorStreak++;
+                _adaptiveScanIntervalMs = Math.min(SCAN_INTERVAL_MAX_MS, _adaptiveScanIntervalMs + 6);
+                return;
+            }
+
+            if (_avgDecodeMs > 22) {
+                _adaptiveScanIntervalMs = Math.min(SCAN_INTERVAL_MAX_MS, _adaptiveScanIntervalMs + 2);
+            }
+
+            if (_emptyFrameStreak >= 16) {
+                _adaptiveScanIntervalMs = Math.min(SCAN_INTERVAL_MAX_MS, _adaptiveScanIntervalMs + 2);
+            }
+
+            if (lowLight && _adaptiveScanIntervalMs > 24) {
+                _adaptiveScanIntervalMs = Math.max(20, _adaptiveScanIntervalMs - 1);
+            }
+        }
+
+        function canUseBarcodeDetector() {
+            return typeof window.BarcodeDetector !== 'undefined';
+        }
+
+        async function ensureBarcodeDetector() {
+            if (!canUseBarcodeDetector() || _barcodeDetector) return;
+            try {
+                if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
+                    const supported = await window.BarcodeDetector.getSupportedFormats();
+                    if (Array.isArray(supported) && !supported.includes('qr_code')) return;
+                }
+                _barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+                console.log('[QR] BarcodeDetector aktif');
+            } catch (e) {
+                _barcodeDetector = null;
+                console.warn('[QR] BarcodeDetector başlatılamadı, jsQR fallback kullanılacak:', e);
+            }
+        }
+
+        async function optimizeCameraTrack(track) {
+            if (!track || typeof track.getCapabilities !== 'function' || typeof track.applyConstraints !== 'function') return;
+            try {
+                const caps = track.getCapabilities() || {};
+                const adv = [];
+                if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) adv.push({ focusMode: 'continuous' });
+                if (caps.exposureMode && Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) adv.push({ exposureMode: 'continuous' });
+                if (caps.whiteBalanceMode && Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) adv.push({ whiteBalanceMode: 'continuous' });
+                if (typeof caps.zoom === 'object' && caps.zoom && caps.zoom.max >= 1.2) {
+                    const targetZoom = Math.min(caps.zoom.max, Math.max(1.15, caps.zoom.min || 1));
+                    adv.push({ zoom: targetZoom });
+                }
+                if (!adv.length) return;
+                await track.applyConstraints({ advanced: adv });
+            } catch (e) {
+                console.warn('[QR] Kamera ince ayarı uygulanamadı:', e);
+            }
+        }
+
+        function getScanFilter() {
+            return _lowLightMode
+                ? 'contrast(1.72) brightness(1.2) saturate(1.1)'
+                : 'contrast(1.45) brightness(1.06)';
+        }
+
+        function estimateFrameLuma(imgData) {
+            const data = imgData && imgData.data ? imgData.data : imgData;
+            if (!data || !data.length) return 255;
+            let total = 0;
+            let count = 0;
+            for (let i = 0; i < data.length; i += 64) {
+                const r = data[i] || 0;
+                const g = data[i + 1] || 0;
+                const b = data[i + 2] || 0;
+                total += (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+                count++;
+            }
+            return count ? (total / count) : 255;
+        }
+
+        async function setTorchState(nextState, byLowLight = false) {
+            if (!_torchTrack || typeof _torchTrack.applyConstraints !== 'function' || typeof _torchTrack.getCapabilities !== 'function') return;
+            const caps = _torchTrack.getCapabilities ? (_torchTrack.getCapabilities() || {}) : {};
+            if (!caps || !caps.torch) return;
+            try {
+                await _torchTrack.applyConstraints({ advanced: [{ torch: !!nextState }] });
+                _torchOn = !!nextState;
+                _autoTorchByLowLight = byLowLight ? !!nextState : false;
+                const btn=document.getElementById('torchBtn');
+                if(btn) btn.style.background=_torchOn?'rgba(251,191,36,0.7)':'rgba(0,0,0,0.5)';
+            } catch (_) {}
+        }
+
+        async function applyLowLightCameraProfile(enabled) {
+            if (!_torchTrack || typeof _torchTrack.applyConstraints !== 'function' || typeof _torchTrack.getCapabilities !== 'function') return;
+            if (_cameraLowLightApplied === enabled) return;
+            const previous = _cameraLowLightApplied;
+            _cameraLowLightApplied = enabled;
+            try {
+                const caps = _torchTrack.getCapabilities() || {};
+                const adv = [];
+                if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) {
+                    adv.push({ exposureMode: 'continuous' });
+                }
+                if (enabled && caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number') {
+                    const min = Number(caps.exposureCompensation.min ?? 0);
+                    const max = Number(caps.exposureCompensation.max ?? min);
+                    if (max > min) {
+                        const target = Math.min(max, Math.max(min, min + ((max - min) * 0.7)));
+                        adv.push({ exposureCompensation: target });
+                    }
+                }
+                if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) {
+                    adv.push({ whiteBalanceMode: 'continuous' });
+                }
+                if (!adv.length) return;
+                await _torchTrack.applyConstraints({ advanced: adv });
+            } catch (_) {
+                _cameraLowLightApplied = previous;
+            }
+        }
+
+        function maybeAutoTorchForLowLight() {
+            if (_lowLightMode) {
+                if (!_lowLightSince) _lowLightSince = Date.now();
+                const lowFor = Date.now() - _lowLightSince;
+                if (lowFor >= AUTO_TORCH_DEBOUNCE_MS && !_torchOn) {
+                    setTorchState(true, true);
+                }
+                return;
+            }
+            _lowLightSince = 0;
+            if (_autoTorchByLowLight && _torchOn) {
+                setTorchState(false, true);
+            }
+        }
+
+        function updateLowLightState(avgLuma) {
+            if (avgLuma < LOW_LIGHT_LUMA_THRESHOLD) {
+                _lowLightStreak++;
+                _brightStreak = 0;
+            } else {
+                _brightStreak++;
+                _lowLightStreak = 0;
+            }
+
+            let next = _lowLightMode;
+            if (!_lowLightMode && _lowLightStreak >= LOW_LIGHT_STREAK_ON) next = true;
+            if (_lowLightMode && _brightStreak >= LOW_LIGHT_STREAK_OFF) next = false;
+
+            if (next !== _lowLightMode) {
+                _lowLightMode = next;
+                applyLowLightCameraProfile(_lowLightMode);
+            }
+            maybeAutoTorchForLowLight();
+        }
+
+        async function trySoftRefocus() {
+            if (!_torchTrack || typeof _torchTrack.applyConstraints !== 'function' || typeof _torchTrack.getCapabilities !== 'function') return;
+            const now = performance.now();
+            if ((now - _lastFocusTryAt) < REFOCUS_IDLE_MS) return;
+            _lastFocusTryAt = now;
+            try {
+                const caps = _torchTrack.getCapabilities() || {};
+                const adv = [];
+                if (Array.isArray(caps.focusMode) && caps.focusMode.includes('single-shot')) {
+                    adv.push({ focusMode: 'single-shot' });
+                }
+                if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+                    adv.push({ focusMode: 'continuous' });
+                }
+                if (caps.focusDistance && typeof caps.focusDistance.max === 'number') {
+                    const min = Number(caps.focusDistance.min ?? 0);
+                    const max = Number(caps.focusDistance.max ?? min);
+                    if (max > min) {
+                        const ratio = _focusNudgeFlip ? 0.58 : 0.4;
+                        _focusNudgeFlip = !_focusNudgeFlip;
+                        adv.push({ focusDistance: min + ((max - min) * ratio) });
+                    }
+                }
+                if (!adv.length) return;
+                await _torchTrack.applyConstraints({ advanced: adv });
+            } catch (_) {}
+        }
+
+        function stopScanLoop() {
+            _scanRunning = false;
+            if (scanRaf) {
+                cancelAnimationFrame(scanRaf);
+                scanRaf = null;
+            }
+        }
+
+        function getScanRegion(vw, vh) {
+            const side = Math.floor(Math.min(vw, vh) * SCAN_REGION_RATIO);
+            const sx = Math.floor((vw - side) / 2);
+            const sy = Math.floor((vh - side) / 2);
+            return { sx, sy, sw: side, sh: side };
+        }
+
+        async function decodeFrame(videoEl, canvasEl) {
+            const vw = videoEl.videoWidth || 0;
+            const vh = videoEl.videoHeight || 0;
+            if (!vw || !vh) return null;
+
+            const region = getScanRegion(vw, vh);
+
+            if (_barcodeDetector) {
+                try {
+                    const codes = await _barcodeDetector.detect(videoEl);
+                    if (codes && codes.length) {
+                        const best = codes.find(c => c && c.rawValue) || codes[0];
+                        if (best && best.rawValue) return String(best.rawValue).trim();
+                    }
+                } catch (_) {
+                    // Sessiz fallback: jsQR denenecek
+                }
+            }
+
+            const targetSide = Math.min(SCAN_MAX_DIM, region.sw);
+            canvasEl.width = targetSide;
+            canvasEl.height = targetSide;
+            if (!_scanCtx) _scanCtx = canvasEl.getContext('2d', { willReadFrequently: true });
+            if (!_scanCtx) return null;
+
+            _scanCtx.filter = getScanFilter();
+            _scanCtx.drawImage(videoEl, region.sx, region.sy, region.sw, region.sh, 0, 0, targetSide, targetSide);
+            _scanCtx.filter = 'none';
+            const img = _scanCtx.getImageData(0, 0, targetSide, targetSide);
+            updateLowLightState(estimateFrameLuma(img));
+            const qr = jsQR(img.data, img.width, img.height, {
+                inversionAttempts: 'attemptBoth'
+            });
+            if (qr && qr.data) return String(qr.data).trim();
+            return null;
+        }
 
         function isOnlineMode() {
             return !!(window.BiletProOnlineStore && window.BiletProOnlineStore.getMode && window.BiletProOnlineStore.getMode() === 'online');
@@ -406,9 +764,23 @@
 
         async function initCamera(){
             console.log('[KAMERA] initCamera() çağırıldı');
+            stopScanLoop();
+            if (stream && stream.getTracks) {
+                try { stream.getTracks().forEach(t => t.stop()); } catch(_) {}
+            }
+            stream = null;
+            _torchTrack = null;
+            _torchOn = false;
+            _lastDecodeSuccessAt = 0;
+            _lastFocusTryAt = 0;
+            _lowLightStreak = 0;
+            _brightStreak = 0;
+            _lowLightMode = false;
+            _lowLightSince = 0;
+            _autoTorchByLowLight = false;
+            _cameraLowLightApplied = false;
+            await ensureBarcodeDetector();
         /* ─── TICKET CACHE: anlık QR okuma ─── */
-        const _ticketCache = new Map();
-        let _scanning = false;
 
         function _buildCacheEntry(data, evRow) {
             var mesa = data.payload_json && data.payload_json.masa ? data.payload_json.masa : null;
@@ -464,18 +836,18 @@
             if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.error('[KAMERA] mediaDevices API desteklenmiyor');
                 if(permScreen) permScreen.style.display = 'flex';
-                if(msgEl) msgEl.innerHTML = "Tarayıcı kamera desteği bu cihazda mevcut değil.";
+                if(msgEl) msgEl.textContent = "Tarayıcı kamera desteği bu cihazda mevcut değil.";
                 return;
             }
             
             if(location.protocol === 'file:') {
                 console.error('[KAMERA] file:// protokolü ile açılmış');
                 if(permScreen) permScreen.style.display = 'flex';
-                if(msgEl) msgEl.innerHTML = "Kamera bağlantısız dosyada çalışmaz. Sunucu üzerinden açın.";
+                if(msgEl) msgEl.textContent = "Kamera bağlantısız dosyada çalışmaz. Sunucu üzerinden açın.";
                 return;
             }
             
-            if(msgEl) msgEl.innerHTML = "Kamera erişimi isteniyor...";
+            if(msgEl) msgEl.textContent = "Kamera erişimi isteniyor...";
             
             try{
                 console.log('[KAMERA] Arka kamera deneniyor (environment)...');
@@ -484,7 +856,8 @@
                     video: {
                         facingMode: {ideal: 'environment'},
                         width: {ideal: 1280},
-                        height: {ideal: 720}
+                        height: {ideal: 720},
+                        frameRate: { ideal: 60, min: 24 }
                     },
                     audio: false
                 });
@@ -503,15 +876,15 @@
                     if(permScreen) permScreen.style.display = 'flex';
                     if(msgEl) {
                         if(fallbackErr.name === 'NotAllowedError') {
-                            msgEl.innerHTML = "Kamera izni reddedildi.<br>Ayarlardan izin verin.";
+                            msgEl.textContent = "Kamera izni reddedildi. Ayarlardan izin verin.";
                         } else if(fallbackErr.name === 'NotFoundError') {
-                            msgEl.innerHTML = "Bu cihazda kamera bulunamadı.";
+                            msgEl.textContent = "Bu cihazda kamera bulunamadı.";
                         } else if(fallbackErr.name === 'NotReadableError') {
-                            msgEl.innerHTML = "Kamera kullanımda veya yazılım engeli var.";
+                            msgEl.textContent = "Kamera kullanımda veya yazılım engeli var.";
                         } else if(fallbackErr.name === 'SecurityError') {
-                            msgEl.innerHTML = "Güvenlik hatası. HTTPS veya localhost kullanın.";
+                            msgEl.textContent = "Güvenlik hatası. HTTPS veya localhost kullanın.";
                         } else {
-                            msgEl.innerHTML = "Hata: " + fallbackErr.message;
+                            msgEl.textContent = "Hata: " + (fallbackErr && fallbackErr.message ? fallbackErr.message : 'Bilinmeyen hata');
                         }
                     }
                 }
@@ -544,6 +917,10 @@
                         console.error('[KAMERA] Video oynatma hatası:', err);
                     });
                 }
+                try {
+                    const firstTrack = mediaStream && mediaStream.getVideoTracks ? mediaStream.getVideoTracks()[0] : null;
+                    optimizeCameraTrack(firstTrack);
+                } catch(_) {}
                 if(document.getElementById('camPerm')) document.getElementById('camPerm').style.display = 'none';
                 console.log('[KAMERA] camPerm gizlendi, startScan() çağırılıyor');
                 startScan();
@@ -554,43 +931,71 @@
                 const permScreen = document.getElementById('camPerm');
                 const msgEl = document.getElementById('camPermMsg');
                 if(permScreen) permScreen.style.display = 'flex';
-                if(msgEl) msgEl.innerHTML = "Video akışı başarısız. Cihazı yeniden başlatın.";
+                if(msgEl) msgEl.textContent = "Video akışı başarısız. Cihazı yeniden başlatın.";
             };
         }
 
         function startScan(){
-            const v=document.getElementById('videoFeed'),c=document.getElementById('qrCanvas'),x=c.getContext('2d');
-            if(scanTick) clearInterval(scanTick);
+            const v = document.getElementById('videoFeed');
+            const c = document.getElementById('qrCanvas');
+            if (!v || !c) return;
+            stopScanLoop();
+            _scanRunning = true;
+            _lastScanAt = 0;
+            _lastDecodeSuccessAt = performance.now();
+            _decodeBusy = false;
+            _adaptiveScanIntervalMs = SCAN_INTERVAL_BASE_MS;
+            _avgDecodeMs = 16;
+            _emptyFrameStreak = 0;
+            _decodeErrorStreak = 0;
+
             // Kamera stream'ini sakla (meşale için)
             if(stream) _torchTrack = stream.getVideoTracks && stream.getVideoTracks()[0];
-            scanTick=setInterval(()=>{
-                if(!v || v.readyState!==v.HAVE_ENOUGH_DATA) return;
-                c.width=v.videoWidth; c.height=v.videoHeight;
-                // Kontrast + parlaklık filtresi: QR modülleri daha keskin okunur
-                x.filter='contrast(1.35) brightness(1.08)';
-                x.drawImage(v,0,0,c.width,c.height);
-                x.filter='none';
-                const img=x.getImageData(0,0,c.width,c.height);
-                // attemptBoth: normal + ters renk QR'ları da okur
-                const qr=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
-                if(qr?.data){
-                    const now=Date.now();
-                    if(qr.data===lastQ&&now-lastT<COOL) return;
-                    lastQ=qr.data; lastT=now;
-                    processQR(qr.data.trim());
+
+            const loop = async (ts) => {
+                if (!_scanRunning) return;
+                scanRaf = requestAnimationFrame(loop);
+
+                if (!v || v.readyState !== v.HAVE_ENOUGH_DATA) return;
+                if (_decodeBusy) return;
+                if ((ts - _lastScanAt) < _adaptiveScanIntervalMs) return;
+                _lastScanAt = ts;
+
+                if ((ts - _lastDecodeSuccessAt) >= REFOCUS_IDLE_MS) {
+                    trySoftRefocus();
                 }
-            },80); // 120ms'den 80ms'ye düşürüldü: daha sık kare tarama
+
+                _decodeBusy = true;
+                try {
+                    const decodeStart = performance.now();
+                    const value = await decodeFrame(v, c);
+                    const decodeMs = performance.now() - decodeStart;
+                    if (!value) {
+                        tuneAdaptiveScanCadence({ decoded: false, decodeMs, lowLight: _lowLightMode });
+                        return;
+                    }
+                    _lastDecodeSuccessAt = ts;
+                    const now = Date.now();
+                    tuneAdaptiveScanCadence({ decoded: true, decodeMs, lowLight: _lowLightMode });
+                    if (value === lastQ && (now - lastT) < COOL) return;
+                    lastQ = value;
+                    lastT = now;
+                    processQR(value);
+                } catch (err) {
+                    console.warn('[QR] Tarama döngüsü hata verdi:', err);
+                    tuneAdaptiveScanCadence({ decoded: false, hadError: true, decodeMs: 0, lowLight: _lowLightMode });
+                } finally {
+                    _decodeBusy = false;
+                }
+            };
+
+            scanRaf = requestAnimationFrame(loop);
         }
 
         /* ─── FENER (MEŞALE) ─── */
         async function toggleTorch(){
             if(!_torchTrack) return;
-            _torchOn=!_torchOn;
-            try{
-                await _torchTrack.applyConstraints({advanced:[{torch:_torchOn}]});
-                const btn=document.getElementById('torchBtn');
-                if(btn) btn.style.background=_torchOn?'rgba(251,191,36,0.7)':'rgba(0,0,0,0.5)';
-            }catch(e){ _torchOn=!_torchOn; /* Cihaz desteklemiyor */ }
+            await setTorchState(!_torchOn, false);
         }
 
         /* ─── QR KONTROL VE YÖNLENDİRME ─── */
@@ -605,6 +1010,46 @@
                     for(let m=0;m<ms.length;m++){ if(ms[m].saleDetail?.ticketHash===raw) return {found:ms[m],ei:e,ci:c,mi:m}; }
                 }
             }
+            return null;
+        }
+
+        function normalizeTicketHash(rawInput) {
+            const raw = String(rawInput || '').trim();
+            if (!raw) return null;
+            const hashRegex = /EV[\w]+-M[\w.,]+-T[\w]+/;
+
+            if (hashRegex.test(raw)) {
+                const m = raw.match(hashRegex);
+                return m ? m[0] : raw;
+            }
+
+            try {
+                const url = new URL(raw);
+                const fromParams =
+                    url.searchParams.get('ticket') ||
+                    url.searchParams.get('hash') ||
+                    url.searchParams.get('t') ||
+                    url.searchParams.get('code') ||
+                    '';
+                if (fromParams && hashRegex.test(fromParams)) {
+                    const m = fromParams.match(hashRegex);
+                    if (m) return m[0];
+                }
+                const decodedPath = decodeURIComponent(url.pathname || '');
+                if (hashRegex.test(decodedPath)) {
+                    const m = decodedPath.match(hashRegex);
+                    if (m) return m[0];
+                }
+            } catch (_) {}
+
+            const decoded = (() => {
+                try { return decodeURIComponent(raw); } catch (_) { return raw; }
+            })();
+            if (hashRegex.test(decoded)) {
+                const m = decoded.match(hashRegex);
+                if (m) return m[0];
+            }
+
             return null;
         }
 
@@ -643,7 +1088,9 @@
             _scanning = true;
             try {
             loadData();
-            if(!/^EV[\w]+-M[\w.,]+-T[\w]+$/.test(raw)){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
+            const normalizedHash = normalizeTicketHash(raw);
+            if(!normalizedHash){ showInvalid('BİLET BULUNAMADI','Geçersiz QR Formatı.',raw); sndErr();flash('r'); return; }
+            raw = normalizedHash;
             let found=null,ei,ci,mi;
 
             // 1. Cache'e bak (anlık, 0ms)
@@ -680,6 +1127,8 @@
             const perms = getCurrentCheckinPerms();
             if(!perms.pDoor){ showInvalid('YETKİ YOK','Kapı yetkiniz bulunmuyor.',raw); sndErr();flash('r'); return; }
 
+            logQrRead(found);
+
             if(found.saleDetail.status==='INSIDE'){ showInsideCard(found); sndDouble();flash('r'); return; }
             if(found.saleDetail.status==='OUTSIDE'){ showOutsideCard(found); sndNotice();flash('b'); return; }
             if(found.saleDetail.debt>0){ showDebtCard(found); sndDebt();flash('a'); return; }
@@ -715,6 +1164,7 @@
                 const sd=masa.saleDetail;
                 const ec = enterCount || 1;
                 const kalan = sd.remainingCount != null ? sd.remainingCount : Math.max(0,(sd.people||1)-(sd.insideCount||0));
+                const debtInfo = Number(sd.debt || 0);
                 showRC(`<div class="res-card res-green shadow-2xl">
                     <div class="res-header"><div class="res-icon">✅</div><div><div class="res-title">GİRİŞ ONAYLI</div><div class="res-subtitle">${masa.soldTo||'—'} • ${sd.categoryName||''} / Masa ${masa.no}</div></div></div>
                     <div class="guest-hero" style="padding:28px 16px 22px;">
@@ -731,7 +1181,8 @@
                             <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:${kalan===0?'#7f1d1d':'#166534'};margin-top:4px;">Kalan Hak</div>
                         </div>
                     </div>
-                    ${sd.gateNote?`<div class="gnote"><span class="gnl">📌 KAPI NOTU</span><span class="gnv">${sd.gateNote}</span></div>`:''}
+                    ${sd.gateNote?`<div class="gnote"><span class="gnl">📌 KAPI NOTU</span><span class="gnv">${esc(sd.gateNote)}</span></div>`:''}
+                    ${debtInfo > 0 ? `<div class="gnote" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3);"><span class="gnl" style="color:#dc2626;">⚠️ BORÇLU GEÇİŞ</span><span class="gnv" style="color:#7f1d1d;">Kalan borç: ₺${esc(debtInfo.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}))}${sd.debtOverrideBy ? ` • Onaylayan: ${esc(sd.debtOverrideBy)}` : ''}${sd.debtOverrideReason ? `<br>Neden: ${esc(sd.debtOverrideReason)}` : ''}</span></div>` : ''}
                     <button class="btn-action btn-success mt-2" onclick="reset()">YENİ TARAMA BEKLENİYOR</button>
                 </div>`);
             }
@@ -760,18 +1211,34 @@
             commitIn(found,ei,ci,mi,0,0,'',enterCount); sndOK(); flash('g');
         }
 
-        function commitIn(masa,ei,ci,mi,paid,remain,method,enterCount=1){
+        function commitIn(masa,ei,ci,mi,paid,remain,method,enterCount=1,extra={}){
             const t=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
             const sd=masa.saleDetail;
+            const gateActor = getCurrentGateActorName();
+            const approverName = String((extra && extra.approverName) || gateActor || 'Kapı Personeli');
             sd.status='INSIDE';
             if(!sd.checkinTime) sd.checkinTime=t;
-            sd.checkinBy = (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name) || 'Kapı Personeli';
+            sd.checkinTime = t;
+            sd.checkinBy = gateActor;
             if(paid>0) sd.checkinPaid = (sd.checkinPaid||0) + paid;
             sd.debt=remain;
             sd.insideCount = (sd.insideCount || 0) + enterCount;
             sd.remainingCount = Math.max(0, (sd.people || 1) - sd.insideCount);
+            sd.lastGateAction = 'IN';
+            sd.lastGateApprovedBy = approverName;
+            if(extra && extra.debtOverrideBy){
+                sd.debtOverrideBy = extra.debtOverrideBy;
+                sd.debtOverrideAt = new Date().toISOString();
+            }
+            if(extra && typeof extra.debtOverrideReason === 'string'){
+                sd.debtOverrideReason = extra.debtOverrideReason.trim();
+            }
             saveData();
-            addLog(masa,paid,remain,'Kapı Personeli',t,`İÇERİ ALINDI (${enterCount} kişi)`);
+            const amountFmt = (val) => Number(val || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const actionText = (extra && extra.actionText)
+                ? String(extra.actionText)
+                : `GİRİŞ ONAYLANDI (${enterCount} kişi)${paid>0 ? ` • Tahsilat: ₺${amountFmt(paid)}${method ? ` (${method})` : ''}` : ''}${remain>0 ? ` • Kalan Borç: ₺${amountFmt(remain)}` : ''}${approverName ? ` • Onay: ${approverName}` : ''}`;
+            addLog(masa,paid,remain,approverName,t,actionText);
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("KAPI", "İçeri Alındı", `${masa.no} numaralı masa, ${enterCount} kişi içeri alındı. Kalan: ${sd.remainingCount}`);
             updateCounters();
             showValid(masa, enterCount);
@@ -844,7 +1311,7 @@
             const sd=masa.saleDetail;
             showRC(`<div class="res-card res-amber shadow-2xl">
                 <div class="res-header"><div class="res-icon">⚠️</div><div><div class="res-title">ÖDEME BEKLİYOR</div><div class="res-subtitle">Açık Borç Var</div></div></div>
-                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${masa.soldTo||'—'}</span></div>
+                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${esc(masa.soldTo||'—')}</span></div>
                 <div class="irow mt-4 pt-4 border-t border-amber-200/50"><span class="il">BORÇ</span><span class="iv text-red-600 text-xl">₺${sd.debt}</span></div>
                 <button class="btn-action btn-warning mt-6" onclick="openDebtModal()">💰 TAHSİLAT YAP VE AL</button>
                 <button class="btn-action btn-ghost" onclick="reset()">İPTAL</button>
@@ -855,8 +1322,8 @@
             const sd=masa.saleDetail;
             showRC(`<div class="res-card res-red shadow-2xl">
                 <div class="res-header"><div class="res-icon">🚨</div><div><div class="res-title">ZATEN İÇERİDE</div><div class="res-subtitle">Giriş: ${sd.checkinTime||'—'}</div></div></div>
-                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${masa.soldTo||'—'}</span></div>
-                <div class="irow"><span class="il">MASA</span><span class="iv">${sd.categoryName||'—'} / ${masa.no}</span></div>
+                <div class="irow"><span class="il">MÜŞTERİ</span><span class="iv">${esc(masa.soldTo||'—')}</span></div>
+                <div class="irow"><span class="il">MASA</span><span class="iv">${esc(sd.categoryName||'—')} / ${esc(masa.no)}</span></div>
                 <div class="irow !mb-0"><span class="il">İÇERİDE</span><span class="iv text-red-600 font-black">${sd.insideCount||1} / ${sd.people||1} kişi</span></div>
                 <div class="mt-4 p-4 bg-red-50 rounded-xl">
                     <button class="btn-action btn-danger !mt-0" onclick="setTempOut()">🚬 GEÇİCİ ÇIKIŞ YAP (WC)</button>
@@ -876,8 +1343,8 @@
 
         function showInvalid(title,desc,raw){
             showRC(`<div class="res-card res-red shadow-2xl">
-                <div class="res-header"><div class="res-icon">❌</div><div><div class="res-title">${title}</div><div class="res-subtitle">${desc}</div></div></div>
-                <div class="bg-red-50 p-4 rounded-xl text-xs font-mono break-all">${raw}</div>
+                <div class="res-header"><div class="res-icon">❌</div><div><div class="res-title">${esc(title)}</div><div class="res-subtitle">${esc(desc)}</div></div></div>
+                <div class="bg-red-50 p-4 rounded-xl text-xs font-mono break-all">${esc(raw)}</div>
                 <button class="btn-action btn-ghost mt-4" onclick="reset()">YENİ TARAMA</button>
             </div>`);
         }
@@ -918,25 +1385,342 @@
             sndOK();
             flash('g');
         }
-        async function skipDebt(){
+        function openRiskApproveModal(){
             const perms = getCurrentCheckinPerms();
             if(!perms.pDoorRisk){ return showInvalid('YETKİ YOK','Borçlu geçiş yetkiniz bulunmuyor.',''); }
-            if(confirm('Borçlu geçişi onaylıyor musunuz?')){
-                if(isOnlineMode() && window.BiletProOnlineStore && typeof window.BiletProOnlineStore.gateAction === 'function') {
-                    const onlineRes = await window.BiletProOnlineStore.gateAction(pM.saleDetail.ticketHash, 'DEBT_SKIP', getGateUser(), {
-                        gateId: `gate-${eventId || 'main'}`,
-                        debtAfter: pM.saleDetail.debt
-                    });
-                    if(!onlineRes?.ok) {
-                        if(typeof showToast === 'function') showToast('Online borçlu geçiş işlenemedi. Tekrar deneyin.', 'error');
-                        return;
-                    }
-                }
-                closeDebtModal();
-                commitIn(pM,pEi,pCi,pMi,0,pM.saleDetail.debt,'',0);
-                if(typeof window.writeAuditEvent === 'function') writeAuditEvent('KAPI','Borçlu Geçiş','Borçlu müşteri kapıdan geçirildi.');
-                sndOK(); flash('a');
+            const modal = document.getElementById('riskApproveModal');
+            const userEl = document.getElementById('riskApproveUser');
+            const pinEl = document.getElementById('riskApprovePin');
+            const reasonEl = document.getElementById('riskApproveReason');
+            const errEl = document.getElementById('riskApproveError');
+            if(errEl) errEl.classList.add('hidden');
+            if(userEl) userEl.value = (getCurrentGateSession().username || '').trim();
+            if(pinEl) pinEl.value = '';
+            if(reasonEl) reasonEl.value = '';
+            renderRiskQuickReasons();
+            if(modal) modal.classList.remove('hidden');
+            setTimeout(() => { try { if(pinEl) pinEl.focus(); } catch(_) {} }, 40);
+        }
+
+        function closeRiskApproveModal(){
+            const modal = document.getElementById('riskApproveModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function getRiskQuickReasonsKey() {
+            const s = getCurrentGateSession();
+            const u = String((s && s.username) || 'guest').trim().toLowerCase() || 'guest';
+            return 'BiletPro_RiskQuickReasons_' + u;
+        }
+
+        function getRiskQuickReasons() {
+            try {
+                const raw = localStorage.getItem(getRiskQuickReasonsKey()) || '[]';
+                const arr = JSON.parse(raw);
+                if (!Array.isArray(arr)) return [];
+                return arr
+                    .map(v => String(v || '').trim())
+                    .filter(v => v.length >= 4)
+                    .slice(0, 20);
+            } catch (_) {
+                return [];
             }
+        }
+
+        function saveRiskQuickReasons(list) {
+            const safe = (Array.isArray(list) ? list : [])
+                .map(v => String(v || '').trim())
+                .filter(v => v.length >= 4)
+                .slice(0, 20);
+            localStorage.setItem(getRiskQuickReasonsKey(), JSON.stringify(safe));
+        }
+
+        function toggleRiskQuickPanel(forceOpen) {
+            const panel = document.getElementById('riskQuickPanel');
+            if (!panel) return;
+            const open = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
+            if (open) panel.classList.remove('hidden');
+            else panel.classList.add('hidden');
+        }
+
+        let _riskQuickDragIndex = null;
+        let _riskQuickTouchState = {
+            fromIndex: null,
+            overIndex: null,
+            pressTimer: null,
+            active: false,
+            pointerId: null,
+            rowEl: null,
+            sourceEl: null
+        };
+
+        function clearRiskQuickTouchState(commitMove = true) {
+            const st = _riskQuickTouchState;
+            if (st.pressTimer) {
+                clearTimeout(st.pressTimer);
+                st.pressTimer = null;
+            }
+            const rows = document.querySelectorAll('[data-risk-q-row]');
+            rows.forEach(r => r.classList.remove('ring-2', 'ring-blue-300', 'opacity-60'));
+            if (commitMove && st.active && Number.isInteger(st.fromIndex) && Number.isInteger(st.overIndex) && st.fromIndex !== st.overIndex) {
+                reorderRiskQuickReasons(st.fromIndex, st.overIndex);
+            }
+            _riskQuickTouchState = {
+                fromIndex: null,
+                overIndex: null,
+                pressTimer: null,
+                active: false,
+                pointerId: null,
+                rowEl: null,
+                sourceEl: null
+            };
+        }
+
+        function getRiskRowFromPoint(x, y) {
+            const el = document.elementFromPoint(x, y);
+            if (!el) return null;
+            return el.closest('[data-risk-q-row]');
+        }
+
+        function onRiskQuickHandlePointerDown(ev, index) {
+            if (!ev) return;
+            if (ev.pointerType === 'mouse') return;
+            const row = ev.currentTarget ? ev.currentTarget.closest('[data-risk-q-row]') : null;
+            clearRiskQuickTouchState(false);
+            _riskQuickTouchState.fromIndex = Number(index);
+            _riskQuickTouchState.overIndex = Number(index);
+            _riskQuickTouchState.pointerId = ev.pointerId;
+            _riskQuickTouchState.rowEl = row;
+            _riskQuickTouchState.sourceEl = ev.currentTarget || null;
+            try { if (ev.currentTarget && ev.currentTarget.setPointerCapture) ev.currentTarget.setPointerCapture(ev.pointerId); } catch (_) {}
+            _riskQuickTouchState.pressTimer = setTimeout(() => {
+                _riskQuickTouchState.active = true;
+                if (row && row.classList) row.classList.add('opacity-60');
+                if (navigator.vibrate) {
+                    try { navigator.vibrate(12); } catch (_) {}
+                }
+            }, 260);
+        }
+
+        function onRiskQuickHandlePointerMove(ev) {
+            const st = _riskQuickTouchState;
+            if (!st || st.pointerId === null || ev.pointerId !== st.pointerId) return;
+            if (!st.active) return;
+            if (ev) ev.preventDefault();
+            const row = getRiskRowFromPoint(ev.clientX, ev.clientY);
+            if (!row) return;
+            const idx = Number(row.getAttribute('data-risk-q-index'));
+            if (!Number.isInteger(idx)) return;
+            if (st.overIndex !== idx) {
+                const rows = document.querySelectorAll('[data-risk-q-row]');
+                rows.forEach(r => r.classList.remove('ring-2', 'ring-blue-300'));
+                row.classList.add('ring-2', 'ring-blue-300');
+                st.overIndex = idx;
+            }
+        }
+
+        function onRiskQuickHandlePointerUp(ev) {
+            const st = _riskQuickTouchState;
+            if (!st || st.pointerId === null || (ev && ev.pointerId !== st.pointerId)) return;
+            try {
+                if (st.sourceEl && ev && st.sourceEl.releasePointerCapture) {
+                    st.sourceEl.releasePointerCapture(ev.pointerId);
+                }
+            } catch (_) {}
+            const shouldCommit = st.active;
+            clearRiskQuickTouchState(shouldCommit);
+        }
+
+        function startRiskQuickDrag(ev, index) {
+            _riskQuickDragIndex = Number(index);
+            const row = ev && ev.currentTarget ? ev.currentTarget : null;
+            if (row && row.classList) row.classList.add('opacity-60');
+            try {
+                if (ev && ev.dataTransfer) {
+                    ev.dataTransfer.effectAllowed = 'move';
+                    ev.dataTransfer.setData('text/plain', String(index));
+                }
+            } catch (_) {}
+        }
+
+        function overRiskQuickDrag(ev, index) {
+            if (ev) ev.preventDefault();
+            const row = ev && ev.currentTarget ? ev.currentTarget : null;
+            if (row && row.classList) row.classList.add('ring-2', 'ring-blue-300');
+        }
+
+        function leaveRiskQuickDrag(ev) {
+            const row = ev && ev.currentTarget ? ev.currentTarget : null;
+            if (row && row.classList) row.classList.remove('ring-2', 'ring-blue-300');
+        }
+
+        function endRiskQuickDrag(ev) {
+            const rows = document.querySelectorAll('[data-risk-q-row]');
+            rows.forEach(r => r.classList.remove('ring-2', 'ring-blue-300', 'opacity-60'));
+            _riskQuickDragIndex = null;
+        }
+
+        function reorderRiskQuickReasons(fromIndex, toIndex) {
+            const from = Number(fromIndex);
+            const to = Number(toIndex);
+            if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from === to) return;
+            const list = getRiskQuickReasons();
+            if (from >= list.length || to >= list.length) return;
+            const moved = list.splice(from, 1)[0];
+            list.splice(to, 0, moved);
+            saveRiskQuickReasons(list);
+            renderRiskQuickReasons();
+            toggleRiskQuickPanel(true);
+        }
+
+        function dropRiskQuickDrag(ev, index) {
+            if (ev) ev.preventDefault();
+            const row = ev && ev.currentTarget ? ev.currentTarget : null;
+            if (row && row.classList) row.classList.remove('ring-2', 'ring-blue-300');
+            let from = _riskQuickDragIndex;
+            try {
+                if (ev && ev.dataTransfer) {
+                    const raw = ev.dataTransfer.getData('text/plain');
+                    if (raw !== '') from = Number(raw);
+                }
+            } catch (_) {}
+            reorderRiskQuickReasons(from, Number(index));
+            _riskQuickDragIndex = null;
+        }
+
+        function renderRiskQuickReasons() {
+            const wrap = document.getElementById('riskQuickList');
+            if (!wrap) return;
+            const list = getRiskQuickReasons();
+            if (!list.length) {
+                wrap.innerHTML = '<span class="text-[10px] font-bold text-slate-400">Henüz hazır mesaj yok. İstersen yukarıdan ekleyebilirsin.</span>';
+                return;
+            }
+            wrap.innerHTML = list.map((msg, idx) => {
+                return '<div data-risk-q-row="1" data-risk-q-index="' + idx + '" draggable="true" ondragstart="startRiskQuickDrag(event,' + idx + ')" ondragover="overRiskQuickDrag(event,' + idx + ')" ondragleave="leaveRiskQuickDrag(event)" ondrop="dropRiskQuickDrag(event,' + idx + ')" ondragend="endRiskQuickDrag(event)" class="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 max-w-full transition-all">'
+                    + '<button type="button" title="Taşımak için sürükle" class="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 text-[12px] font-black flex items-center justify-center cursor-grab active:cursor-grabbing touch-none" onmousedown="event.preventDefault()" onpointerdown="onRiskQuickHandlePointerDown(event,' + idx + ')" onpointermove="onRiskQuickHandlePointerMove(event)" onpointerup="onRiskQuickHandlePointerUp(event)" onpointercancel="onRiskQuickHandlePointerUp(event)" onlostpointercapture="onRiskQuickHandlePointerUp(event)">☰</button>'
+                    + '<button type="button" onclick="useRiskQuickReason(' + idx + ')" class="text-[10px] font-black text-slate-700 hover:text-blue-600 text-left truncate flex-1 min-w-0" title="' + escAttr(msg) + '">' + esc(msg) + '</button>'
+                    + '<button type="button" onclick="removeRiskQuickReason(' + idx + ')" class="w-5 h-5 rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 text-[11px] font-black leading-none">×</button>'
+                    + '</div>';
+            }).join('');
+        }
+
+        function addRiskQuickReason() {
+            const input = document.getElementById('riskQuickInput');
+            const errEl = document.getElementById('riskApproveError');
+            const value = String((input && input.value) || '').trim();
+            if (value.length < 4) {
+                if (errEl) {
+                    errEl.textContent = 'Hazır mesaj en az 4 karakter olmalı.';
+                    errEl.classList.remove('hidden');
+                }
+                if (input) input.focus();
+                return;
+            }
+            const list = getRiskQuickReasons();
+            if (!list.includes(value)) list.unshift(value);
+            saveRiskQuickReasons(list);
+            if (input) input.value = '';
+            if (errEl) errEl.classList.add('hidden');
+            renderRiskQuickReasons();
+            toggleRiskQuickPanel(true);
+        }
+
+        function useRiskQuickReason(index) {
+            const list = getRiskQuickReasons();
+            const msg = list[index];
+            if (!msg) return;
+            const reasonEl = document.getElementById('riskApproveReason');
+            if (!reasonEl) return;
+            reasonEl.value = msg;
+            try { reasonEl.focus(); } catch(_) {}
+        }
+
+        function removeRiskQuickReason(index) {
+            const list = getRiskQuickReasons();
+            if (index < 0 || index >= list.length) return;
+            list.splice(index, 1);
+            saveRiskQuickReasons(list);
+            renderRiskQuickReasons();
+        }
+
+        function resolveRiskApprover(username, pin) {
+            const u = String(username || '').trim().toLowerCase();
+            const p = String(pin || '').trim();
+            if(!u || !p) return null;
+            const staff = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
+            const user = (Array.isArray(staff) ? staff : []).find(s => String(s.username || '').trim().toLowerCase() === u);
+            if(!user || user.isActive === false) return null;
+            const canRisk = user.role === 'admin' || !!(user.perms && user.perms.pDoorRisk === true);
+            if(!canRisk) return null;
+            if(String(user.password || '') !== p) return null;
+            return user;
+        }
+
+        async function confirmRiskApprove(){
+            if(!pM) return;
+            const userEl = document.getElementById('riskApproveUser');
+            const pinEl = document.getElementById('riskApprovePin');
+            const reasonEl = document.getElementById('riskApproveReason');
+            const errEl = document.getElementById('riskApproveError');
+            const approver = resolveRiskApprover(userEl && userEl.value, pinEl && pinEl.value);
+            if(!approver) {
+                if(errEl) {
+                    errEl.textContent = 'Kullanıcı/şifre hatalı veya yetki yetersiz.';
+                    errEl.classList.remove('hidden');
+                }
+                if(pinEl) { pinEl.focus(); pinEl.select(); }
+                return;
+            }
+
+            const reason = String((reasonEl && reasonEl.value) || '').trim();
+            if(reason.length < 4) {
+                if(errEl) {
+                    errEl.textContent = 'Onay nedeni en az 4 karakter olmalı.';
+                    errEl.classList.remove('hidden');
+                }
+                if(reasonEl) { reasonEl.focus(); }
+                return;
+            }
+
+            const approverName = approver.name || approver.username || 'Yetkili';
+            const approverUsername = approver.username || '';
+            const remainDebt = Number(pM.saleDetail?.debt || 0);
+
+            if(isOnlineMode() && window.BiletProOnlineStore && typeof window.BiletProOnlineStore.gateAction === 'function') {
+                const onlineRes = await window.BiletProOnlineStore.gateAction(pM.saleDetail.ticketHash, 'DEBT_SKIP', getGateUser(), {
+                    gateId: `gate-${eventId || 'main'}`,
+                    debtAfter: remainDebt,
+                    overrideBy: approverName,
+                    overrideUsername: approverUsername,
+                    overrideReason: reason
+                });
+                if(!onlineRes?.ok) {
+                    if(typeof showToast === 'function') showToast('Online borçlu geçiş işlenemedi. Tekrar deneyin.', 'error');
+                    return;
+                }
+            }
+
+            closeRiskApproveModal();
+            closeDebtModal();
+            commitIn(
+                pM,
+                pEi,
+                pCi,
+                pMi,
+                0,
+                remainDebt,
+                '',
+                1,
+                {
+                    approverName,
+                    debtOverrideBy: approverName,
+                    debtOverrideReason: reason,
+                    actionText: `BORÇLU GEÇİŞ ONAYLANDI (1 kişi) • Onaylayan: ${approverName} (@${approverUsername}) • Neden: ${reason} • Kalan Borç: ₺${Number(remainDebt).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+                }
+            );
+            if(typeof window.writeAuditEvent === 'function') writeAuditEvent('KAPI','Borçlu Geçiş Onayı',`Borçlu müşteri şifreli onayla geçirildi. Onaylayan: ${approverName} (@${approverUsername}). Neden: ${reason}`);
+            sndOK(); flash('a');
         }
 
         function doManual(){
@@ -956,24 +1740,37 @@
             if(!res.length) return showInvalid('BULUNAMADI', 'Kayıt yok', q);
             if(res.length===1) return pick(res[0]);
             showRC(`<div class="w-full"><span class="label-mini mb-4 block">${res.length} SONUÇ</span><div class="space-y-3">
-                ${res.map(r=>`<div onclick="pickByHash('${r.m.saleDetail.ticketHash}')" class="silk-card !p-4 cursor-pointer hover:border-blue-500 transition-all flex justify-between items-center group">
-                <div><p class="text-[13px] font-black">${r.m.soldTo||'—'} <span class="text-[10px] text-slate-400">/ Masa ${r.m.no}</span></p></div><div class="text-slate-300">▶</div></div>`).join('')}
+                ${res.map(r=>`<div onclick="pickByHash('${escAttr(r.m.saleDetail.ticketHash)}')" class="silk-card !p-4 cursor-pointer hover:border-blue-500 transition-all flex justify-between items-center group">
+                <div><p class="text-[13px] font-black">${esc(r.m.soldTo||'—')} <span class="text-[10px] text-slate-400">/ Masa ${esc(r.m.no)}</span></p></div><div class="text-slate-300">▶</div></div>`).join('')}
                 </div><button class="btn-action btn-ghost mt-6" onclick="reset()">GERİ</button></div>`);
         }
 
         function pick(obj){ pM=obj.m; pEi=obj.ei; pCi=obj.ci; pMi=obj.mi; processQR(obj.m.saleDetail.ticketHash); }
         function pickByHash(hash){ loadData(); const r=_searchTicketInEvents(hash); if(r) pick({m:r.found,ei:r.ei,ci:r.ci,mi:r.mi}); }
         
-        function addLog(masa,paid,remain,staff,time,actionText){ 
-            log.unshift({name:masa.soldTo||'Müşteri',masa:masa.no,cat:masa.saleDetail.categoryName,time,staff,paid,remain,type:remain>0?'skip':paid>0?'debt':actionText.includes('ÇIKIŞ')?'out':'ok', action: actionText}); 
+        const _scanLogGuard = new Map();
+        function logQrRead(masa){
+            const hash = String(masa?.saleDetail?.ticketHash || '');
+            if(!hash) return;
+            const now = Date.now();
+            const last = _scanLogGuard.get(hash) || 0;
+            if((now - last) < 2500) return;
+            _scanLogGuard.set(hash, now);
+            const t = new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            addLog(masa,0,Number(masa.saleDetail?.debt || 0),getCurrentGateActorName(),t,'QR OKUNDU','scan',true);
+        }
+
+        function addLog(masa,paid,remain,staff,time,actionText,forcedType=null,skipAudit=false){ 
+            const type = forcedType || (remain>0?'skip':paid>0?'debt':String(actionText||'').includes('ÇIKIŞ')?'out':'ok');
+            log.unshift({name:masa.soldTo||'Müşteri',masa:masa.no,cat:masa.saleDetail.categoryName,time,staff,paid,remain,type, action: actionText}); 
             saveLog(); renderLog(); 
-            if(typeof window.writeAuditEvent === 'function') writeAuditEvent('KAPI', actionText, `${masa.soldTo||'Müşteri'} - Masa ${masa.no} - ${staff}`);
+            if(!skipAudit && typeof window.writeAuditEvent === 'function') writeAuditEvent('KAPI', actionText, `${masa.soldTo||'Müşteri'} - Masa ${masa.no} - ${staff}`);
         }
         
         function renderLog(){ 
             const el=document.getElementById('logList'); 
             if(!log.length){el.innerHTML='<div class="text-center py-10 text-[10px] font-black text-slate-400">KAYIT YOK</div>';return;} 
-            el.innerHTML=log.slice(0,60).map(l=>`<div class="litem l${l.type}"><div class="flex justify-between items-start mb-1"><span class="text-xs font-black">${l.name} / ${l.masa}</span><span class="text-[9px] font-black text-slate-400">${l.time}</span></div><div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide"><b>${l.action}</b> • ${l.staff}</div></div>`).join(''); 
+            el.innerHTML=log.slice(0,60).map(l=>`<div class="litem l${escAttr(l.type)}"><div class="flex justify-between items-start mb-1"><span class="text-xs font-black">${esc(l.name)} / ${esc(l.masa)}</span><span class="text-[9px] font-black text-slate-400">${esc(l.time)}</span></div><div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide"><b>${esc(l.action)}</b> • ${esc(l.staff)}</div></div>`).join(''); 
         }
         
         function toggleLog(){ const d=document.getElementById('logDrawer'), b=document.getElementById('logBg'); const o=d.classList.toggle('open'); if(o) b.classList.remove('hidden'); else b.classList.add('hidden'); }
@@ -991,6 +1788,27 @@
         }
         
         console.log('[APP] Sayfa yükü tamamlandı. Kamera tuşu: onclick="initCamera()"');
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                if (_autoTorchByLowLight && _torchOn) setTorchState(false, true);
+                stopScanLoop();
+                return;
+            }
+            if (stream && !_scanRunning) {
+                startScan();
+            }
+        });
+
+        window.addEventListener('pagehide', () => {
+            stopScanLoop();
+            if (stream && stream.getTracks) {
+                try { stream.getTracks().forEach(t => t.stop()); } catch(_) {}
+            }
+            stream = null;
+            _torchTrack = null;
+            _torchOn = false;
+        });
 
         // Realtime: başka cihaz check-in/ticket değişikliği → sayaçları güncelle
         window.addEventListener('biletpro:data-updated', function(e) {

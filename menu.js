@@ -101,8 +101,9 @@
         return 'index.html';
     }
 
-    // 1. MASTER VERİ TANIMI
-    const MASTER_USER = {
+    // 1. İLK KURULUM İÇİN BOOTSTRAP ADMIN TANIMI
+    // Not: Bu kullanıcı sadece sistemde hiç admin yoksa oluşturulur.
+    const BOOTSTRAP_ADMIN = {
         name: "Hakan",
         username: "Hakan",
         password: "52655265",
@@ -145,23 +146,28 @@
         sessionStorage.setItem('BiletPro_LoggedInTab', '1');
     }
 
-    // 3. PERSONEL VERİTABANINA HAKAN'I ÇAK
+    // 3. PERSONEL VERİTABANINDA EN AZ BİR ADMIN KULLANICI GARANTİSİ
     let staffData = safeJSONParse(localStorage.getItem('BiletPro_Staff'), []) || [];
-    const masterIdx = staffData.findIndex(
-        s => normalizeUsername(s && s.username) === normalizeUsername(MASTER_USER.username)
-    );
-    if (masterIdx === -1) {
-        staffData.push({ ...MASTER_USER });
-        localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
-    } else {
-        const existing = staffData[masterIdx] || {};
-        staffData[masterIdx] = {
-            ...existing,
-            password: MASTER_USER.password,
-            role: 'admin',
-            isActive: true,
-            perms: { ...(existing.perms || {}), ...(MASTER_USER.perms || {}) }
-        };
+    const hasAdmin = staffData.some(s => String((s && s.role) || '').trim().toLowerCase() === 'admin');
+    if (!hasAdmin) {
+        const seedIdx = staffData.findIndex(
+            s => normalizeUsername(s && s.username) === normalizeUsername(BOOTSTRAP_ADMIN.username)
+        );
+
+        if (seedIdx === -1) {
+            staffData.push({ ...BOOTSTRAP_ADMIN });
+        } else {
+            const existing = staffData[seedIdx] || {};
+            staffData[seedIdx] = {
+                ...existing,
+                // Mevcut şifreyi koru; boşsa bootstrap şifresi ver
+                password: existing.password || BOOTSTRAP_ADMIN.password,
+                role: 'admin',
+                isActive: true,
+                perms: { ...(BOOTSTRAP_ADMIN.perms || {}), ...(existing.perms || {}) }
+            };
+        }
+
         localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
     }
 
@@ -283,6 +289,24 @@ function safeJSON(raw, fallback = null) {
     try { return JSON.parse(raw); } catch(_) { return fallback; }
 }
 
+function bpEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function bpEscapeAttr(value) {
+    return bpEscapeHtml(value).replace(/`/g, '&#96;');
+}
+
+window.BiletProSecurity = {
+    escapeHtml: bpEscapeHtml,
+    escapeAttr: bpEscapeAttr
+};
+
 function mergeDeep(base, override) {
     const output = Array.isArray(base) ? [...base] : { ...base };
     if(!override || typeof override !== 'object') return output;
@@ -320,6 +344,33 @@ window.BiletProCore = {
         return mergeDeep({}, BILETPRO_DEFAULT_CONFIG);
     }
 };
+
+function syncDynamicViewportHeight() {
+    try {
+        const vv = window.visualViewport;
+        const vh = (vv && vv.height ? vv.height : window.innerHeight) * 0.01;
+        document.documentElement.style.setProperty('--bp-vh', `${vh}px`);
+    } catch (_) {}
+}
+
+function initDynamicViewportHeight() {
+    if (window.__bpDynamicVhReady) return;
+    window.__bpDynamicVhReady = true;
+
+    const update = () => syncDynamicViewportHeight();
+    update();
+
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('orientationchange', update, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') update();
+    });
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', update, { passive: true });
+        window.visualViewport.addEventListener('scroll', update, { passive: true });
+    }
+}
 
 window.applyGlobalConfig = function() {
     const cfg = window.BiletProCore.getConfig();
@@ -362,13 +413,13 @@ window.applyGlobalConfig = function() {
 const uiStyles = document.createElement('style');
 uiStyles.innerHTML = `
     /* Toast Bildirimleri (Sağ üstten kayarak gelir) */
-    .toast-container { position: fixed; top: 30px; right: 30px; z-index: 9999999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+    .toast-container { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 12px; z-index: 9999999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; width: min(420px, calc(100vw - 24px)); }
     .toast-silk { 
         background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(226, 232, 240, 0.8); 
         padding: 16px 24px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.08); 
         display: flex; align-items: center; gap: 14px; transform: translateX(120%); opacity: 0; 
         transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-family: 'Plus Jakarta Sans', sans-serif;
-        position: relative; overflow: hidden;
+        position: relative; overflow: hidden; width: 100%;
     }
     .toast-silk.show { transform: translateX(0); opacity: 1; }
     .toast-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; flex-shrink: 0; }
@@ -392,9 +443,9 @@ uiStyles.innerHTML = `
     .bp-sync-pill.show { opacity:1; }
 
     /* Confirm Kutusu (Ekranın ortasında cam efektli) */
-    .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); z-index: 9999999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; pointer-events: none; }
+    .confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(10px); z-index: 9999999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; pointer-events: none; padding: 12px; }
     .confirm-overlay.show { opacity: 1; pointer-events: all; }
-    .confirm-box { background: #fff; border-radius: 36px; padding: 45px 35px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); font-family: 'Plus Jakarta Sans', sans-serif; }
+    .confirm-box { background: #fff; border-radius: 36px; padding: 45px 35px; width: 100%; max-width: 400px; max-height: calc(100dvh - 24px); overflow: auto; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); font-family: 'Plus Jakarta Sans', sans-serif; }
     .confirm-overlay.show .confirm-box { transform: scale(1); }
     .confirm-icon { width: 65px; height: 65px; background: #fee2e2; color: #ef4444; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 25px; font-weight: bold;}
     .confirm-title { font-size: 20px; font-weight: 900; color: #0f172a; margin-bottom: 12px; text-transform: uppercase; tracking-tight; }
@@ -404,10 +455,20 @@ uiStyles.innerHTML = `
     .btn-c-cancel:hover { background: #e2e8f0; }
     .btn-c-confirm { padding: 16px; border-radius: 18px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; text-transform: uppercase; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.25); }
     .btn-c-confirm:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(239, 68, 68, 0.4); }
+
+    @media (max-width: 640px) {
+        .toast-container { left: 12px; right: 12px; width: auto; }
+        .toast-silk { border-radius: 16px; padding: 12px 14px; gap: 10px; }
+        .toast-text { font-size: 11px; }
+        .confirm-box { border-radius: 22px; padding: 20px 16px; max-width: min(520px, calc(100vw - 24px)); }
+        .confirm-actions { grid-template-columns: 1fr; }
+    }
 `;
 document.head.appendChild(uiStyles);
 
 window.addEventListener('DOMContentLoaded', () => {
+    initDynamicViewportHeight();
+
     // Dark mode init — kayıtlıysa uygula
     if (localStorage.getItem('BiletPro_DarkMode') === '1') {
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -453,7 +514,8 @@ window.showToast = function(message, type = 'info') {
     if(type === 'warning') iconHtml = '⚠️';
 
     const pId = 'tp_' + Date.now();
-    toast.innerHTML = `<div class="toast-icon">${iconHtml}</div><div class="toast-text">${message}</div><div class="toast-progress" id="${pId}"></div>`;
+    const safeMessage = bpEscapeHtml(message).replace(/\n/g, '<br>');
+    toast.innerHTML = `<div class="toast-icon">${iconHtml}</div><div class="toast-text">${safeMessage}</div><div class="toast-progress" id="${pId}"></div>`;
     container.appendChild(toast);
     
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -472,11 +534,13 @@ window.showToast = function(message, type = 'info') {
 window.showConfirm = function(title, description, onConfirm) {
     const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
+    const safeTitle = bpEscapeHtml(title);
+    const safeDescription = bpEscapeHtml(description).replace(/\n/g, '<br>');
     overlay.innerHTML = `
         <div class="confirm-box">
             <div class="confirm-icon">!</div>
-            <div class="confirm-title">${title}</div>
-            <div class="confirm-desc">${description}</div>
+            <div class="confirm-title">${safeTitle}</div>
+            <div class="confirm-desc">${safeDescription}</div>
             <div class="confirm-actions">
                 <button class="btn-c-cancel" onclick="this.closest('.confirm-overlay').remove()">VAZGEÇ</button>
                 <button class="btn-c-confirm" id="confirmBtnAction">ONAYLA VE SİL</button>
@@ -1071,13 +1135,23 @@ function injectMenu(active = 'dashboard', eventId = null) {
         .expanded .l2 { opacity: 0; }
         .expanded .l3 { transform: translateY(-7.5px) rotate(-45deg); }
         .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 8px; }
-        .nav-link { width: 100%; display: flex; align-items: center; padding: 6px 35px; color: #64748b; text-decoration: none; transition: 0.2s; position: relative; white-space: nowrap; }
+        .nav-link { width: 100%; display: flex; align-items: center; padding: 6px 35px; color: #64748b; text-decoration: none; transition: 0.2s; position: relative; white-space: nowrap; min-width: 0; }
         .nav-link i { font-size: 20px; min-width: 22px; text-align: center; font-style: normal; }
-        .nav-txt { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 18px; letter-spacing: 1.2px; color: var(--silk-text); opacity: 0; visibility: hidden; transition: 0.3s; }
+        .nav-txt { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 18px; letter-spacing: 1.2px; color: var(--silk-text); opacity: 0; visibility: hidden; transition: 0.3s; overflow: hidden; text-overflow: ellipsis; }
         .expanded .nav-txt { opacity: 1; visibility: visible; }
         .nav-link.active { color: var(--silk-accent); background: rgba(37, 99, 235, 0.04); }
         .nav-link.active::before { content: ''; position: absolute; left: 0; top: 15%; bottom: 15%; width: 5px; background: var(--silk-accent); border-radius: 0 5px 5px 0; }
-        main, .main-content { flex: 1; height: 100vh; overflow-y: auto; background: #f4f7fa; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
+        main, .main-content {
+            flex: 1;
+            min-height: 0;
+            height: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            background: #f4f7fa;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
         .u-sec { display: none !important; }
         .quick-actions { display: none !important; }
 
@@ -1888,6 +1962,19 @@ window.BiletProAutoSync = {
         } catch (_) {}
     },
 
+    isSyncStale(maxAgeMs = 20000) {
+        try {
+            const raw = localStorage.getItem(BILETPRO_SYNC_STATUS_KEY);
+            if (!raw) return true;
+            const parsed = JSON.parse(raw);
+            const at = parsed && parsed.at ? new Date(parsed.at).getTime() : 0;
+            if (!at || Number.isNaN(at)) return true;
+            return (Date.now() - at) > maxAgeMs;
+        } catch (_) {
+            return true;
+        }
+    },
+
     async syncNow(trigger = 'manual') {
         if (this.running) return { ok: false, reason: 'already_running' };
         if (!navigator.onLine) {
@@ -2038,8 +2125,24 @@ window.BiletProAutoSync = {
 
         // Sekmeye geri dönünce tekrar dene
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') this.schedule('visible', 400);
+            if (document.visibilityState === 'visible') {
+                const delay = this.isSyncStale(12000) ? 120 : 400;
+                this.schedule('visible', delay);
+            }
         });
+
+        // Uygulama odak kazanınca (mobil app switch dönüşü dahil) daha taze veri al
+        window.addEventListener('focus', () => {
+            const delay = this.isSyncStale(12000) ? 120 : 350;
+            this.schedule('focus', delay);
+        }, { passive: true });
+
+        // BFCache dönüşlerinde stale veri kalmasın
+        window.addEventListener('pageshow', (evt) => {
+            const isBfCacheRestore = !!(evt && evt.persisted === true);
+            const delay = (isBfCacheRestore || this.isSyncStale(15000)) ? 100 : 260;
+            this.schedule('pageshow', delay);
+        }, { passive: true });
 
         // Arka planda periyodik emniyet sync
         setInterval(() => this.schedule('interval', 0), 45000);

@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>EventPro | Mimari Gişe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -34,9 +34,10 @@
         }
         .cat-header { 
             padding: 30px 40px; border-bottom: 1px solid #f1f5f9; 
-            display: flex; justify-content: space-between; align-items: center; 
+            display: flex; justify-content: space-between; align-items: center; gap: 14px;
             background: #fcfdfe; cursor: pointer; user-select: none; transition: 0.2s;
         }
+        .cat-header > div:last-child { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; min-width: 0; }
         .cat-header:hover { background: #f8fafc; }
         .masalar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 20px; padding: 35px 40px; }
         .category-shell.collapsed .masalar-grid { display: none; }
@@ -100,7 +101,18 @@
             .cat-header { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
             .cat-header > div:last-child { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
             .btn-elite { padding: 10px 10px; font-size: 9px; text-align: center; }
-            .masalar-grid { padding: 20px; gap: 12px; }
+            .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); padding: 20px; gap: 12px; }
+            .unit-silk { border-radius: 18px; padding: 16px 8px; }
+        }
+
+        @media (max-width: 640px) {
+            .silk-card { padding: 14px; border-radius: 20px; }
+            .cat-header { padding: 14px; gap: 10px; }
+            .cat-header h3 { font-size: 13px !important; }
+            .cat-header > div:last-child { grid-template-columns: 1fr 1fr; gap: 6px; }
+            .btn-elite { padding: 9px 8px; font-size: 8px; }
+            .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); padding: 12px 14px; gap: 10px; }
+            .unit-silk { border-radius: 16px; padding: 12px 6px; }
         }
     </style>
 </head>
@@ -154,7 +166,7 @@
                                     <div class="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 relative shrink-0 shadow-sm">
                                         <input type="color" id="catColor" value="#2563eb" class="absolute -inset-4 w-24 h-24 cursor-pointer">
                                     </div>
-                                    <button id="mainCatBtn" onclick="addCategory()" class="bg-slate-900 text-white flex-1 h-16 rounded-[18px] font-black text-[11px] uppercase shadow-xl hover:bg-blue-600 transition-all">Mühürle</button>
+                                    <button id="mainCatBtn" onclick="addCategory()" class="bg-slate-900 text-white flex-1 h-16 rounded-[18px] font-black text-[11px] uppercase shadow-xl hover:bg-blue-600 transition-all">Onayla</button>
                                 </div>
                                 <button id="cancelEditBtn" onclick="cancelCatEdit()" class="hidden w-full mt-4 py-3 text-[10px] font-black uppercase text-slate-400 hover:text-slate-800 transition-all">Düzenlemeyi İptal Et</button>
                             </div>
@@ -191,7 +203,7 @@
             </div>
             <div class="grid grid-cols-2 gap-4 mt-12">
                 <button onclick="closeEditMasaModal()" class="py-5 font-bold text-slate-400 uppercase text-xs hover:text-slate-800 transition-all">VAZGEÇ</button>
-                <button onclick="saveMasaEdit()" class="bg-slate-900 text-white rounded-[20px] py-5 font-black text-xs uppercase shadow-xl hover:bg-blue-600 transition-all">MÜHÜRLE</button>
+                <button onclick="saveMasaEdit()" class="bg-slate-900 text-white rounded-[20px] py-5 font-black text-xs uppercase shadow-xl hover:bg-blue-600 transition-all">ONAYLA</button>
             </div>
         </div>
     </div>
@@ -200,6 +212,8 @@
         let events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')) || [];
         let ev = events.find(e => e.id == eventId);
         let currentAddCatId = null, editingCatId = null, editingMasaRef = null;
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
 
         if(!ev) window.location.href = 'index.html';
         
@@ -246,7 +260,7 @@
         function cancelCatEdit() { 
             editingCatId = null; clearInputs(); 
             document.getElementById('panelTitle').innerText = "Kategori Oluştur"; 
-            document.getElementById('mainCatBtn').innerText = "Mühürle"; 
+            document.getElementById('mainCatBtn').innerText = "Onayla"; 
             document.getElementById('cancelEditBtn').classList.add('hidden'); 
         }
 
@@ -405,6 +419,7 @@
             let tK = 0; if(!ev.categories) return;
             
             ev.categories.forEach(cat => {
+                const catIdNum = Number(cat.id) || 0;
                 const isCollapsed = (cat.isOpen === false);
                 const section = document.createElement('div'); 
                 section.className = `category-shell animate-pop ${isCollapsed ? 'collapsed' : ''}`;
@@ -412,35 +427,36 @@
                 const activeMasalar = cat.masalar.filter(m => !m.isDeleted).length;
 
                 section.innerHTML = `
-                    <div class="cat-header" onclick="toggleCategory(${cat.id})">
+                    <div class="cat-header" onclick="toggleCategory(${catIdNum})">
                         <div class="flex items-center gap-5">
                             <div class="chevron text-slate-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"></path></svg></div>
                             <div class="w-5 h-5 rounded-full shadow-lg" style="background:${cat.color}"></div>
-                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${cat.name} <span class="ml-2 text-slate-400 font-bold">(${activeMasalar} Masa)</span></h3>
+                            <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${esc(cat.name)} <span class="ml-2 text-slate-400 font-bold">(${activeMasalar} Masa)</span></h3>
                         </div>
                         <div class="flex items-center gap-3" onclick="event.stopPropagation()">
-                            <button onclick="editCategory(${cat.id})" class="btn-elite edit">DÜZENLE</button>
-                            <button onclick="addSingleMasa(${cat.id})" class="btn-elite add-single">+1 EK MASA</button>
-                            <button onclick="addMasalar(${cat.id})" class="btn-elite add">+ TOPLU ÜRET</button>
-                            <button onclick="deleteCategory(${cat.id})" class="btn-elite danger">SİL</button>
+                            <button onclick="editCategory(${catIdNum})" class="btn-elite edit">DÜZENLE</button>
+                            <button onclick="addSingleMasa(${catIdNum})" class="btn-elite add-single">+1 EK MASA</button>
+                            <button onclick="addMasalar(${catIdNum})" class="btn-elite add">+ TOPLU ÜRET</button>
+                            <button onclick="deleteCategory(${catIdNum})" class="btn-elite danger">SİL</button>
                         </div>
                     </div>
                     <div class="masalar-grid">${cat.masalar.sort((a,b)=>a.no-b.no).map(m => {
+                        const masaIdNum = Number(m.id) || 0;
                         if(!m.isDeleted) tK += m.kapasite;
                         const _giseSess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
                         const _giseUser = _giseSess.name || _giseSess.username || '';
                         const _gsConflict = !m.isSold && !m.isDeleted && window.bpSoftLock?.getConflict(ev.id, m.no, _giseUser);
                         const _gsOverlay = _gsConflict
-                            ? `<div class="absolute inset-0 rounded-[16px] bg-amber-300/25 border-2 border-amber-400 pointer-events-none z-10"></div><div class="absolute top-1 left-1 right-1 text-center text-[7px] font-black text-amber-800 bg-amber-100/90 rounded-md px-1 py-0.5 uppercase z-10">\u23f3 ${_gsConflict.lockedBy}</div>`
+                            ? `<div class="absolute inset-0 rounded-[16px] bg-amber-300/25 border-2 border-amber-400 pointer-events-none z-10"></div><div class="absolute top-1 left-1 right-1 text-center text-[7px] font-black text-amber-800 bg-amber-100/90 rounded-md px-1 py-0.5 uppercase z-10">\u23f3 ${esc(_gsConflict.lockedBy)}</div>`
                             : '';
                         return `
-                            <div class="unit-silk ${m.isSold ? 'sold' : ''} ${m.isDeleted ? 'deleted' : ''} ${m.isExtra && !m.isDeleted && !m.isSold ? 'extra' : ''} ${_gsConflict ? 'opacity-60' : ''}" onclick="openMasaEdit(${cat.id}, ${m.id})">
+                            <div class="unit-silk ${m.isSold ? 'sold' : ''} ${m.isDeleted ? 'deleted' : ''} ${m.isExtra && !m.isDeleted && !m.isSold ? 'extra' : ''} ${_gsConflict ? 'opacity-60' : ''}" onclick="openMasaEdit(${catIdNum}, ${masaIdNum})">
                                 ${_gsOverlay}
                                 ${m.isExtra && !m.isDeleted && !m.isSold ? '<div class="extra-badge">EK</div>' : ''}
                                 <p class="m-no text-[10px] font-black text-slate-400 uppercase tracking-widest">${m.isDeleted ? 'PASİF' : 'MASA'}</p>
                                 <p class="m-kap text-2xl font-black italic text-slate-800 my-1">${m.isDeleted ? 'X' : (m.isSold ? 'DOLU' : m.no)}</p>
                                 <p class="text-[9px] font-bold text-slate-500 uppercase">${m.isDeleted ? 'BOŞALTILMIŞ' : m.kapasite + ' KİŞİ'}</p>
-                                <div class="unit-delete-btn" onclick="event.stopPropagation(); softDeleteMasa(${cat.id}, ${m.id})">×</div>
+                                <div class="unit-delete-btn" onclick="event.stopPropagation(); softDeleteMasa(${catIdNum}, ${masaIdNum})">×</div>
                                 <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${m.isDeleted ? '#cbd5e1' : cat.color}; opacity: 0.4"></div>
                             </div>`;
                     }).join('')}</div>`;

@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>EventPro | Kontrol Paneli</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@
             margin-bottom: 15px; font-size: 0.9rem; transition: 0.3s;
         }
         .input-silk:focus { 
-            border-color: #2563eb !important; background: #cf3f3f !important; 
+            border-color: #2563eb !important; background: #ffffff !important; 
             box-shadow: 0 0 0 4px rgba(37,99,235,0.1); outline: none;
         }
 
@@ -47,6 +47,10 @@
         .is-passive .cover-img { filter: grayscale(80%); opacity: 0.6; }
         .is-passive .logo-mühür { filter: grayscale(100%); opacity: 0.8; }
         .btn-disabled { opacity: 0.4; cursor: not-allowed !important; pointer-events: none; }
+
+        @media (max-width: 640px) {
+            .logo-mühür { width: 72px; height: 72px; left: 18px; bottom: -28px; border-radius: 22px; }
+        }
     </style>
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
@@ -88,7 +92,7 @@
                 </div>
             </div>
 
-            <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
+            <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
             </div>
 
             <!-- SÖN İŞLEMLER (AUDIT LOG) BÖLÜMÜ -->
@@ -109,7 +113,7 @@
 
     <div id="evModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-3 sm:p-6">
         <div class="bg-white w-full max-w-[650px] p-4 sm:p-[50px] rounded-[28px] sm:rounded-[45px] shadow-2xl animate-pop max-h-[95vh] overflow-y-auto no-scrollbar">
-            <h3 id="modalTitle" class="text-2xl font-black text-slate-800 uppercase mb-10 italic tracking-tight">ETKİNLİK MÜHÜRÜ</h3>
+            <h3 id="modalTitle" class="text-2xl font-black text-slate-800 uppercase mb-10 italic tracking-tight">ETKİNLİK OLUŞTUR</h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                 <div class="col-span-2">
@@ -134,7 +138,7 @@
                     <input id="evCity" type="text" placeholder="İl" class="input-silk">
                 </div>
                 <div class="sm:col-span-2">
-                    <button onclick="autoScanAddress()" id="scanBtn" class="bg-slate-900 text-white w-full py-5 rounded-[18px] font-black text-[10px] uppercase mb-4 transition-all hover:bg-blue-600 shadow-lg">İnternette Ara ve Adresi Mühürle</button>
+                    <button onclick="autoScanAddress()" id="scanBtn" class="bg-slate-900 text-white w-full py-5 rounded-[18px] font-black text-[10px] uppercase mb-4 transition-all hover:bg-blue-600 shadow-lg">İnternette Ara ve Adresi Doğrula</button>
                     <input id="evFullAddr" type="text" class="input-silk bg-slate-50 text-slate-500" readonly placeholder="Tam adres internetten çekilip buraya yazılacak...">
                 </div>
 
@@ -184,6 +188,9 @@
         let tempCover = "";
         let editEventId = null;
         let _searchQuery = '';
+        const _sec = window.BiletProSecurity || {};
+        const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
+        const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
         function getFinanceArchive() {
             return JSON.parse(localStorage.getItem('BiletPro_FinanceArchive') || '[]');
@@ -276,7 +283,7 @@
                 document.getElementById('uploadStatus').style.color = "#64748b";
                 document.getElementById('coverUploadStatus').innerText = "TIKLA VE KAPAK DOSYASI SEÇ (JPEG/PNG)";
                 document.getElementById('coverUploadStatus').style.color = "#a78bfa";
-                document.getElementById('modalTitle').innerText = "ETKİNLİK MÜHÜRÜ";
+                document.getElementById('modalTitle').innerText = "ETKİNLİK OLUŞTUR";
                 document.getElementById('saveBtn').innerText = "VERİYİ KAYDET";
             }
             document.getElementById('evModal').classList.remove('hidden'); 
@@ -312,7 +319,7 @@
             }
 
             document.getElementById('modalTitle').innerText = "ETKİNLİĞİ DÜZENLE";
-            document.getElementById('saveBtn').innerText = "GÜNCELLEMEYİ MÜHÜRLE";
+            document.getElementById('saveBtn').innerText = "GÜNCELLEMEYİ ONAYLA";
 
             openModal(true);
         }
@@ -383,7 +390,7 @@
                     btn.innerText = "ADRES TAM BULUNAMADI, MANUEL EKLENDİ";
                 }
             } catch (e) { console.error(e); }
-            setTimeout(() => { btn.innerText = "İnternette Ara ve Adresi Mühürle"; btn.style.background = "#0f172a"; }, 3500);
+            setTimeout(() => { btn.innerText = "İnternette Ara ve Adresi Doğrula"; btn.style.background = "#0f172a"; }, 3500);
         }
 
         // KARTLARI EKRANA BASTIRMA (TARİHE GÖRE SIRALAMALI)
@@ -423,6 +430,7 @@
 
             sortedEvents.forEach(ev => {
                 const cover = ev.coverBase64 || ev.cover || `https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000&auto=format&fit=crop`;
+                const safeId = escAttr(ev.id);
                 
                 // Aktiflik Durumu
                 const isActive = ev.isActive !== false; // Varsayılan true
@@ -445,31 +453,31 @@
                         
                         <div class="absolute top-3 right-3 flex flex-wrap justify-end gap-2 z-20 max-w-[82%]">
                             ${canManage ? `
-                            <button onclick="toggleStatus('${ev.id}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${isActive ? 'text-amber-500 hover:bg-amber-500' : 'text-green-600 hover:bg-green-500'} hover:text-white font-black text-[9px] sm:text-[10px] uppercase shadow-lg transition-all">${isActive ? 'DURDUR' : 'BAŞLAT'}</button>
-                            <button onclick="editEvent('${ev.id}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-blue-600 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-blue-600 hover:text-white transition-all">DÜZENLE</button>
-                            <button onclick="deleteEvent('${ev.id}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-red-500 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-red-500 hover:text-white transition-all">SİL</button>
+                            <button onclick="toggleStatus('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${isActive ? 'text-amber-500 hover:bg-amber-500' : 'text-green-600 hover:bg-green-500'} hover:text-white font-black text-[9px] sm:text-[10px] uppercase shadow-lg transition-all">${isActive ? 'DURDUR' : 'BAŞLAT'}</button>
+                            <button onclick="editEvent('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-blue-600 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-blue-600 hover:text-white transition-all">DÜZENLE</button>
+                            <button onclick="deleteEvent('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-red-500 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-red-500 hover:text-white transition-all">SİL</button>
                             ` : ''}
                         </div>
                     </div>
                     
                     <div class="p-4 sm:p-8 lg:p-[55px] sm:px-6 lg:px-[35px] pb-6 sm:pb-8 lg:pb-[35px] flex-1 flex flex-col relative z-20">
-                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 block">${ev.company || 'GENEL OPERASYON'}</span>
-                        <h2 class="text-xl sm:text-3xl font-black text-slate-800 uppercase leading-[1.1] mb-4 sm:mb-5 tracking-tighter">${ev.title}</h2>
+                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 block">${esc(ev.company || 'GENEL OPERASYON')}</span>
+                        <h2 class="text-xl sm:text-3xl font-black text-slate-800 uppercase leading-[1.1] mb-4 sm:mb-5 tracking-tighter">${esc(ev.title)}</h2>
                         
                         <div class="grid grid-cols-2 gap-5 pt-6 border-t border-slate-100 mt-auto">
-                            <div><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">LOKASYON</span><p class="text-[12px] font-bold text-slate-700 truncate mt-1">📍 ${ev.venue || 'Belirsiz'}</p></div>
-                            <div class="text-right"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">TARİH</span><p class="text-[13px] font-black text-slate-800 mt-1">${ev.date || '-'}</p></div>
+                            <div><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">LOKASYON</span><p class="text-[12px] font-bold text-slate-700 truncate mt-1">📍 ${esc(ev.venue || 'Belirsiz')}</p></div>
+                            <div class="text-right"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">TARİH</span><p class="text-[13px] font-black text-slate-800 mt-1">${esc(ev.date || '-')}</p></div>
                         </div>
                         
                         <div class="flex flex-wrap gap-3 sm:gap-4 mt-5 p-4 sm:p-5 bg-slate-50 rounded-[24px] border border-slate-100">
-                            <div class="flex-1"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">KAPI AÇILIŞ</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${ev.doorTime || '--:--'}</p></div>
-                            <div class="flex-1 border-l border-slate-200 pl-4"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">BAŞLAMA</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${ev.startTime || '--:--'}</p></div>
+                            <div class="flex-1"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">KAPI AÇILIŞ</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${esc(ev.doorTime || '--:--')}</p></div>
+                            <div class="flex-1 border-l border-slate-200 pl-4"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">BAŞLAMA</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${esc(ev.startTime || '--:--')}</p></div>
                         </div>
                         
                         <div class="grid gap-3 mt-8" style="grid-template-columns: repeat(${[canManage, canSale, canDoor].filter(Boolean).length || 1}, 1fr)">
-                            ${canManage ? `<button onclick="location.href='gise.html?id=${ev.id}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>` : ''}
-                            ${canSale   ? `<button onclick="location.href='satis.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>` : ''}
-                            ${canDoor   ? `<button onclick="location.href='checkin.html?id=${ev.id}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>` : ''}
+                            ${canManage ? `<button onclick="location.href='gise.html?id=${safeId}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>` : ''}
+                            ${canSale   ? `<button onclick="location.href='satis.html?id=${safeId}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>` : ''}
+                            ${canDoor   ? `<button onclick="location.href='checkin.html?id=${safeId}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>` : ''}
                         </div>
                     </div>`;
                 container.appendChild(card);
@@ -510,14 +518,14 @@
                 return `<div class="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all ${moduleColor}">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1">
-                            <p class="text-xs font-black text-slate-800 uppercase">${log.module}</p>
-                            <p class="text-sm font-bold text-slate-700 mt-1">${log.action}</p>
+                            <p class="text-xs font-black text-slate-800 uppercase">${esc(log.module)}</p>
+                            <p class="text-sm font-bold text-slate-700 mt-1">${esc(log.action)}</p>
                         </div>
-                        <span class="text-[10px] font-black ${roleColor} px-2 py-1 rounded">${log.role}</span>
+                        <span class="text-[10px] font-black ${roleColor} px-2 py-1 rounded">${esc(log.role)}</span>
                     </div>
-                    <p class="text-xs text-slate-500 mb-2">${log.actor}</p>
-                    <div class="text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">${log.details || '-'}</div>
-                    <p class="text-[9px] text-slate-400 mt-2">${time}</p>
+                    <p class="text-xs text-slate-500 mb-2">${esc(log.actor)}</p>
+                    <div class="text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">${esc(log.details || '-')}</div>
+                    <p class="text-[9px] text-slate-400 mt-2">${esc(time)}</p>
                 </div>`;
             }).join('');
         }
@@ -592,7 +600,7 @@
                     isActive: true
                 };
                 events.push(data); 
-                if(typeof showToast === 'function') showToast("Yeni etkinlik mühürlendi!", "success");
+                if(typeof showToast === 'function') showToast("Yeni etkinlik oluşturuldu!", "success");
             }
             
             localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events)); 

@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>BiletPro | Akıllı Erişim</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="menu.js?v=20260330"></script>
@@ -142,16 +142,23 @@
         }
 
         function ensureMasterUser() {
+            const hasAdmin = staff.some(u => String((u && u.role) || '').trim().toLowerCase() === 'admin');
+            if (hasAdmin) return;
+
             let hakanIndex = staff.findIndex(u => normalizeUsername(u && u.username) === "hakan");
             if (hakanIndex === -1) {
                 staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
-                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
             } else {
-                staff[hakanIndex].password = "52655265";
-                staff[hakanIndex].isActive = true;
-                staff[hakanIndex].role = "admin";
-                localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+                const existing = staff[hakanIndex] || {};
+                staff[hakanIndex] = {
+                    ...existing,
+                    password: existing.password || "52655265",
+                    role: "admin",
+                    isActive: true,
+                    perms: { ...(existing.perms || {}) }
+                };
             }
+            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
         }
 
         let __lastStaffSyncAt = 0;
