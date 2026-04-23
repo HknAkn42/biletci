@@ -1389,6 +1389,14 @@
                     return; 
                 }
 
+                // ── POPUP ENGELLEYİCİSİNİ ATLATMAK İÇİN: window.open HEMEN AÇILIYOR ──
+                // Tarayıcı, kullanıcı tıklamasına (sync context) yakın olan window.open'ı izin verir.
+                // Async callback içinde açılırsa popup blocker devreye girer.
+                const custNameEarly = document.getElementById('tkCustName').innerText.replace("ALICI: ", "");
+                const earlyMsg = `🎫 *${ev.title.toUpperCase()} - VIP GİRİŞ KARTI*\n\nMerhaba ${custNameEarly},\nBiletiniz oluşturulmuştur.\n\n🔐 *Güvenlik Kodunuz:* ${lastTicketHash}${lastDebt > 0.5 ? `\n💰 *Kalan Bakiye:* ${lastDebt.toLocaleString('tr-TR',{minimumFractionDigits:2})} TL (Kapıda Tahsil)` : ''}`;
+                const waWindow = window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(earlyMsg)}`, '_blank');
+                // ─────────────────────────────────────────────────────────────────────
+
                 const custName = document.getElementById('tkCustName').innerText.replace("ALICI: ", "");
                 const tkDate = document.getElementById('tkDate').innerText || '';
                 const tkTime = document.getElementById('tkTime').innerText || '';
@@ -1477,15 +1485,19 @@
                 }
 
                 canvas.toBlob(async function(blob) {
-                    // Bilet görselini panoya kopyala
+                    // Bilet görselini panoya kopyala (WhatsApp zaten açıldı)
                     try {
                         const item = new ClipboardItem({ "image/png": blob });
                         await navigator.clipboard.write([item]);
-                    } catch(_) {}
-
-                    // Müşterinin WhatsApp sohbetini doğrudan aç (numara + mesaj)
-                    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-                    showToast("✅ Bilet panoya kopyalandı! WhatsApp'ta mesajı gönderdikten sonra görseli yapıştır (Ctrl+V).", "success");
+                        showToast("✅ Bilet panoya kopyalandı! WhatsApp'ta görseli yapıştır (Ctrl+V).", "success");
+                    } catch(_) {
+                        // Clipboard izni yoksa görseli indir
+                        const link = document.createElement('a');
+                        link.download = `VIP_Bilet_${lastTicketHash}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        showToast("✅ Bilet indirildi! WhatsApp'a ekleyebilirsiniz.", "info");
+                    }
                 }, 'image/png');
 
             } catch (error) {
