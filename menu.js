@@ -256,9 +256,9 @@ const BILETPRO_DEFAULT_CONFIG = {
     online: {
         enabled: true,
         provider: 'supabase',
-        supabaseUrl: 'https://iisjexomwopcxwqeabei.supabase.co',
-        supabaseAnonKey: 'sb_publishable_jWJDGWClbtosoQeO_gebxQ_P-o24Ne2',
-        projectRef: 'iisjexomwopcxwqeabei'
+        supabaseUrl: 'https://mocdbcfranfwovmgdzxb.supabase.co',
+        supabaseAnonKey: 'sb_publishable_bjm3h83n-CJ-yue8Wd-0Yg_ckutU_Yc',
+        projectRef: 'mocdbcfranfwovmgdzxb'
     },
     menuLabels: {
         dashboard: 'DASHBOARD',

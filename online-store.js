@@ -36,11 +36,11 @@
         }
         return {
             online: {
-                enabled: false,
+                enabled: true,
                 provider: 'supabase',
-                supabaseUrl: '',
-                supabaseAnonKey: '',
-                projectRef: ''
+                supabaseUrl: 'https://mocdbcfranfwovmgdzxb.supabase.co',
+                supabaseAnonKey: 'sb_publishable_bjm3h83n-CJ-yue8Wd-0Yg_ckutU_Yc',
+                projectRef: 'mocdbcfranfwovmgdzxb'
             }
         };
     }
