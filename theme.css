@@ -1,5 +1,62 @@
 /* theme.css | Crystal Silk Global Core v11.2 */
 
+/* === MOBİL DOKUNMATİK VE ERİŞİLEBİLİRLİK İYİLEŞTİRMELERİ === */
+@media (max-width: 640px) {
+  .event-card {
+    border-radius: 22px !important;
+    margin-bottom: 18px !important;
+    min-width: 0 !important;
+  }
+  .audit-shell {
+    border-radius: 14px !important;
+    padding: 4px !important;
+    max-height: 260px !important;
+  }
+  .audit-item {
+    border-radius: 8px !important;
+    padding: 6px 6px !important;
+    font-size: 12px !important;
+  }
+  .input-silk, .input-premium {
+    font-size: 1.1rem !important;
+    padding: 1.3rem !important;
+    border-radius: 14px !important;
+  }
+  .btn-main, .btn, button, input[type="button"], input[type="submit"] {
+    min-height: 54px !important;
+    font-size: 1.1rem !important;
+    border-radius: 16px !important;
+    touch-action: manipulation;
+  }
+  .glass-terminal {
+    padding: 18px !important;
+    border-radius: 22px !important;
+    max-width: 98vw !important;
+  }
+  .no-scrollbar, body, html {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  .modal-bg {
+    padding: 0 !important;
+  }
+  .main-content, main, .flex, .flex-col {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .fixed-bottom-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    z-index: 9999;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+  }
+}
+
 :root { 
     --main: #0f172a; 
     --blue: #2563eb; 
@@ -242,4 +299,41 @@ main,
         max-width: 100%;
         overflow-x: hidden !important;
     }
+}
+/* Mobil klavye açıldığında input görünürlüğü için ek iyileştirme */
+@media (max-width: 640px) {
+  input:focus, textarea:focus, select:focus {
+    scroll-margin-top: 80px !important;
+    outline: 2px solid #2563eb !important;
+    background: #fff !important;
+    z-index: 9999 !important;
+    position: relative;
+  }
+  .glass-terminal, .main-content, main {
+    scroll-padding-top: 80px !important;
+  }
+}
+/* Mobilde kart ve menü padding/margin optimizasyonu */
+@media (max-width: 640px) {
+  .event-card, .audit-shell, .audit-item, .glass-terminal, .main-content, main, .modal-bg {
+    margin-left: 4px !important;
+    margin-right: 4px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  .event-card {
+    margin-bottom: 12px !important;
+    padding: 8px 4px !important;
+  }
+  .audit-shell {
+    padding: 4px 2px !important;
+  }
+  .audit-item {
+    margin-bottom: 6px !important;
+    padding: 6px 4px !important;
+  }
+  header, .fixed-bottom-bar {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
 }

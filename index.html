@@ -10,6 +10,48 @@
     <link rel="stylesheet" href="theme.css">
 
     <style>
+        /* Mobil sabit alt menü örneği */
+        @media (max-width: 640px) {
+            .fixed-bottom-bar {
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                background: #fff;
+                border-top: 1px solid #e2e8f0;
+                z-index: 9999;
+                display: flex;
+                justify-content: space-around;
+                padding: 10px 0;
+                box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+            }
+            .fixed-bottom-bar button {
+                flex: 1;
+                margin: 0 6px;
+                font-size: 1.1rem;
+                border-radius: 14px;
+                min-height: 48px;
+            }
+        }
+        /* Mobil sabit alt menü örneği */
+        @media (max-width: 640px) {
+            .fixed-bottom-bar {
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                background: #fff;
+                border-top: 1px solid #e2e8f0;
+                z-index: 9999;
+                display: flex;
+                justify-content: space-around;
+                padding: 10px 0;
+                box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+            }
+            .fixed-bottom-bar button {
+                flex: 1;
+                margin: 0 6px;
+                font-size: 1.1rem;
+                border-radius: 14px;
+                min-height: 48px;
+            }
+        }
         .event-card {
             background: #ffffff; border: 1px solid #e2e8f0; border-radius: 42px;
             overflow: hidden; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -728,3 +770,15 @@
     </script>
 </body>
 </html>
+    <!-- Mobil sabit alt menü -->
+    <div class="fixed-bottom-bar" style="display:none" id="mobileBottomBar">
+        <button onclick="window.scrollTo({top:0,behavior:'smooth'})">Yukarı</button>
+        <button onclick="openModal()">+ Etkinlik</button>
+        <button onclick="location.href='rapor.html'">Raporlar</button>
+    </div>
+    <script>
+    // Mobilde alt menüyü göster
+    if(window.innerWidth <= 640){
+      document.getElementById('mobileBottomBar').style.display = 'flex';
+    }
+    </script>
