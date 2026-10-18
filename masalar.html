@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>BiletPro | Masa Durumu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="theme.css">
+    <style>
+        .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; min-width: 0; }
+        .stat .n { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .stat .l { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+        .stat.in .n { color: var(--success); } .stat.out .n { color: var(--primary-text); } .stat.wait .n { color: var(--warning-text); } .stat.debt .n { color: var(--danger-text); }
+        .chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .chip.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+        .tbl { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; position: relative; border-left-width: 4px; }
+        .tbl .no { font-size: 20px; font-weight: 700; line-height: 1; }
+        .tbl .nm { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tbl .sub { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 4px 8px; align-items: center; flex-wrap: wrap; }
+        .tbl .tag { white-space: nowrap; }
+        #q { padding-left: 14px !important; }
+        .tbl.s-in { border-left-color: var(--success); }
+        .tbl.s-out { border-left-color: var(--primary); }
+        .tbl.s-wait { border-left-color: var(--warning); background: var(--warning-soft); }
+        .tbl.s-free { border-left-color: var(--border-strong); opacity: .6; border-style: dashed; border-left-style: solid; }
+        .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+        .tag.in { background: var(--success-soft); color: var(--success-text); }
+        .tag.out { background: var(--primary-soft); color: var(--primary-text); }
+        .tag.wait { background: var(--warning-soft); color: var(--warning-text); border: 1px solid var(--warning-border); }
+        .tag.free { background: var(--surface-3); color: var(--muted); }
+        .tag.debt { background: var(--danger-soft); color: var(--danger-text); }
+        .grid-t { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; }
+        .live-dot.err { background: var(--danger); }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+    <script src="menu.js?v=20261018"></script>
+
+    <div class="flex flex-col h-screen">
+        <header class="px-3 sm:px-5 lg:px-[40px] py-3 flex flex-wrap items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="min-w-0">
+                <p class="text-[11px] font-semibold text-blue-600 tracking-wide">Canlı takip</p>
+                <h1 id="headTitle" class="text-lg sm:text-xl font-bold truncate">Masa durumu</h1>
+            </div>
+            <div class="flex items-center gap-3 text-[12.5px] text-slate-500">
+                <span><span id="liveDot" class="live-dot"></span> <span id="liveTxt">Bağlanıyor…</span></span>
+                <button onclick="refresh(true)" class="chip">Yenile</button>
+            </div>
+        </header>
+
+        <main class="split-main flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[30px] no-scrollbar">
+            <div class="max-w-[1500px] mx-auto w-full space-y-5">
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3" id="stats"></div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap gap-2" id="chips"></div>
+                    <input id="q" type="search" placeholder="Masa no veya isim ara…" class="input-silk !mb-0 !w-full sm:!w-[260px] sm:ml-auto" oninput="render()">
+                </div>
+
+                <div id="groups" class="space-y-6"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        const esc = (v) => (window.BiletProSecurity ? window.BiletProSecurity.escapeHtml(v) : String(v ?? ''));
+        injectMenu('masalar', eventId);
+
+        if (!eventId) {
+            document.querySelector('main').innerHTML = '<div class="p-10 text-center text-slate-500">Önce Kontrol Paneli\'nden bir etkinlik seçin ve menüden "Masa Durumu"na girin.</div>';
+        }
+
+        let layout = [];          // [{cat, no, kapasite}]
+        let tickets = [];         // sunucudaki satılmış biletler
+        let filter = 'all';
+        let showFree = false;
+        let eventRowId = null;
+        let failCount = 0;
+
+        function localEvent() {
+            try { return (JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || []).find(e => String(e.id) === String(eventId)); } catch (_) { return null; }
+        }
+        function buildLayout() {
+            const ev = localEvent();
+            layout = [];
+            if (!ev) return;
+            document.getElementById('headTitle').textContent = (ev.title || 'Etkinlik') + ' · Masa durumu';
+            (ev.categories || []).forEach(c => (c.masalar || []).forEach(m => {
+                if (m && !m.isDeleted) layout.push({ cat: c.name || 'Genel', no: String(m.no), kapasite: m.kapasite || 0, color: c.color });
+            }));
+        }
+
+        function statusOf(t) {
+            if (!t) return 'free';
+            const s = String(t.status || '').toUpperCase();
+            if (s === 'INSIDE') return 'in';
+            if (s === 'OUTSIDE') return 'out';
+            return 'wait';
+        }
+
+        function rows() {
+            const byNo = new Map();
+            tickets.forEach(t => { const k = String(t.table_no || ''); if (!byNo.has(k)) byNo.set(k, []); byNo.get(k).push(t); });
+            const out = [];
+            const seen = new Set();
+            layout.forEach(l => {
+                const ts = byNo.get(l.no);
+                seen.add(l.no);
+                out.push({ no: l.no, cat: l.cat, color: l.color, t: ts ? ts[0] : null, extra: ts ? ts.slice(1) : [] });
+            });
+            // düzende olmayan ama satılmış masalar
+            byNo.forEach((ts, no) => { if (!seen.has(no)) out.push({ no, cat: ts[0].category_name || 'Genel', t: ts[0], extra: ts.slice(1) }); });
+            out.forEach(r => { r.st = statusOf(r.t); });
+            return out;
+        }
+
+        function counts(all) {
+            const sold = all.filter(r => r.t);
+            const peopleIn = tickets.reduce((a, t) => a + (String(t.status).toUpperCase() === 'INSIDE' ? (t.inside_count || 0) : 0), 0);
+            return {
+                free: all.filter(r => !r.t).length,
+                sold: sold.length,
+                in: sold.filter(r => r.st === 'in').length,
+                out: sold.filter(r => r.st === 'out').length,
+                wait: sold.filter(r => r.st === 'wait').length,
+                debt: sold.filter(r => Number(r.t.debt || 0) > 0).length,
+                peopleIn,
+                people: tickets.reduce((a, t) => a + (t.people_count || 0), 0)
+            };
+        }
+
+        function hhmm(iso) { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
+        const money = (n) => '₺' + Number(n || 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+
+        function render() {
+            const all = rows();
+            const c = counts(all);
+            document.getElementById('stats').innerHTML = [
+                ['', c.sold, 'Satılan masa'],
+                ['in', c.in, 'İçeride (masa)'],
+                ['wait', c.wait, 'Henüz girmedi'],
+                ['out', c.out, 'Dışarıda'],
+                ['debt', c.debt, 'Borçlu masa'],
+                ['', c.peopleIn + ' / ' + c.people, 'İçerideki kişi / toplam']
+            ].map(([cls, n, l]) => `<div class="stat ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+            const chips = [['all', 'Tümü (' + c.sold + ')'], ['wait', 'Henüz girmedi (' + c.wait + ')'], ['in', 'İçeride (' + c.in + ')'], ['out', 'Dışarıda (' + c.out + ')'], ['debt', 'Borçlu (' + c.debt + ')']];
+            document.getElementById('chips').innerHTML = chips.map(([k, l]) => `<button class="chip ${filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')
+                + `<button class="chip ${showFree ? 'on' : ''}" onclick="showFree=!showFree;render()">Boş masalar (${c.free})</button>`;
+
+            const q = document.getElementById('q').value.trim().toLocaleLowerCase('tr-TR');
+            let list = all.filter(r => {
+                if (!r.t && !showFree) return false;
+                if (filter === 'wait' && r.st !== 'wait') return false;
+                if (filter === 'in' && r.st !== 'in') return false;
+                if (filter === 'out' && r.st !== 'out') return false;
+                if (filter === 'debt' && !(r.t && Number(r.t.debt || 0) > 0)) return false;
+                if (q) { const hay = (r.no + ' ' + (r.t && r.t.customer_name || '')).toLocaleLowerCase('tr-TR'); if (!hay.includes(q)) return false; }
+                return true;
+            });
+            // grupla
+            const groups = new Map();
+            list.forEach(r => { if (!groups.has(r.cat)) groups.set(r.cat, []); groups.get(r.cat).push(r); });
+            const natural = (a, b) => String(a.no).localeCompare(String(b.no), 'tr', { numeric: true });
+            const html = [...groups.entries()].map(([cat, items]) => {
+                items.sort(natural);
+                return `<section><h2 class="text-sm font-semibold text-slate-500 mb-2">${esc(cat)} <span class="font-normal">(${items.length})</span></h2><div class="grid-t">` +
+                    items.map(r => {
+                        const t = r.t;
+                        const tagCls = r.st, tagTxt = { in: 'İçeride', out: 'Dışarıda', wait: 'Henüz girmedi', free: 'Boş' }[r.st];
+                        const debt = t && Number(t.debt || 0) > 0 ? `<span class="tag debt">Borç ${money(t.debt)}</span>` : '';
+                        const when = t ? (r.st === 'in' ? hhmm(t.checkin_time) : r.st === 'out' ? hhmm(t.last_out_time) : '') : '';
+                        const phone = t && t.customer_phone && r.st === 'wait' ? `<a class="text-blue-600 font-medium" href="tel:${esc(t.customer_phone)}">${esc(t.customer_phone)}</a>` : '';
+                        return `<div class="tbl s-${r.st}">
+                            <div class="flex items-center justify-between"><span class="no">${esc(r.no)}</span><span class="tag ${tagCls}">${tagTxt}</span></div>
+                            <div class="nm">${t ? esc(t.customer_name || '—') : '—'}${r.extra.length ? ` <span class="text-slate-400">+${r.extra.length}</span>` : ''}</div>
+                            <div class="sub"><span>${t ? `${t.inside_count || 0}/${t.people_count || 0} kişi` : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
+                            ${debt || phone ? `<div class="sub">${debt}${phone}</div>` : ''}
+                        </div>`;
+                    }).join('') + '</div></section>';
+            }).join('');
+            document.getElementById('groups').innerHTML = html || '<div class="p-10 text-center text-slate-500 stat">Bu filtreye uyan masa yok.</div>';
+        }
+
+        function setFilter(k) { filter = k; render(); }
+
+        function setLive(ok, txt) {
+            document.getElementById('liveDot').className = 'live-dot' + (ok ? '' : ' err');
+            document.getElementById('liveTxt').textContent = txt;
+        }
+
+        async function refresh(manual) {
+            if (!eventId) return;
+            const store = window.BiletProOnlineStore;
+            try {
+                if (!store) throw new Error('store');
+                const init = await store.init();
+                if (!init || init.mode !== 'online') throw new Error('offline');
+                if (!eventRowId) {
+                    const { data, error } = await store.client.from('events').select('id').eq('legacy_event_id', String(eventId)).maybeSingle();
+                    if (error) throw error;
+                    eventRowId = data && data.id;
+                }
+                if (!eventRowId) { tickets = []; buildLayout(); render(); setLive(true, 'Henüz satış yok'); return; }
+                const { data, error } = await store.client.from('tickets')
+                    .select('ticket_hash,table_no,category_name,customer_name,customer_phone,people_count,inside_count,paid,debt,status,checkin_time,last_out_time')
+                    .eq('event_id', eventRowId).limit(5000);
+                if (error) throw error;
+                tickets = data || [];
+                buildLayout();
+                render();
+                failCount = 0;
+                setLive(true, 'Canlı · ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            } catch (e) {
+                failCount++;
+                setLive(false, 'Bağlantı sorunu' + (failCount > 1 ? ' (' + failCount + ')' : ''));
+                if (manual && typeof showToast === 'function') showToast('Veri alınamadı', 'error');
+            }
+        }
+
+        buildLayout();
+        render();
+        setTimeout(() => refresh(), 400);
+        setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    </script>
+</body>
+</html>

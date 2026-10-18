@@ -106,6 +106,7 @@ window.BiletProAuth = {
             'satis.html': 'pSale',
             'musteriler.html': 'pSale',
             'checkin.html': 'pDoor',
+            'masalar.html': 'pDoor',
             'personel.html': 'pManageStaff',
             'rapor.html': 'pReports',
             'settings.html': 'pManageStaff'
@@ -1187,6 +1188,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
         gise: _svg('<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 11v2M13 17v2"/>'),
         satis: _svg('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'),
         musteriler: _svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
+        masalar: _svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="m14 17.5 2 2 4-4"/>'),
         checkin: _svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'),
         personel: _svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>'),
         report: _svg('<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>'),
@@ -1210,6 +1212,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
         { id: 'satis',       label: labels.satis       || 'Bilet Satış',       icon: _I.satis,      url: `satis.html${eventParams}`,   show: visibility.satis      !== false && _canSale },
         { id: 'musteriler',  label: labels.musteriler  || 'Müşteriler',        icon: _I.musteriler, url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false && _canSale },
         { id: 'checkin',     label: labels.checkin     || 'Kapı Kontrol',      icon: _I.checkin,    url: `checkin.html${eventParams}`, show: visibility.checkin    !== false && _canDoor },
+        { id: 'masalar',     label: labels.masalar     || 'Masa Durumu',     icon: _I.masalar,    url: `masalar.html${eventParams}`, show: visibility.masalar !== false && _canDoor },
         { id: 'personel',    label: labels.personel    || 'Personel',          icon: _I.personel,   url: 'personel.html',              show: isAdmin && visibility.personel !== false },
         { id: 'report',      label: labels.report      || 'Raporlar',          icon: _I.report,     url: 'rapor.html',                 show: isAdmin && visibility.report   !== false },
         { id: 'settings',    label: labels.settings    || 'Sistem Ayarları',   icon: _I.settings,   url: 'settings.html',              show: isAdmin && visibility.settings !== false }
