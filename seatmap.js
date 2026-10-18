@@ -259,8 +259,8 @@
         function dims(p, cap) {
             const shape = p.shape === 'square' ? 'square' : (p.shape === 'rect' ? 'rect' : 'round');
             if (shape === 'round') { const r = 21 + cap * 1.6; return { shape, r, w: 2 * r, h: 2 * r }; }
-            if (shape === 'square') { const s = 40 + cap * 3; return { shape, r: s / 2, w: s, h: s }; }
-            return { shape, r: 0, w: 38, h: 26 + cap * 11 };           // dikdörtgen: kısa kenarlar sandalye yanı, uzun kenar kapasiteyle uzar
+            if (shape === 'square') { const s = 42 + cap * 2; return { shape, r: s / 2, w: s, h: s }; }
+            return { shape, r: 0, w: 46, h: 24 + cap * 10 };           // dikdörtgen: kısa kenarlar sandalye yanı, uzun kenar kapasiteyle uzar
         }
         function seatDots(d, cap) {
             let h = '';
