@@ -1176,9 +1176,9 @@
 
         function planState(cat, m) {
             const dim = planMatches(m) ? '' : 'dimmed';
-            if (m.isSold) return { state: 'sold', cls: dim, sub: (m.soldTo || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (m.soldTo || '') };
+            if (m.isSold) return { state: 'sold', cls: dim, empty: Math.max(0, (Number(m.kapasite) || 0) - (Number(m.saleDetail && m.saleDetail.people) || 0)), sub: (m.soldTo || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (m.soldTo || '') };
             const _se = soldElsewhere(m);
-            if (_se) return { state: 'sold', cls: dim, sub: String(_se.customer_name || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (_se.customer_name || '') };
+            if (_se) return { state: 'sold', cls: dim, empty: Math.max(0, (Number(m.kapasite) || 0) - (Number(_se.people_count) || 0)), sub: String(_se.customer_name || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (_se.customer_name || '') };
             const r = reservedMap[String(m.no)];
             if (basket.some(b => b.masa.id === m.id)) return { state: 'selected', cls: dim, title: 'Masa ' + m.no + ' · seçili' };
             if (r) return { state: 'reserved', cls: dim, sub: (r.customer_name || 'rezerve').slice(0, 10), title: 'Masa ' + m.no + ' · rezerve · ' + (r.customer_name || '') };

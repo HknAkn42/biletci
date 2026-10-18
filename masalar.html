@@ -133,6 +133,7 @@
                 free: all.filter(r => !r.t).length,
                 rsv: all.filter(r => r.st === 'rsv').length,
                 emptySeats,
+                emptyTables: sold.filter(r => r.cap && Number(r.t.people_count || 0) < r.cap).length,
                 sold: sold.length,
                 in: sold.filter(r => r.st === 'in').length,
                 out: sold.filter(r => r.st === 'out').length,
@@ -160,7 +161,7 @@
                 ['', c.peopleIn + ' / ' + c.people, 'İçerideki kişi / toplam']
             ].map(([cls, n, l]) => `<div class="stat ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 
-            const chips = [['all', 'Tümü (' + c.sold + ')'], ['wait', 'Henüz girmedi (' + c.wait + ')'], ['in', 'İçeride (' + c.in + ')'], ['out', 'Dışarıda (' + c.out + ')'], ['debt', 'Borçlu (' + c.debt + ')'], ['rsv', 'Rezerve (' + c.rsv + ')']];
+            const chips = [['all', 'Tümü (' + c.sold + ')'], ['wait', 'Henüz girmedi (' + c.wait + ')'], ['in', 'İçeride (' + c.in + ')'], ['out', 'Dışarıda (' + c.out + ')'], ['debt', 'Borçlu (' + c.debt + ')'], ['rsv', 'Rezerve (' + c.rsv + ')'], ['empty', 'Boş koltuklu (' + c.emptyTables + ')']];
             document.getElementById('chips').innerHTML = chips.map(([k, l]) => `<button class="chip ${filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')
                 + `<button class="chip ${showFree ? 'on' : ''}" onclick="showFree=!showFree;render()">Boş masalar (${c.free})</button>`;
 
@@ -172,6 +173,7 @@
                 if (filter === 'out' && r.st !== 'out') return false;
                 if (filter === 'rsv' && r.st !== 'rsv') return false;
                 if (filter === 'debt' && !(r.t && Number(r.t.debt || 0) > 0)) return false;
+                if (filter === 'empty' && !(r.t && r.st !== 'rsv' && r.cap && Number(r.t.people_count || 0) < r.cap)) return false;
                 if (q) { const hay = (r.no + ' ' + (r.t && r.t.customer_name || '')).toLocaleLowerCase('tr-TR'); if (!hay.includes(q)) return false; }
                 return true;
             });
@@ -221,10 +223,11 @@
                 const r = planByNo.get(String(key)); const t = r && r.t;
                 if (!t) return { state: 'free', sub: (m.kapasite || '') + ' kişi', title: 'Masa ' + m.no + ' · boş' };
                 const nm = String(t.customer_name || '');
-                if (r.st === 'in') return { state: 'st-in', sub: (t.inside_count || 0) + '/' + (t.people_count || 0), title: 'Masa ' + m.no + ' · içeride · ' + nm };
-                if (r.st === 'out') return { state: 'st-out', sub: 'dışarıda', title: 'Masa ' + m.no + ' · dışarıda · ' + nm };
+                const empty = Math.max(0, (Number(m.kapasite) || 0) - (Number(t.people_count) || 0));
+                if (r.st === 'in') return { state: 'st-in', empty, sub: (t.inside_count || 0) + '/' + (t.people_count || 0), title: 'Masa ' + m.no + ' · içeride · ' + nm };
+                if (r.st === 'out') return { state: 'st-out', empty, sub: 'dışarıda', title: 'Masa ' + m.no + ' · dışarıda · ' + nm };
                 if (r.st === 'rsv') return { state: 'reserved', sub: nm.slice(0, 9), title: 'Masa ' + m.no + ' · rezerve · ' + nm };
-                return { state: 'st-wait', sub: nm.slice(0, 9), title: 'Masa ' + m.no + ' · henüz girmedi · ' + nm };
+                return { state: 'st-wait', empty, sub: nm.slice(0, 9), title: 'Masa ' + m.no + ' · henüz girmedi · ' + nm };
             };
             const box = document.getElementById('planBox');
             if (!planCtrl || force || planEvRef !== ev) {

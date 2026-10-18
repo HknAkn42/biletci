@@ -173,6 +173,18 @@
                     </div>
                 </div>
                 <div class="glass-card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-black text-slate-500 uppercase tracking-wider">💺 Boş Koltuklar (kısmi satılan masalar)</p>
+                        <span id="emptySeatTotal" class="text-[10px] font-black uppercase tracking-wider text-emerald-600">0 boş koltuk</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-left text-[11px]">
+                            <thead><tr class="text-slate-400 uppercase tracking-wider text-[10px]"><th class="py-2 pr-3">Etkinlik</th><th class="py-2 pr-3">Masa</th><th class="py-2 pr-3">Kategori</th><th class="py-2 pr-3">Müşteri</th><th class="py-2 pr-3 text-center">Satılan / Kapasite</th><th class="py-2 text-center">Boş</th></tr></thead>
+                            <tbody id="emptySeatBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="glass-card p-5">
                     <p class="text-xs font-black text-slate-500 uppercase tracking-wider mb-4">📈 Görsel Analiz</p>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
@@ -737,7 +749,23 @@
             };
         }
 
+        function renderEmptySeats() {
+            const body = document.getElementById('emptySeatBody'); if (!body) return;
+            const rows = []; let total = 0;
+            events.forEach(ev => (ev.categories || []).forEach(cat => (cat.masalar || []).forEach(m => {
+                if (!m || m.isDeleted || !m.isSold || !m.saleDetail) return;
+                const cap = Number(m.kapasite) || 0, ppl = Number(m.saleDetail.people) || 0, e = cap - ppl;
+                if (cap > 0 && e > 0) { total += e; rows.push({ ev: ev.title || '', no: m.no, cat: cat.name || '', who: m.soldTo || '', ppl, cap, e }); }
+            })));
+            rows.sort((a, b) => String(a.ev).localeCompare(String(b.ev), 'tr') || String(a.no).localeCompare(String(b.no), 'tr', { numeric: true }));
+            const el = document.getElementById('emptySeatTotal'); if (el) el.textContent = total + ' boş koltuk · ' + rows.length + ' masa';
+            const esc2 = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            body.innerHTML = rows.length ? rows.map(r => '<tr class="border-t border-slate-100"><td class="py-2 pr-3">' + esc2(r.ev) + '</td><td class="py-2 pr-3 font-black">' + esc2(r.no) + '</td><td class="py-2 pr-3">' + esc2(r.cat) + '</td><td class="py-2 pr-3">' + esc2(r.who) + '</td><td class="py-2 pr-3 text-center">' + r.ppl + ' / ' + r.cap + '</td><td class="py-2 text-center font-black text-emerald-600">' + r.e + '</td></tr>').join('')
+                : '<tr><td colspan="6" class="py-4 text-center text-slate-400">Kısmi satılan masa yok.</td></tr>';
+        }
+
         function renderStaffFinancials() {
+            try { renderEmptySeats(); } catch (_) {}
             const { stats, totalRevenue, totalSales, totalEvents, totalOpenDebt, totalOverdueCases } = calculateStaffFinancials();
             document.getElementById('totalEvents').innerText = totalEvents;
             document.getElementById('totalRevenue').innerText = '₺' + totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

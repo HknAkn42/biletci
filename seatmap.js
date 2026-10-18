@@ -296,7 +296,7 @@
             let st = opts.getState ? (opts.getState(t.cat, t.m, t.key) || {}) : {};
             if (exp) {   // paylaşılan görselde müşteri bilgisi yok: yalnızca boş / satıldı / rezerve
                 const cp = Math.max(1, Math.min(12, Number(t.m.kapasite) || 4));
-                if (st.state === 'sold' || /^st-/.test(st.state || '')) st = { state: 'sold', sub: '' };
+                if (st.state === 'sold' || /^st-/.test(st.state || '')) st = { state: 'sold', sub: '', empty: st.empty };
                 else if (st.state === 'reserved') st = { state: 'reserved', sub: '' };
                 else st = { state: 'free', sub: cp + ' kişi' };
             }
@@ -324,7 +324,13 @@
                 const sw = Math.max(d.w + 18, 74), col = stampTxt === 'SATILDI' ? '#dc2626' : '#d97706';
                 stamp = '<g transform="rotate(' + (-rot) + ') translate(0 7) rotate(-20)" pointer-events="none"><rect x="' + (-sw / 2) + '" y="-9.5" width="' + sw + '" height="19" rx="4" fill="' + col + '" fill-opacity=".93" stroke="#fff" stroke-width="1.5"/><text y="0.5" text-anchor="middle" dominant-baseline="central" fill="#fff" style="font:800 11.5px sans-serif;letter-spacing:.09em">' + stampTxt + '</text></g>';
             }
-            const label = '<g transform="rotate(' + (-rot) + ')"><text class="no" y="' + noY + '">' + esc(t.m.no) + '</text>' + (st.sub === '' ? '' : '<text class="sub" y="' + subYY + '">' + esc(st.sub != null ? st.sub : (cap + ' kişi')) + '</text>') + '</g>' + stamp;
+            const emp = Math.max(0, Math.floor(Number(st.empty) || 0));
+            let badge = '';
+            if (emp > 0 && stampTxt === 'SATILDI') {
+                const bt = exp ? (emp + ' yer var') : (emp + ' boş'), bw = exp ? 76 : 54;
+                badge = '<g transform="rotate(' + (-rot) + ') translate(0 ' + Math.round(hh + 18) + ')" pointer-events="none"><rect x="' + (-bw / 2) + '" y="-9" width="' + bw + '" height="18" rx="9" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text y="0.5" text-anchor="middle" dominant-baseline="central" fill="#fff" style="font:800 11px sans-serif">' + bt + '</text></g>';
+            }
+            const label = '<g transform="rotate(' + (-rot) + ')"><text class="no" y="' + noY + '">' + esc(t.m.no) + '</text>' + (st.sub === '' ? '' : '<text class="sub" y="' + subYY + '">' + esc(st.sub != null ? st.sub : (cap + ' kişi')) + '</text>') + '</g>' + stamp + badge;
             return '<g class="' + cls + '" data-k="' + esc(t.key) + '" transform="translate(' + p.x + ' ' + p.y + ') rotate(' + rot + ')">' + ring + '<g class="seats">' + seatDots(d, cap) + '</g>' + body + label + '<title>' + esc(st.title || ('Masa ' + t.m.no + ' · ' + t.cat.name + ' · ' + cap + ' kişilik')) + '</title></g>';
         }
 
