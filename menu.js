@@ -37,19 +37,9 @@ window.BiletProAuth = {
             window.__bpSyncTimer = setTimeout(() => {
                 try {
                     if (window.BiletProOnlineStore && window.BiletProOnlineStore.getMode() === 'online') {
-                        const prevEvents = JSON.parse(prevValue || '[]');
+                        // NOT: Etkinlik silme yalnızca açık "Sil" akışında (index.html) yapılır.
+                        // Yerel listedeki bir azalma (bayat veri, test, yedek yükleme) sunucudaki etkinliği ve biletleri ASLA silmez.
                         const events = JSON.parse(value || '[]');
-
-                        const prevIds = new Set((Array.isArray(prevEvents) ? prevEvents : []).map(e => String(e && e.id)).filter(Boolean));
-                        const newIds = new Set((Array.isArray(events) ? events : []).map(e => String(e && e.id)).filter(Boolean));
-                        const deletedIds = Array.from(prevIds).filter(id => !newIds.has(id));
-
-                        if (deletedIds.length && typeof window.BiletProOnlineStore.markEventsDeleted === 'function') {
-                            window.BiletProOnlineStore.markEventsDeleted(deletedIds).catch(() => {});
-                            if (typeof window.BiletProOnlineStore.deleteLegacyEventBundle === 'function') {
-                                deletedIds.forEach((id) => window.BiletProOnlineStore.deleteLegacyEventBundle(id).catch(() => {}));
-                            }
-                        }
 
                         events.forEach(ev => {
                             if (ev && ev.id) {

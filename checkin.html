@@ -93,6 +93,13 @@
         .btn-ghost { background: #f1f5f9; color: #475569; }
         .btn-ghost:hover { background: #e2e8f0; color: #0f172a; }
 
+        .gb { background: var(--surface); border: 1px solid var(--warning-border); border-radius: var(--r-lg); padding: 12px 14px; margin-top: 12px; }
+        .gb-head { font-size: 13.5px; font-weight: 700; color: var(--warning-text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .gb-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
+        .gb-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .gb-btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--primary); color: var(--on-primary); font-weight: 650; font-size: 13px; cursor: pointer; white-space: nowrap; }
+        .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+        .tag.in { background: var(--success-soft); color: var(--success-text); } .tag.out { background: var(--primary-soft); color: var(--primary-text); } .tag.wait { background: var(--warning-soft); color: var(--warning-text); }
         .modal-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
@@ -227,7 +234,8 @@
                             <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">KAPI SİSTEMİ AKTİF</h2>
                             <p class="text-xs font-bold text-slate-400 mt-2 max-w-[250px]">VIP müşterilerin biletini kameraya okutun veya manuel arama yapın.</p>
                         </div>
-                        <div id="resultContainer" class="w-full pb-10 relative z-10"></div>
+                        <div id="resultContainer" class="w-full pb-4 relative z-10"></div>
+                        <div id="groupBox" class="w-full pb-10 relative z-10" style="display:none"></div>
                     </div>
                 </div>
             </div>
@@ -1016,7 +1024,8 @@
         function normalizeTicketHash(rawInput) {
             const raw = String(rawInput || '').trim();
             if (!raw) return null;
-            const hashRegex = /EV[\w]+-M[\w.,]+-T[\w]+/;
+            // Çok masalı satışlarda bilet kodu "-M<masa>" soneki taşır (ör. EV1234-M56-T1792...-M5); sonek korunmalı
+            const hashRegex = /EV[\w]+-M[\w.,]+-T[\w]+(?:-M[\w.]+)?/;
 
             if (hashRegex.test(raw)) {
                 const m = raw.match(hashRegex);
@@ -1083,6 +1092,49 @@
             return { ei, ci, mi };
         }
 
+        /* ─── AYNI SATIŞTAKİ DİĞER MASALAR ───
+           Çok masalı satışta her masanın ayrı bilet kodu vardır (<taban>-M<masa>) ama müşteri tek QR gösterebilir.
+           Okutulan biletin kardeş masaları listelenir; görevli tek dokunuşla sıradaki masayı açar. */
+        function groupBaseOf(hash) {
+            const m = String(hash || '').match(/^(.*-T\d+)-M[0-9A-Za-z.]+$/);
+            return m ? m[1] : null;
+        }
+        let _groupReq = 0;
+        async function showGroupSiblings(hash) {
+            const box = document.getElementById('groupBox'); if (!box) return;
+            const base = groupBaseOf(hash);
+            const myReq = ++_groupReq;
+            if (!base) { box.style.display = 'none'; box.innerHTML = ''; return; }
+            let sibs = [];
+            try {
+                if (isOnlineMode() && window.BiletProOnlineStore && window.BiletProOnlineStore.client) {
+                    const r = await window.BiletProOnlineStore.client.from('tickets')
+                        .select('ticket_hash,table_no,customer_name,people_count,inside_count,status,debt')
+                        .like('ticket_hash', base + '-M%');
+                    if (!r.error && r.data) sibs = r.data;
+                }
+            } catch (_) {}
+            if (!sibs.length) {   // çevrimdışı yedek: yerel veri
+                events.forEach(e => (e.categories || []).forEach(c => (c.masalar || []).forEach(m => {
+                    const sd = m.saleDetail; if (sd && sd.ticketHash && String(sd.ticketHash).startsWith(base + '-M'))
+                        sibs.push({ ticket_hash: sd.ticketHash, table_no: m.no, customer_name: m.soldTo, people_count: sd.people, inside_count: sd.insideCount || 0, status: sd.status || 'READY', debt: sd.debt || 0 });
+                })));
+            }
+            if (myReq !== _groupReq) return;                      // daha yeni bir okutma geldi
+            const others = sibs.filter(x => x.ticket_hash !== hash).sort((a, b) => Number(a.table_no) - Number(b.table_no));
+            if (!others.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+            const pending = others.filter(x => String(x.status).toUpperCase() !== 'INSIDE').length;
+            const rows = others.map(x => {
+                const st = String(x.status).toUpperCase();
+                const tag = st === 'INSIDE' ? '<span class="tag in">İçeride</span>' : st === 'OUTSIDE' ? '<span class="tag out">Dışarıda</span>' : '<span class="tag wait">Bekliyor</span>';
+                const debt = Number(x.debt) > 0.5 ? ' · <b style="color:var(--danger-text)">borç ₺' + Number(x.debt).toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + '</b>' : '';
+                const btn = st === 'INSIDE' ? '' : '<button class="gb-btn" onclick="processQR(\'' + escAttr(x.ticket_hash) + '\')">Bu masayı aç</button>';
+                return '<div class="gb-row"><div><b>Masa ' + esc(x.table_no) + '</b> ' + tag + '<div class="gb-sub">' + esc(x.people_count) + ' kişi' + debt + '</div></div>' + btn + '</div>';
+            }).join('');
+            box.innerHTML = '<div class="gb"><div class="gb-head">Aynı satışta ' + others.length + ' masa daha var' + (pending ? ' <span class="tag wait">' + pending + ' bekliyor</span>' : '') + '</div>' + rows + '</div>';
+            box.style.display = 'block';
+        }
+
         async function processQR(raw){
             if (_scanning) return;
             _scanning = true;
@@ -1128,6 +1180,7 @@
             if(!perms.pDoor){ showInvalid('YETKİ YOK','Kapı yetkiniz bulunmuyor.',raw); sndErr();flash('r'); return; }
 
             logQrRead(found);
+            showGroupSiblings(raw);
 
             if(found.saleDetail.status==='INSIDE'){ showInsideCard(found); sndDouble();flash('r'); return; }
             if(found.saleDetail.status==='OUTSIDE'){ showOutsideCard(found); sndNotice();flash('b'); return; }
