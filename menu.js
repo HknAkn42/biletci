@@ -1768,6 +1768,14 @@ window.BiletProPresence = {
     _state: {},
     _user: null,
     _myLocks: [], // bu kullanıcının track'inde tutulan kilitler
+    _hb: null,
+
+    // Her cihazın "şu an nerede" bilgisi: kullanıcı, sayfa, etkinlik
+    _payload() {
+        const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '') || 'index';
+        let eventId = null; try { eventId = new URLSearchParams(location.search).get('id'); } catch (_) {}
+        return { user: this._user, locks: this._myLocks, page, eventId, ts: Date.now() };
+    },
 
     async init(client, userName) {
         if (!client || !userName) return;
@@ -1788,10 +1796,10 @@ window.BiletProPresence = {
         });
         await ch.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                // Mevcut kilitleri tekrar yayınla (reconnect durumunda)
-                if (this._myLocks.length > 0) {
-                    await ch.track({ user: this._user, locks: this._myLocks });
-                }
+                // Kendi varlığını (kullanıcı + sayfa) yayınla; kilit varsa onlarla birlikte
+                await ch.track(this._payload());
+                clearInterval(this._hb);
+                this._hb = setInterval(() => { try { if (this._ch) this._ch.track(this._payload()); } catch (_) {} }, 20000);
             }
         });
         this._ch = ch;
@@ -1805,7 +1813,7 @@ window.BiletProPresence = {
         const entry = { _key: key, eventId: String(eventId), masaNo: String(masaNo), at: Date.now() };
         if (existing === -1) this._myLocks.push(entry);
         else this._myLocks[existing] = entry;
-        try { this._ch.track({ user: userName || this._user, locks: this._myLocks }); } catch(_) {}
+        try { this._ch.track(this._payload()); } catch(_) {}
     },
 
     // Bu kullanıcının belirli masa kilidini bırak
@@ -1813,7 +1821,22 @@ window.BiletProPresence = {
         if (!this._ch) return;
         const key = `${eventId}::${masaNo}`;
         this._myLocks = this._myLocks.filter(l => l._key !== key);
-        try { this._ch.track({ user: this._user, locks: this._myLocks }); } catch(_) {}
+        try { this._ch.track(this._payload()); } catch(_) {}
+    },
+
+    // Şu an çevrimiçi olan DİĞER kullanıcılar (hangi sayfada oldukları ile)
+    getOnlineUsers() {
+        const out = [], seen = new Set();
+        const state = this._state || {};
+        Object.keys(state).forEach(key => {
+            (Array.isArray(state[key]) ? state[key] : []).forEach(p => {
+                if (!p || !p.user || p.user === this._user) return;
+                const k = p.user + '|' + (p.page || '') + '|' + (p.eventId || '');
+                if (seen.has(k)) return; seen.add(k);
+                out.push({ user: p.user, page: p.page || '', eventId: p.eventId || null, ts: p.ts || 0 });
+            });
+        });
+        return out;
     },
 
     // Diğer kullanıcıların kilitlerini döndür

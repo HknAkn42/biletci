@@ -342,7 +342,7 @@
                     </div>
                     <div class="live-lock-shell">
                         <div class="flex items-center justify-between gap-2 mb-2">
-                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-700">Canlı İşlem Takibi</p>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-700">Canlı İşlem Takibi · çevrimiçi kullanıcılar</p>
                             <span id="liveLockCount" class="text-[10px] font-black text-slate-400">0</span>
                         </div>
                         <div id="liveLockPanel" class="flex flex-wrap gap-2"></div>
@@ -826,17 +826,25 @@
 
             const locks = getActiveLiveLocks();
             const foreignLocks = locks.filter(l => !l.isMine);
-            countEl.textContent = String(foreignLocks.length);
 
-            if (foreignLocks.length === 0) {
-                panel.innerHTML = '<span class="text-[10px] font-bold text-slate-500 uppercase">Şu an başka satıcı aktif işlemde değil.</span>';
+            // Sistemde şu an çevrimiçi olan diğer kullanıcılar (masa seçmeseler bile)
+            const WHERE = { satis: 'bilet satışında', checkin: 'kapı kontrolde', masalar: 'masa durumunda', duzen: 'oturma düzeninde', gise: 'masa/kategoride', musteriler: 'müşterilerde', rapor: 'raporlarda', personel: 'personelde', index: 'panelde' };
+            let online = [];
+            try { online = (window.BiletProPresence && window.BiletProPresence.getOnlineUsers && window.BiletProPresence.getOnlineUsers()) || []; } catch (_) {}
+            online = online.filter(u => !u.eventId || String(u.eventId) === String(ev && ev.id) || u.page === 'index');
+            countEl.textContent = String(online.length);
+
+            if (online.length === 0 && foreignLocks.length === 0) {
+                panel.innerHTML = '<span class="text-[10px] font-bold text-slate-500 uppercase">Şu an başka kullanıcı çevrimiçi değil.</span>';
                 return;
             }
 
-            panel.innerHTML = foreignLocks.map(l => {
+            const onlineChips = online.map(u => `<span class="live-lock-chip" style="border-color:var(--success-border);background:var(--success-soft);color:var(--success-text)"><i style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block"></i> ${esc(u.user)} · ${esc(WHERE[u.page] || 'sistemde')}</span>`).join('');
+            const lockChips = foreignLocks.map(l => {
                 const elapsed = Math.max(0, Math.round((Date.now() - (l.lockedAt || Date.now())) / 1000));
-                return `<span class="live-lock-chip">⏳ Masa ${esc(l.masaNo)} • ${esc(l.lockedBy)} (${elapsed}s)</span>`;
+                return `<span class="live-lock-chip">Masa ${esc(l.masaNo)} • ${esc(l.lockedBy)} seçiyor (${elapsed}s)</span>`;
             }).join('');
+            panel.innerHTML = onlineChips + lockChips;
         }
 
         function selectMasa(cId, mId) {
