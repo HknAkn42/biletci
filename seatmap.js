@@ -300,7 +300,7 @@
                 else if (st.state === 'reserved') st = { state: 'reserved', sub: '' };
                 else st = { state: 'free', sub: cp + ' kişi' };
             }
-            const stampTxt = st.state === 'sold' ? 'SATILDI' : (exp && st.state === 'reserved' ? 'REZERVE' : '');
+            const stampTxt = st.state === 'sold' ? 'SATILDI' : (st.state === 'reserved' ? 'REZERVE' : '');
             const cls = ['sm-t', st.state || 'free', st.cls || '', selected.has(t.key) ? 'edit-sel' : ''].join(' ');
             const col = t.cat.color || '#4f46e5';
             const useCol = !st.state || st.state === 'free';   // durum renkleri (içeride/rezerve vb.) sınıfla gelir

@@ -347,6 +347,13 @@
                         </div>
                         <div id="liveLockPanel" class="flex flex-wrap gap-2"></div>
                     </div>
+                    <div id="rsvPanel" class="hidden" style="border:1.5px solid var(--warning,#f59e0b);background:var(--warning-soft,#fffbeb);border-radius:18px;padding:12px 14px">
+                        <div class="flex items-center justify-between gap-2" style="cursor:pointer" onclick="toggleRsvPanel()">
+                            <p class="text-[11px] font-black uppercase tracking-widest" style="color:var(--warning-text,#b45309)">📌 Rezervasyonlar · <span id="rsvCount">0</span> masa</p>
+                            <span id="rsvChev" class="text-[11px] font-black" style="color:var(--warning-text,#b45309)">▾</span>
+                        </div>
+                        <div id="rsvList" class="mt-3 space-y-2"></div>
+                    </div>
                     <div class="flex items-center gap-2" id="viewToggle">
                         <button type="button" id="vtList" class="chip on" onclick="setSalesView('list')">Liste</button>
                         <button type="button" id="vtPlan" class="chip" onclick="setSalesView('plan')">Plan (sahne ve masalar)</button>
@@ -1028,6 +1035,7 @@
                 const sig = (o) => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k].customer_name]));
                 const changed = sig(nextR) !== sig(reservedMap) || sig(nextS) !== sig(soldMap);
                 reservedMap = nextR; soldMap = nextS;
+                try { renderRsvPanel(); } catch (_) {}
                 // Yerel veri sunucudan farklıysa (başka kasada satış / iptal) yerel veriyi sunucudan tazele
                 try {
                     const mismatch = (ev.categories || []).some(c => (c.masalar || []).some(m => !m.isDeleted && ((!m.isSold && soldMap[String(m.no)]) || (m.isSold && m.saleDetail && m.saleDetail.ticketHash && !soldMap[String(m.no)]))));
@@ -1147,6 +1155,63 @@
             document.getElementById('custPhone').value = r.customer_phone || '';
             if (info.note) document.getElementById('gateNote').value = info.note;
             showToast('Rezervasyon satışa hazır. Tutarı girip "Satışı kaydet"e basın.', 'info');
+        }
+
+        // ───── Rezervasyonlar listesi (müşteri bazında gruplu) ─────
+        let rsvPanelOpen = true;
+        function toggleRsvPanel() { rsvPanelOpen = !rsvPanelOpen; renderRsvPanel(); }
+        function findMasaByNo(no) {
+            for (const c of (ev.categories || [])) { const m = (c.masalar || []).find(x => String(x.no) === String(no) && !x.isDeleted); if (m) return { cat: c, m }; }
+            return null;
+        }
+        function renderRsvPanel() {
+            const box = document.getElementById('rsvPanel'); if (!box) return;
+            const entries = Object.keys(reservedMap || {}).map(no => ({ no, r: reservedMap[no], f: findMasaByNo(no) })).filter(x => x.f && !x.f.m.isSold);
+            document.getElementById('rsvCount').textContent = String(entries.length);
+            box.classList.toggle('hidden', entries.length === 0);
+            const chev = document.getElementById('rsvChev'); if (chev) chev.textContent = rsvPanelOpen ? '▾' : '▸';
+            const list = document.getElementById('rsvList'); if (!list) return;
+            list.style.display = rsvPanelOpen ? '' : 'none';
+            if (!rsvPanelOpen) return;
+            const groups = new Map();
+            entries.forEach(e => {
+                const key = (e.r.customer_name || '') + '|' + (e.r.customer_phone || '');
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(e);
+            });
+            const fmt = (d) => d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            list.innerHTML = [...groups.values()].map(g => {
+                g.sort((a, b) => String(a.no).localeCompare(String(b.no), 'tr', { numeric: true }));
+                const r0 = g[0].r;
+                const info = (r0.payload_json && r0.payload_json.reservation) || {};
+                const hold = info.holdUntil ? new Date(info.holdUntil) : null;
+                const expired = hold && hold.getTime() < Date.now();
+                const people = g.reduce((a, e) => a + (Number(e.r.people_count) || 0), 0);
+                const nos = g.map(e => e.no);
+                const nosJson = rsvEsc(JSON.stringify(nos)).replace(/"/g, '&quot;');
+                return '<div style="background:var(--surface,#fff);border:1px solid var(--border,#e5e7eb);border-radius:14px;padding:10px 12px">'
+                    + '<div class="flex flex-wrap items-center justify-between gap-2">'
+                    + '<div><div style="font-weight:800;font-size:14px">' + rsvEsc(r0.customer_name || '—') + '</div>'
+                    + '<div style="font-size:12px;color:var(--muted,#6b7280)">' + (r0.customer_phone ? '<a href="tel:' + rsvEsc(r0.customer_phone) + '" style="color:var(--primary,#2563eb)">' + rsvEsc(r0.customer_phone) + '</a> · ' : '') + 'Masa ' + nos.map(rsvEsc).join(', ') + ' · ' + people + ' kişi · ' + rsvEsc(info.reservedBy || r0.sold_by_username || '—') + '</div>'
+                    + '<div style="font-size:11.5px;color:' + (expired ? '#dc2626' : 'var(--muted,#6b7280)') + '">' + (hold ? 'Tutma: ' + fmt(hold) + (expired ? ' (süresi doldu)' : '') : 'Süresiz') + (info.note ? ' · ' + rsvEsc(info.note) : '') + '</div></div>'
+                    + '<div class="flex gap-2">'
+                    + '<button type="button" onclick="convertRsvGroup(' + nosJson + ')" style="padding:8px 12px;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;font-size:12px">Satışa çevir</button>'
+                    + '<button type="button" onclick="releaseRsvGroup(' + nosJson + ')" style="padding:8px 12px;border-radius:10px;background:#fee2e2;color:#dc2626;font-weight:700;font-size:12px">Kaldır</button>'
+                    + '</div></div></div>';
+            }).join('');
+        }
+        function convertRsvGroup(nos) {
+            reset();
+            nos.forEach(no => { const f = findMasaByNo(no); if (f) startConvertReservation(f.cat.id, f.m.id); });
+        }
+        async function releaseRsvGroup(nos) {
+            if (!confirm('Masa ' + nos.join(', ') + ' rezervasyonu kaldırılsın mı? Masalar tekrar satışa açılır.')) return;
+            const st = window.BiletProOnlineStore; const failed = [];
+            for (const no of nos) { const r = await st.cancelReservation(ev.id, no); if (!r.ok) failed.push(no); }
+            const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            if (typeof writeAuditEvent === 'function') writeAuditEvent('Satış', 'Rezervasyon Kaldırıldı', (sess.name || sess.username || 'Kasa') + ' -> Masa ' + nos.join(', '));
+            showToast(failed.length ? 'Kaldırılamadı: Masa ' + failed.join(', ') : 'Rezervasyon kaldırıldı.', failed.length ? 'error' : 'success');
+            await loadReservations(); render();
         }
 
         async function releaseReservation(masaNo) {
