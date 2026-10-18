@@ -905,7 +905,7 @@
         // DÜZENLEME MODU (GEÇMİŞİ KORUYAN PERSONEL KALKANI)
         function loadEdit(cat, m) {
             editId = m.id; 
-            basket = [{ cat, masa: m, p: m.saleDetail.people }];
+            basket = [{ cat, masa: m, p: m.saleDetail.people, price: m.saleDetail.pricePerPerson }];
             document.getElementById('custName').value = m.soldTo || "";
             document.getElementById('custPhone').value = m.saleDetail.phone || "";
             document.getElementById('gateNote').value = m.saleDetail.gateNote || "";
@@ -1111,7 +1111,7 @@
             const user = sess.name || sess.username || '';
             const lk = window.bpSoftLock && window.bpSoftLock.getConflict(ev.id, m.no, user);
             if (lk) return { state: 'locked', cls: dim, sub: String(lk.lockedBy || '').slice(0, 8), title: 'Masa ' + m.no + ' · ' + lk.lockedBy + ' işlemde' };
-            return { state: 'free', cls: dim, sub: m.kapasite + ' kişi', title: 'Masa ' + m.no + ' · ' + cat.name + ' · ₺' + (cat.pricePerPerson || 0).toLocaleString('tr-TR') + '/kişi' };
+            return { state: 'free', cls: dim, sub: m.kapasite + ' kişi', title: 'Masa ' + m.no + ' · ' + cat.name + ' · ' + (cat.pricePerPerson > 0 ? '₺' + cat.pricePerPerson.toLocaleString('tr-TR') + '/kişi' : 'fiyat satışta belirlenir') };
         }
 
         function setSalesView(mode) {
@@ -1205,9 +1205,24 @@
             renderLiveLocks();
         }
 
+        // Kategori fiyatı 0 ise (ör. VIP) kişi başı fiyat satış anında satıcı tarafından girilir.
+        function isCustomPrice(i) { return !(Number(i.cat.pricePerPerson) > 0); }
+        function unitPrice(i) {
+            const base = Number(i.cat.pricePerPerson) || 0;
+            if (base > 0) return base;
+            const v = parseFloat(i.price);
+            return isFinite(v) && v > 0 ? v : 0;
+        }
+        // Aynı satışta aynı özel fiyatlı kategorideki tüm masalara aynı fiyat uygulanır
+        function applyPriceToCategory(catId, val) {
+            basket.filter(b => b.cat.id === catId && isCustomPrice(b)).forEach(b => { b.price = parseFloat(val) || 0; });
+            recalc();
+            document.querySelectorAll('.cp-input[data-cat="' + catId + '"]').forEach(el => { if (el !== document.activeElement) el.value = val; });
+        }
+
         function recalc() {
-            let gross = 0; 
-            basket.forEach(i => gross += (i.cat.pricePerPerson * i.p));
+            let gross = 0;
+            basket.forEach(i => gross += (unitPrice(i) * i.p));
             const pr = parseFloat(document.getElementById('prDisc').value) || 0;
             const tl = parseFloat(document.getElementById('tlDisc').value) || 0;
             const paid = parseFloat(document.getElementById('paidAmt').value) || 0;
@@ -1252,6 +1267,8 @@
             if(seller && seller.isActive === false) return showToast("Pasif personel ile satış yapılamaz.", "error");
 
             if(blacklist.includes(ph)) return showToast("Bu müşteri kara listededir. Satış yapılamaz!", "error");
+            const _noPrice = basket.filter(b => isCustomPrice(b) && unitPrice(b) <= 0);
+            if (_noPrice.length) { showToast('Fiyat girilmemiş: ' + _noPrice.map(b => b.cat.name + ' (Masa ' + b.masa.no + ')').join(', ') + '. Kişi başı fiyatı yazın.', 'error'); return; }
 
             if(!n || basket.length === 0) return showToast("Müşteri adı ve masa seçimi zorunludur!", "error");
 
@@ -1299,6 +1316,7 @@
                                 masa: b.masa,
                                 saleDetail: {
                                     phone: ph,
+                                    pricePerPerson: unitPrice(b),
                                     people: b.p,
                                     paid: paidPreview / basket.length,
                                     paymentType: payType,
@@ -1400,6 +1418,7 @@
                 const dueDate = new Date(eventDate.getTime() + 24*60*60*1000);
                 target.saleDetail = { 
                     phone: ph, 
+                    pricePerPerson: unitPrice(i),
                     people: i.p, 
                     paid: _atomicRow ? (parseFloat(_atomicRow.paid) || 0) : (paid / basket.length), 
                     paymentType: payType, 
@@ -1924,7 +1943,7 @@
                             <button type="button" onclick="setBasketPeople(${i.masa.id}, -1)" class="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold leading-none">−</button>
                             <span class="text-[12px] font-bold text-blue-600 min-w-[64px] text-center">${esc(i.p)} / ${esc(i.masa.kapasite)} kişi</span>
                             <button type="button" onclick="setBasketPeople(${i.masa.id}, 1)" class="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold leading-none">+</button>
-                            <span class="text-[10px] text-slate-500">x ₺${esc(i.cat.pricePerPerson)}</span>
+                            ${isCustomPrice(i) ? `<span class="text-[10px] text-slate-500">x ₺</span><input type="number" min="0" step="50" inputmode="decimal" class="cp-input" data-cat="${i.cat.id}" value="${i.price || ''}" placeholder="kişi başı fiyat" oninput="applyPriceToCategory(${i.cat.id}, this.value)" style="width:110px;height:30px;padding:0 8px;border:1px solid var(--warning);border-radius:8px;background:var(--surface);color:var(--text);font-weight:700;font-size:13px">` : `<span class="text-[10px] text-slate-500">x ₺${esc(i.cat.pricePerPerson)}</span>`}
                         </div>
                         ${i.p < i.masa.kapasite ? '<p class="text-[11px] font-semibold mt-1" style="color:var(--warning-text)">' + (i.masa.kapasite - i.p) + ' koltuk boş kalacak</p>' : ''}
                     </div>
@@ -2005,7 +2024,7 @@
                             <div class="w-5 h-5 rounded-full shadow-lg" style="background:${cat.color}"></div>
                             <h3 class="font-extrabold text-[15px] uppercase text-slate-800 tracking-tight">${esc(cat.name)} <span class="ml-2 text-slate-400 font-bold">(${filteredMasalar.length})</span></h3>
                         </div>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">₺${cat.pricePerPerson.toLocaleString()} / KİŞİ</span>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">${cat.pricePerPerson > 0 ? '₺' + cat.pricePerPerson.toLocaleString() + ' / KİŞİ' : 'FİYAT SATIŞTA BELİRLENİR'}</span>
                     </div>
                     <div class="masalar-grid">
                         ${filteredMasalar.sort((a,b)=>a.no-b.no).map(m => {
