@@ -235,7 +235,7 @@
         const wrap = document.createElement('div'); wrap.className = 'sm-wrap' + (edit ? ' sm-edit' : ''); container.appendChild(wrap);
         const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'sm-svg'); svg.setAttribute('preserveAspectRatio', 'xMidYMid meet'); wrap.appendChild(svg);
         const ctl = document.createElement('div'); ctl.className = 'sm-ctl';
-        ctl.innerHTML = '<button data-a="in" title="Yakınlaş">+</button><button data-a="out" title="Uzaklaş">−</button><button data-a="fit" title="Sığdır" style="font-size:13px">⤢</button><button data-a="full" title="Tam ekran" style="font-size:15px">⛶</button>';
+        ctl.innerHTML = '<button data-a="in" title="Yakınlaş">+</button><button data-a="out" title="Uzaklaş">−</button><button data-a="fit" title="Sığdır" style="font-size:13px">⤢</button><button data-a="full" title="Tam ekran" style="font-size:15px">⛶</button>' + (edit ? '' : '<button data-a="share" title="Oturma düzenini görsel olarak paylaş" style="font-size:15px">📤</button>');
         wrap.appendChild(ctl);
         if (opts.legend) {
             const lg = document.createElement('div'); lg.className = 'sm-legend';
@@ -291,9 +291,16 @@
             return h;
         }
 
-        function tableSvg(t) {
+        function tableSvg(t, exp) {
             const p = L.tables[t.key]; if (!p) return '';
-            const st = opts.getState ? (opts.getState(t.cat, t.m, t.key) || {}) : {};
+            let st = opts.getState ? (opts.getState(t.cat, t.m, t.key) || {}) : {};
+            if (exp) {   // paylaşılan görselde müşteri bilgisi yok: yalnızca boş / satıldı / rezerve
+                const cp = Math.max(1, Math.min(12, Number(t.m.kapasite) || 4));
+                if (st.state === 'sold' || /^st-/.test(st.state || '')) st = { state: 'sold', sub: '' };
+                else if (st.state === 'reserved') st = { state: 'reserved', sub: '' };
+                else st = { state: 'free', sub: cp + ' kişi' };
+            }
+            const stampTxt = st.state === 'sold' ? 'SATILDI' : (exp && st.state === 'reserved' ? 'REZERVE' : '');
             const cls = ['sm-t', st.state || 'free', st.cls || '', selected.has(t.key) ? 'edit-sel' : ''].join(' ');
             const col = t.cat.color || '#4f46e5';
             const useCol = !st.state || st.state === 'free';   // durum renkleri (içeride/rezerve vb.) sınıfla gelir
@@ -309,11 +316,19 @@
                 ring = '<rect class="ring" x="' + (-d.w / 2 - 13) + '" y="' + (-d.h / 2 - 7) + '" width="' + (d.w + 26) + '" height="' + (d.h + 14) + '" rx="14"/>';
             }
             const subY = d.shape === 'rect' ? 14 : Math.min(d.r, d.h / 2) - 8;
-            const label = '<g transform="rotate(' + (-rot) + ')"><text class="no" y="' + (d.shape === 'rect' ? -4 : -2) + '">' + esc(t.m.no) + '</text><text class="sub" y="' + subY + '">' + esc(st.sub != null ? st.sub : (cap + ' kişi')) + '</text></g>';
+            const hh = d.h / 2;
+            const noY = stampTxt ? -Math.round(hh * 0.5) - 3 : (d.shape === 'rect' ? -4 : -2);
+            const subYY = stampTxt ? Math.round(hh + 14) : subY;
+            let stamp = '';
+            if (stampTxt) {
+                const sw = Math.max(d.w + 18, 74), col = stampTxt === 'SATILDI' ? '#dc2626' : '#d97706';
+                stamp = '<g transform="rotate(' + (-rot) + ') translate(0 7) rotate(-20)" pointer-events="none"><rect x="' + (-sw / 2) + '" y="-9.5" width="' + sw + '" height="19" rx="4" fill="' + col + '" fill-opacity=".93" stroke="#fff" stroke-width="1.5"/><text y="0.5" text-anchor="middle" dominant-baseline="central" fill="#fff" style="font:800 11.5px sans-serif;letter-spacing:.09em">' + stampTxt + '</text></g>';
+            }
+            const label = '<g transform="rotate(' + (-rot) + ')"><text class="no" y="' + noY + '">' + esc(t.m.no) + '</text>' + (st.sub === '' ? '' : '<text class="sub" y="' + subYY + '">' + esc(st.sub != null ? st.sub : (cap + ' kişi')) + '</text>') + '</g>' + stamp;
             return '<g class="' + cls + '" data-k="' + esc(t.key) + '" transform="translate(' + p.x + ' ' + p.y + ') rotate(' + rot + ')">' + ring + '<g class="seats">' + seatDots(d, cap) + '</g>' + body + label + '<title>' + esc(st.title || ('Masa ' + t.m.no + ' · ' + t.cat.name + ' · ' + cap + ' kişilik')) + '</title></g>';
         }
 
-        function render() {
+        function buildHtml(exp) {
             let h = '';
             // ızgara (düzenleyicide)
             if (edit) {
@@ -329,9 +344,10 @@
             // sahne
             const S = L.stage;
             h += `<g class="sm-item${selStage ? ' edit-sel' : ''}" data-k="STAGE"><rect class="sm-stage" x="${S.x}" y="${S.y}" width="${S.w}" height="${S.h}" rx="16"/><rect class="ring" x="${S.x - 6}" y="${S.y - 6}" width="${S.w + 12}" height="${S.h + 12}" rx="20"/><text class="sm-stage-t" x="${S.x + S.w / 2}" y="${S.y + S.h / 2}">${esc(S.label || 'SAHNE')}</text></g>`;
-            tablesOf(ev).forEach(t => { h += tableSvg(t); });
-            svg.innerHTML = h;
+            tablesOf(ev).forEach(t => { h += tableSvg(t, exp); });
+            return h;
         }
+        function render() { svg.innerHTML = buildHtml(false); }
 
         /* --- etkileşim --- */
         const pointers = new Map();
@@ -414,7 +430,7 @@
         }
         svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
         svg.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
-        ctl.addEventListener('click', (e) => { const a = e.target.getAttribute && e.target.getAttribute('data-a'); if (a === 'in') zoom(1.3); else if (a === 'out') zoom(1 / 1.3); else if (a === 'fit') fit(); else if (a === 'full') { const on = wrap.classList.toggle('sm-full'); document.body.style.overflow = on ? 'hidden' : ''; setTimeout(fit, 60); } });
+        ctl.addEventListener('click', (e) => { const a = e.target.getAttribute && e.target.getAttribute('data-a'); if (a === 'in') zoom(1.3); else if (a === 'out') zoom(1 / 1.3); else if (a === 'fit') fit(); else if (a === 'share') openExport(); else if (a === 'full') { const on = wrap.classList.toggle('sm-full'); document.body.style.overflow = on ? 'hidden' : ''; setTimeout(fit, 60); } });
         if (edit) {
             window.addEventListener('keydown', onKey);
         }
@@ -434,9 +450,80 @@
             } else if (e.key === 'Delete' || e.key === 'Backspace') { if (opts.onDelete) opts.onDelete(ctrl.getSelection()); }
         }
 
+        /* --- Görsel olarak dışa aktar / paylaş (müşteriye oturma düzeninin güncel kopyası) --- */
+        const xe = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        function exportBlob(meta) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const prevTheme = document.documentElement.getAttribute('data-theme');
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    const cs = getComputedStyle(document.documentElement);
+                    const css = document.getElementById('seatmapStyle').textContent;
+                    const names = Array.from(new Set((css.match(/--[a-z0-9-]+/gi) || [])));
+                    const vars = names.map(n => n + ':' + cs.getPropertyValue(n).trim()).filter(x => !/:$/.test(x)).join(';').replace(/"/g, "'");
+                    if (prevTheme == null) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', prevTheme);
+                    const cb = contentBox() || { x: 0, y: 0, w: L.w, h: L.h };
+                    const W = 1600, sc = W / cb.w, planH = Math.round(cb.h * sc), HEAD = 150, FOOT = 120, H = HEAD + planH + FOOT;
+                    let free = 0, sold = 0, rsv = 0;
+                    tablesOf(ev).forEach(t => {
+                        const st = opts.getState ? (opts.getState(t.cat, t.m, t.key) || {}) : {};
+                        if (st.state === 'sold' || /^st-/.test(st.state || '')) sold++; else if (st.state === 'reserved') rsv++; else free++;
+                    });
+                    const now = new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+                    const inner = buildHtml(true);
+                    const svgStr = '<svg xmlns="http://www.w3.org/2000/svg" class="smx" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">'
+                        + '<style>.smx{' + vars + '} ' + css + '</style>'
+                        + '<rect width="' + W + '" height="' + H + '" fill="#ffffff"/>'
+                        + '<text x="' + (W / 2) + '" y="62" text-anchor="middle" style="font:800 40px sans-serif" fill="#111827">' + xe(meta.title) + '</text>'
+                        + '<text x="' + (W / 2) + '" y="108" text-anchor="middle" style="font:600 24px sans-serif" fill="#6b7280">' + xe(meta.subtitle) + '</text>'
+                        + '<rect x="0" y="' + HEAD + '" width="' + W + '" height="' + planH + '" fill="#f8fafc"/>'
+                        + '<svg x="0" y="' + HEAD + '" width="' + W + '" height="' + planH + '" viewBox="' + cb.x + ' ' + cb.y + ' ' + cb.w + ' ' + cb.h + '" preserveAspectRatio="xMidYMid meet">' + inner + '</svg>'
+                        + '<g style="font:700 26px sans-serif" fill="#111827" transform="translate(0,' + (HEAD + planH + 52) + ')">'
+                        + '<circle cx="' + (W / 2 - 440) + '" cy="-9" r="11" fill="#fff" stroke="#16a34a" stroke-width="4"/><text x="' + (W / 2 - 418) + '">Boş: ' + free + '</text>'
+                        + '<rect x="' + (W / 2 - 190) + '" y="-20" width="46" height="22" rx="4" fill="#dc2626"/><text x="' + (W / 2 - 132) + '">Satıldı: ' + sold + '</text>'
+                        + '<rect x="' + (W / 2 + 110) + '" y="-20" width="46" height="22" rx="4" fill="#d97706"/><text x="' + (W / 2 + 168) + '">Rezerve: ' + rsv + '</text></g>'
+                        + '<text x="' + (W / 2) + '" y="' + (H - 22) + '" text-anchor="middle" style="font:500 20px sans-serif" fill="#9ca3af">Güncel durum: ' + xe(now) + '</text>'
+                        + '</svg>';
+                    const img = new Image();
+                    img.onload = () => {
+                        const c = document.createElement('canvas'); c.width = W; c.height = H;
+                        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(img, 0, 0, W, H);
+                        c.toBlob(b => b ? resolve({ blob: b, url: URL.createObjectURL(b) }) : reject(new Error('Görsel oluşturulamadı')), 'image/jpeg', 0.92);
+                    };
+                    img.onerror = () => reject(new Error('Görsel hazırlanamadı'));
+                    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+                } catch (e) { reject(e); }
+            });
+        }
+        async function openExport() {
+            const meta = { title: (ev && ev.title) || 'Oturma Düzeni', subtitle: [ev && ev.date ? new Date(ev.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '', ev && ev.venue, ev && ev.city].filter(Boolean).join(' · ') };
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:300000;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+            ov.innerHTML = '<div style="background:var(--surface,#fff);color:var(--text,#111);border-radius:16px;max-width:900px;width:100%;max-height:94vh;overflow:auto;padding:16px"><div style="font:700 16px sans-serif;margin-bottom:10px">Oturma düzeni görseli</div><div id="smxBody" style="text-align:center;padding:30px;font:600 14px sans-serif">Hazırlanıyor…</div></div>';
+            document.body.appendChild(ov);
+            ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+            const body = ov.querySelector('#smxBody');
+            try {
+                const r = await exportBlob(meta);
+                const fname = 'oturma-duzeni-' + String((ev && ev.title) || 'etkinlik').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.jpg';
+                body.style.padding = '0';
+                body.innerHTML = '<img src="' + r.url + '" style="width:100%;border-radius:10px;border:1px solid var(--border,#ddd)"><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button id="smxShare" style="flex:1;min-width:140px;padding:12px;border-radius:12px;border:0;background:#16a34a;color:#fff;font:700 14px sans-serif;cursor:pointer">📤 Paylaş (WhatsApp vb.)</button><button id="smxDl" style="flex:1;min-width:140px;padding:12px;border-radius:12px;border:1px solid var(--border-strong,#ccc);background:var(--surface-3,#f3f4f6);color:inherit;font:700 14px sans-serif;cursor:pointer">⬇ İndir</button><button id="smxX" style="padding:12px 18px;border-radius:12px;border:1px solid var(--border-strong,#ccc);background:transparent;color:inherit;font:700 14px sans-serif;cursor:pointer">Kapat</button></div>';
+                const file = new File([r.blob], fname, { type: 'image/jpeg' });
+                ov.querySelector('#smxDl').onclick = () => { const a = document.createElement('a'); a.href = r.url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); };
+                ov.querySelector('#smxShare').onclick = async () => {
+                    try {
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: meta.title, text: meta.title + ' — oturma düzeni' });
+                        else { ov.querySelector('#smxDl').click(); }
+                    } catch (_) {}
+                };
+                ov.querySelector('#smxX').onclick = () => { ov.remove(); };
+            } catch (e) { body.textContent = 'Görsel oluşturulamadı: ' + (e && e.message || e); }
+        }
+
         render(); fit();
 
         const ctrl = {
+            exportImage: exportBlob, openExport,
             refresh() { render(); },
             fit, zoom,
             relayout() { render(); fit(); },
