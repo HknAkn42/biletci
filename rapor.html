@@ -375,7 +375,7 @@
             const cfg = (window.BiletProCore && typeof window.BiletProCore.getConfig === 'function')
                 ? window.BiletProCore.getConfig()
                 : {};
-            return String((cfg && cfg.security && cfg.security.settingsPin) || '52655265').trim();
+            return String((cfg && cfg.security && cfg.security.settingsPin) || '').trim();
         }
 
         function hydrateLocalData() {
@@ -523,22 +523,22 @@
 
         async function clearAuditLogsWithPin() {
             const pinDialog = await openActionDialog({
-                title: 'Logları Sıfırla (PIN)',
-                description: 'Logları temizlemek için yönetici PIN kodunu girin. PIN yanlışsa silme yapılmaz.',
+                title: 'Logları Sıfırla (Yönetici Şifresi)',
+                description: 'Logları temizlemek için yönetici şifrenizi girin. Şifre yanlışsa silme yapılmaz.',
                 confirmText: 'Doğrula',
                 cancelText: 'Vazgeç',
                 tone: 'danger',
                 requireInput: true,
                 inputType: 'password',
-                inputPlaceholder: 'PIN kodunu girin'
+                inputPlaceholder: 'Yönetici şifresi'
             });
             if(!pinDialog.confirmed) return;
 
-            const pinTyped = String(pinDialog.input || '').trim();
-            const realPin = getSettingsPinFromConfig();
+            const pinTyped = String(pinDialog.input || '');
+            const pwOk = typeof window.verifyAdminPassword === 'function' ? await window.verifyAdminPassword(pinTyped) : false;
 
-            if(!pinTyped || pinTyped !== realPin) {
-                if(typeof showToast === 'function') showToast('PIN yanlış. Loglar silinmedi.', 'error');
+            if(!pinTyped || !pwOk) {
+                if(typeof showToast === 'function') showToast('Şifre yanlış. Loglar silinmedi.', 'error');
                 return;
             }
 

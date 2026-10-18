@@ -103,15 +103,14 @@
                 </div>
 
                 <div class="mb-8 border-t border-slate-200 pt-6">
-                    <h2 class="text-lg font-black uppercase mb-4">Yönetici Güvenlik PIN</h2>
+                    <h2 class="text-lg font-black uppercase mb-4">Yönetici Güvenlik</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <span class="label-mini">Settings Erişim PIN (4-12 hane)</span>
                             <input id="cfgSettingsPin" type="password" class="input-silk" placeholder="Sadece yönetici bilsin">
                         </div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-semibold text-slate-600 leading-relaxed">
-                            Bu PIN olmadan yönetici bile <strong>Sistem Ayarları</strong> sayfasına giremez.<br>
-                            Boş bırakılırsa mevcut PIN korunur.
+                            <strong>Sistem Ayarları</strong> ve log sıfırlama artık yönetici giriş şifresiyle açılır. Bu PIN yalnızca internet yokken yedek olarak kullanılır; boş bırakılabilir.
                         </div>
                     </div>
                 </div>
@@ -265,10 +264,6 @@
             const base = window.BiletProCore.getConfig();
             const cfg = readFormToConfig(base);
             const nextPin = String((cfg.security && cfg.security.settingsPin) || '').trim();
-            if(!nextPin) {
-                if(typeof showToast === 'function') showToast('Ayarlar için yeni bir PIN belirlemelisiniz.', 'error');
-                return;
-            }
             if(nextPin && !/^\d{4,12}$/.test(nextPin)) {
                 if(typeof showToast === 'function') showToast('PIN sadece 4-12 haneli rakamlardan oluşmalı.', 'error');
                 return;

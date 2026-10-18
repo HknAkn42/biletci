@@ -1446,16 +1446,35 @@ function getSettingsPin() {
     return String((cfg && cfg.security && cfg.security.settingsPin) || '').trim();
 }
 
+// Yönetici giriş şifresini sunucuda doğrular (şifre depolanmaz / koda yazılmaz)
+window.verifyAdminPassword = async function(typed) {
+    const pw = String(typed || '');
+    if (!pw) return false;
+    try {
+        const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+        const uname = String(sess.username || '').trim();
+        const st = window.BiletProOnlineStore;
+        if (uname && st && typeof st.verifyCredentials === 'function') {
+            const r = await st.verifyCredentials(uname, pw);
+            if (r && r.ok) return r.role === 'admin';
+            if (r && r.reason !== 'offline_mode') return false;
+        }
+    } catch (_) {}
+    // yalnızca çevrimdışı modda eski PIN'e düş
+    const pin = getSettingsPin();
+    return !!pin && pw === pin;
+};
+
 function requestSettingsPinModal() {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'confirm-overlay show';
         overlay.innerHTML = `
             <div class="confirm-box" style="max-width:460px; text-align:left;">
-                <div class="confirm-title" style="font-size:18px; margin-bottom:8px;">Ayarlar PIN doğrulama</div>
-                <div class="confirm-desc" style="margin-bottom:14px;">Sistem ayarlarına girmek için yönetici PIN kodunu girin.</div>
-                <input id="settingsPinInput" type="password" placeholder="PIN" style="width:100%;padding:12px 14px;" />
-                <div id="settingsPinErr" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--danger-text);">PIN yanlış.</div>
+                <div class="confirm-title" style="font-size:18px; margin-bottom:8px;">Yönetici şifresi gerekli</div>
+                <div class="confirm-desc" style="margin-bottom:14px;">Sistem ayarlarına girmek için giriş yaptığınız yönetici şifresini girin.</div>
+                <input id="settingsPinInput" type="password" autocomplete="current-password" placeholder="Yönetici şifresi" style="width:100%;padding:12px 14px;" />
+                <div id="settingsPinErr" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--danger-text);">Şifre yanlış.</div>
                 <div class="confirm-actions" style="margin-top:16px;">
                     <button class="btn-c-cancel" id="settingsPinCancel">Vazgeç</button>
                     <button class="btn-c-confirm" id="settingsPinConfirm">Doğrula</button>
@@ -1473,15 +1492,14 @@ function requestSettingsPinModal() {
 
         const input = overlay.querySelector('#settingsPinInput');
         const err = overlay.querySelector('#settingsPinErr');
-        const checkPin = () => {
-            const typed = String(input.value || '').trim();
-            const configuredPin = getSettingsPin();
-            if (!configuredPin) {
-                err.textContent = 'Ayarlar PIN’i tanımlı değil. Yönetici tarafından yapılandırılmalı.';
-                err.style.display = 'block';
-                return;
-            }
-            if (typed && typed === configuredPin) {
+        let busy = false;
+        const checkPin = async () => {
+            if (busy) return;
+            const typed = String(input.value || '');
+            busy = true;
+            const okPw = await window.verifyAdminPassword(typed);
+            busy = false;
+            if (okPw) {
                 sessionStorage.setItem(BILETPRO_SETTINGS_PIN_SESSION_KEY, String(Date.now() + (15 * 60 * 1000)));
                 cleanup(true);
                 return;
