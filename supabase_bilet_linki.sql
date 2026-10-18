@@ -36,7 +36,8 @@ begin
 
   select jsonb_agg(jsonb_build_object(
            'table_no', x.table_no, 'category', x.category_name, 'people', x.people_count,
-           'hash', x.ticket_hash, 'debt', x.debt) order by x.table_no)
+           'hash', x.ticket_hash, 'debt', x.debt,
+           'color', (select c ->> 'color' from jsonb_array_elements(coalesce(e.payload_json -> 'categories', '[]'::jsonb)) c where c ->> 'name' = x.category_name limit 1)) order by x.table_no)
     into v_list
     from tickets x
    where x.event_id = t.event_id and x.status <> 'RESERVED'

@@ -1419,7 +1419,7 @@
             lastSaleItems = basket.map(i => {
                 const tg = ev.categories.find(c => c.id === i.cat.id).masalar.find(m => m.id === i.masa.id);
                 const sd = (tg && tg.saleDetail) || {};
-                return { table_no: i.masa.no, category: i.cat.name, people: i.p, hash: sd.ticketHash || lastTicketHash, debt: sd.debt || 0 };
+                return { table_no: i.masa.no, category: i.cat.name, color: i.cat.color, people: i.p, hash: sd.ticketHash || lastTicketHash, debt: sd.debt || 0 };
             });
             
             save(); 
