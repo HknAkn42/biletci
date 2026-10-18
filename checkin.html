@@ -1179,6 +1179,7 @@
             const perms = getCurrentCheckinPerms();
             if(!perms.pDoor){ showInvalid('YETKİ YOK','Kapı yetkiniz bulunmuyor.',raw); sndErr();flash('r'); return; }
 
+            { const _evA = events.find(e=>String(e.id)===String(eventId)); if(_evA && _evA.isActive===false){ showInvalid('ETKİNLİK DURDURULDU','Bu etkinlikte kapı girişi kapalı.',raw); sndErr();flash('r'); return; } }
             logQrRead(found);
             showGroupSiblings(raw);
 
@@ -1199,8 +1200,8 @@
 
         /* ─── KİŞİ SAYISI MODAL ─── */
         let _ecmPending = null, _ecmMax = 1;
-        function showEnterCountModal(found, remainingPeople, raw) {
-            _ecmPending = { found, ei: pEi, ci: pCi, mi: pMi, raw };
+        function showEnterCountModal(found, remainingPeople, raw, more) {
+            _ecmPending = { found, ei: pEi, ci: pCi, mi: pMi, raw, more: !!more };
             _ecmMax = remainingPeople;
             const sd = found.saleDetail;
             document.getElementById('ecm-name').textContent = found.soldTo || '—';
@@ -1208,6 +1209,14 @@
             document.getElementById('ecm-count').textContent = String(remainingPeople);
             document.getElementById('ecm-max').textContent = 'MAX ' + remainingPeople + ' KİŞİ';
             document.getElementById('enterCountModal').classList.remove('hidden');
+        }
+        function enterMore() {
+            if (!pM) return;
+            const sd = pM.saleDetail;
+            const rem = Math.max(0, Number(sd.people || 1) - Number(sd.insideCount || 0));
+            if (rem <= 0) return;
+            if (rem === 1) { _doCheckin(pM, pEi, pCi, pMi, 1, sd.ticketHash, true); return; }
+            showEnterCountModal(pM, rem, sd.ticketHash, true);
         }
         function adjustCount(delta) {
             const el = document.getElementById('ecm-count');
@@ -1220,7 +1229,7 @@
             _ecmPending = null;
             if (_scanning) return;
             _scanning = true;
-            try { await _doCheckin(p.found, p.ei, p.ci, p.mi, n, p.raw); } finally { _scanning = false; }
+            try { await _doCheckin(p.found, p.ei, p.ci, p.mi, n, p.raw, p.more); } finally { _scanning = false; }
         }
         function cancelEnterCount() {
             document.getElementById('enterCountModal').classList.add('hidden');
@@ -1254,9 +1263,9 @@
                 </div>`);
             }
         /* ─── ATOMİK CHECKIN ─── */
-        async function _doCheckin(found, ei, ci, mi, enterCount, raw) {
+        async function _doCheckin(found, ei, ci, mi, enterCount, raw, more) {
             if(isOnlineMode() && window.BiletProOnlineStore && typeof window.BiletProOnlineStore.gateAction === 'function') {
-                const gateRes = await window.BiletProOnlineStore.gateAction(raw, 'IN', getGateUser(), {
+                const gateRes = await window.BiletProOnlineStore.gateAction(raw, more ? 'MORE' : 'IN', getGateUser(), {
                     gateId: 'gate-' + (eventId || 'main'), peopleDelta: enterCount
                 });
                 if(!gateRes || !gateRes.ok) {
@@ -1264,6 +1273,10 @@
                     const r = gateRes ? gateRes.reason : '';
                     if(r==='already_inside'){ found.saleDetail.status='INSIDE'; showInsideCard(found); sndDouble(); flash('r'); }
                     else if(r==='debt_pending'){ showDebtCard(found); sndDebt(); flash('a'); }
+                    else if(r==='capacity_full'){ showInvalid('KAPASİTE DOLDU','Bu bilete ait tüm kişi girişi tamamlanmış.',raw); sndErr(); flash('r'); }
+                    else if(r==='is_outside'){ found.saleDetail.status='OUTSIDE'; showOutsideCard(found); sndNotice(); flash('b'); }
+                    else if(r==='event_inactive'){ showInvalid('ETKİNLİK DURDURULDU','Bu etkinlikte kapı girişi kapalı.',raw); sndErr(); flash('r'); }
+                    else if(r==='reserved'){ showInvalid('REZERVE MASA','Bu masa satılmamış, yalnızca rezerve.',raw); sndErr(); flash('r'); }
                     else if(r==='not_found'){ showInvalid('BİLET BULUNAMADI','Online kayıtlarda eşleşme yok.',raw); sndErr(); flash('r'); }
                     else { showInvalid('ONLINE KİLİT HATASI','Kapı kilidi alınamadı. Tekrar deneyin.',raw); sndErr(); flash('r'); }
                     return;
@@ -1273,7 +1286,7 @@
             } else {
                 const _fe = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')||'[]');
                 const _fm = _fe[ei]&&_fe[ei].categories&&_fe[ei].categories[ci]&&_fe[ei].categories[ci].masalar&&_fe[ei].categories[ci].masalar[mi];
-                if(_fm&&_fm.saleDetail&&_fm.saleDetail.status==='INSIDE'){ found.saleDetail.status='INSIDE'; showInsideCard(found); sndDouble(); flash('r'); return; }
+                if(!more&&_fm&&_fm.saleDetail&&_fm.saleDetail.status==='INSIDE'){ found.saleDetail.status='INSIDE'; showInsideCard(found); sndDouble(); flash('r'); return; }
             }
             commitIn(found,ei,ci,mi,0,0,'',enterCount); sndOK(); flash('g');
         }
@@ -1287,7 +1300,7 @@
             if(!sd.checkinTime) sd.checkinTime=t;
             sd.checkinTime = t;
             sd.checkinBy = gateActor;
-            if(paid>0) sd.checkinPaid = (sd.checkinPaid||0) + paid;
+            if(paid>0){ sd.checkinPaid = (sd.checkinPaid||0) + paid; sd.paid = (Number(sd.paid)||0) + paid; }
             sd.debt=remain;
             sd.insideCount = (sd.insideCount || 0) + enterCount;
             sd.remainingCount = Math.max(0, (sd.people || 1) - sd.insideCount);
@@ -1393,6 +1406,7 @@
                 <div class="irow"><span class="il">MASA</span><span class="iv">${esc(sd.categoryName||'—')} / ${esc(masa.no)}</span></div>
                 <div class="irow !mb-0"><span class="il">İÇERİDE</span><span class="iv text-red-600 font-black">${sd.insideCount||1} / ${sd.people||1} kişi</span></div>
                 <div class="mt-4 p-4 bg-red-50 rounded-xl">
+                    ${(Number(sd.people||1)-Number(sd.insideCount||0))>0 ? `<button class="btn-action btn-success !mt-0 !mb-3" onclick="enterMore()">➕ KALAN ${Number(sd.people||1)-Number(sd.insideCount||0)} KİŞİYİ İÇERİ AL</button>` : ''}
                     <button class="btn-action btn-danger !mt-0" onclick="setTempOut()">🚬 GEÇİCİ ÇIKIŞ YAP (WC)</button>
                 </div>
                 <button class="btn-action btn-ghost mt-3" onclick="reset()">YENİ TARAMA</button>

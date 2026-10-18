@@ -248,7 +248,22 @@
         let selStage = false;
 
         function setVB() { svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
-        function fit() { vb = { x: 0, y: 0, w: L.w, h: L.h }; setVB(); }
+        // Görüntüleme modunda içeriğe sığdır (boş kenarlar telefonda masaları küçültmesin)
+        function contentBox() {
+            let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+            const add = (x, y, w, h) => { x1 = Math.min(x1, x); y1 = Math.min(y1, y); x2 = Math.max(x2, x + w); y2 = Math.max(y2, y + h); };
+            Object.values(L.tables || {}).forEach(t => { if (t) add(t.x - 46, t.y - 46, 92, 92); });
+            const S = L.stage; if (S) add(S.x, S.y, S.w, S.h);
+            (L.labels || []).forEach(l => { if (l) add(l.x, l.y, l.w || 100, l.h || 40); });
+            if (!isFinite(x1)) return null;
+            const m = 30; x1 = Math.max(0, x1 - m); y1 = Math.max(0, y1 - m); x2 = Math.min(L.w, x2 + m) + ((wrap.clientWidth || 999) < 600 ? Math.round((x2 - x1) * 0.14) : 0); y2 = Math.min(L.h, y2 + m);
+            return { x: x1, y: y1, w: Math.max(200, x2 - x1), h: Math.max(160, y2 - y1) };
+        }
+        function fit() {
+            const cb = edit ? null : contentBox();
+            vb = cb ? cb : { x: 0, y: 0, w: L.w, h: L.h };
+            setVB();
+        }
         function toSvg(cx, cy) { const p = svg.createSVGPoint(); p.x = cx; p.y = cy; const m = svg.getScreenCTM(); return m ? p.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
         function zoom(f, cx, cy) {
             const c = (cx == null) ? { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 } : toSvg(cx, cy);

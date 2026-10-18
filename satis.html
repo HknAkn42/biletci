@@ -575,9 +575,32 @@
         const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
 
         if(!ev) {
+            // Yeni girişte etkinlik listesi henüz inmemiş olabilir: sunucudan çekip bir kez yeniden dene
+            const _retryKey = 'bp_ev_retry_' + eventId;
+            let _retried = false; try { _retried = !!sessionStorage.getItem(_retryKey); } catch (_) {}
+            if (!_retried) {
+                try { sessionStorage.setItem(_retryKey, '1'); } catch (_) {}
+                document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">Etkinlik yükleniyor…</div>';
+                (async () => {
+                    try {
+                        for (let i = 0; i < 30 && !window.BiletProOnlineStore; i++) await new Promise(r => setTimeout(r, 200));
+                        const st = window.BiletProOnlineStore; if (st) { await st.init(); await st.pullOnlineToLocal(); }
+                    } catch (_) {}
+                    location.reload();
+                })();
+                throw new Error('Etkinlik yükleniyor, yeniden denenecek.');
+            }
+            try { sessionStorage.removeItem(_retryKey); } catch (_) {}
             window.location.href = 'index.html';
             throw new Error('Geçerli etkinlik bulunamadı.');
         }
+        try { sessionStorage.removeItem('bp_ev_retry_' + eventId); } catch (_) {}
+        if (ev.isActive === false) {
+            alert('Bu etkinlik durdurulmuş. Satış kapalı. Yönetici panelden etkinliği başlatabilir.');
+            window.location.href = 'index.html';
+            throw new Error('Etkinlik pasif.');
+        }
+        window.__sellingNow = 0;
         
         document.getElementById('headLogo').src = ev.logo || 'https://via.placeholder.com/150';
         document.getElementById('headTitle').innerText = ev.title + " | SATIŞ";
@@ -1014,7 +1037,8 @@
                     if (basket.length === 0) render();
                     else {
                         // seçili masalardan biri başka kasada satıldıysa sepetten çıkar ve uyar
-                        const gone = basket.filter(bi => soldElsewhere(bi.masa));
+                        const _selfSelling = window.__sellingNow && (Date.now() - window.__sellingNow < 20000);
+                        const gone = _selfSelling ? [] : basket.filter(bi => soldElsewhere(bi.masa));
                         if (gone.length && editId === null) {
                             gone.forEach(bi => { const i = basket.indexOf(bi); if (i > -1) basket.splice(i, 1); window.bpSoftLock?.release(ev.id, bi.masa.no); });
                             showToast('Masa ' + gone.map(g => g.masa.no).join(', ') + ' başka bir kasada satıldı, sepetten çıkarıldı.', 'error');
@@ -1327,7 +1351,7 @@
             const seller = staffData.find(s => s.name === sellerName || s.username === sellerName);
             if(seller && seller.isActive === false) return showToast("Pasif personel ile satış yapılamaz.", "error");
 
-            if(blacklist.includes(ph)) return showToast("Bu müşteri kara listededir. Satış yapılamaz!", "error");
+            if(blacklist.some(b => normPhone10(b) === normPhone10(ph))) return showToast("Bu müşteri kara listededir. Satış yapılamaz!", "error");
             const _noPrice = basket.filter(b => isCustomPrice(b) && unitPrice(b) <= 0);
             if (_noPrice.length) { showToast('Fiyat girilmemiş: ' + _noPrice.map(b => b.cat.name + ' (Masa ' + b.masa.no + ')').join(', ') + '. Kişi başı fiyatı yazın.', 'error'); return; }
 
@@ -1398,8 +1422,15 @@
                     });
 
                     const _convertNow = basket.map(b => String(b.masa.no)).filter(no => convertSet.has(no));
+                    window.__sellingNow = Date.now();
                     const lockRes = await window.BiletProOnlineStore.atomicSaleCreate(ev, _atomicRows, _convertNow);
                     if (!lockRes?.ok) {
+                        window.__sellingNow = 0;
+                        if (lockRes?.reason === 'event_inactive') {
+                            showToast('Bu etkinlik durdurulmuş, satış yapılamaz.', 'error');
+                            basket.forEach(b => window.bpSoftLock?.release(ev.id, b.masa.no));
+                            return;
+                        }
                         if (lockRes?.reason === 'already_sold') {
                             const soldMsg = Object.entries(lockRes.soldTo || {})
                                 .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
@@ -1419,7 +1450,7 @@
                         return;
                     }
                 } catch(e) {
-                    console.warn('[BiletPro] Atomik satış kilidi hatası:', e);
+                    console.warn('[BiletPro] Atomik satış kilidi hatası:', e); window.__sellingNow = 0;
                     showToast('Satış kilidi sırasında hata oluştu. Lütfen tekrar deneyin.', 'error');
                     return;
                 } finally {

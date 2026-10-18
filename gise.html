@@ -269,6 +269,8 @@
             // YENİ: showConfirm kullanımı
             const _delCat = ev.categories.find(c => c.id === id);
             const _delCatName = _delCat ? _delCat.name : id;
+            const _soldIn = _delCat ? (_delCat.masalar || []).filter(m => m.isSold && !m.isDeleted).length : 0;
+            if (_soldIn > 0) { showToast('Bu kategoride ' + _soldIn + ' satılmış masa var. Önce satışları iptal edin, sonra kategoriyi silin.', 'error'); return; }
             showConfirm("KATEGORİYİ SİL", "Tüm kategori ve içindeki masalar kalıcı olarak silinecek. Onaylıyor musunuz?", () => {
                 ev.categories = ev.categories.filter(c => c.id !== id); 
                 if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Kategori Silindi', `"${_delCatName}" kategorisi ve tüm masaları silindi | Etkinlik: ${ev.title}`);
@@ -356,6 +358,7 @@
                 return; 
             }
             if(masa.isSold) { 
+                { const _st0 = masa.saleDetail && masa.saleDetail.status; if (_st0 === 'INSIDE' || _st0 === 'OUTSIDE' || Number(masa.saleDetail && masa.saleDetail.insideCount) > 0) { showToast('Bu masa kapıdan giriş yapmış (' + (masa.soldTo || '') + '). Giriş yapmış bilet iptal edilemez.', 'error'); return; } }
                 // YENİ: showConfirm kullanımı
                 showConfirm("SATIŞI İPTAL ET", "DİKKAT: Satılmış birimi boşa düşürmek istiyor musunuz? Tüm satış verileri silinir.", async () => {
                     const _buyer = masa.soldTo || '?';

@@ -418,7 +418,10 @@
 
                     return { ...(onlineCat || localCat), ...(localCat || {}), masalar: mergedMasalar };
                 });
-                mergedMap[key] = { ...onlineEv, categories: mergedCats };
+                // Kullanıcı az önce yerelde düzenlediyse (push henüz sunucuya ulaşmamış olabilir) etkinlik alanlarında yerel değer kazanır
+                let _recentLocal = false;
+                try { _recentLocal = (Date.now() - Number(localStorage.getItem('bp_local_dirty_ts') || 0)) < 20000; } catch (_) {}
+                mergedMap[key] = _recentLocal ? { ...onlineEv, ...localEv, categories: mergedCats } : { ...onlineEv, categories: mergedCats };
             });
 
             const merged = Object.values(mergedMap).filter((ev) => !deletedIds.has(String(ev && ev.id)));
@@ -428,6 +431,10 @@
             rows.forEach((r) => { if (r && r.legacy_event_id && r.id) idMap[String(r.legacy_event_id)] = r.id; });
             try { await this.reconcileWithTickets(merged, idMap); } catch (e) { console.warn('[BiletPro OnlineStore] reconcile hatası:', e); }
 
+            // Çekme sürerken kullanıcı yerelde bir şey değiştirdiyse bu eski görüntüyü yazma (düzenleme kaybolmasın)
+            if ((localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') !== localRaw) {
+                return { ok: true, changed: false, aborted: true, count: merged.length };
+            }
             const nextRaw = JSON.stringify(merged);
             const changed = localRaw !== nextRaw;
 

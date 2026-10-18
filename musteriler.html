@@ -326,6 +326,8 @@
         let promoMessageTemplate = "";
         let currentSort = 'paid';
         let blacklist = JSON.parse(localStorage.getItem('BiletPro_Blacklist')) || []; 
+        const _np10 = (raw) => { let p = String(raw || '').replace(/D/g, ''); if (p.startsWith('90') && p.length >= 12) p = p.slice(2); if (p.length === 10 && p[0] === '5') p = '0' + p; return p; };
+
         const _sec = window.BiletProSecurity || {};
         const esc = (v) => (_sec.escapeHtml ? _sec.escapeHtml(v) : String(v ?? ''));
         const escAttr = (v) => (_sec.escapeAttr ? _sec.escapeAttr(v) : esc(v));
@@ -362,9 +364,9 @@
                             const paid = parseFloat(m.saleDetail.paid) || 0;
                             const debt = parseFloat(m.saleDetail.debt) || 0;
                             totalPaid += paid; totalDebt += debt;
-                            const key = `${phone}||${(m.soldTo||'').toLowerCase()}`;
+                            const key = `${_np10(phone) || phone}||${(m.soldTo||'').toLowerCase()}`;
                             if(!customerMap[key]) {
-                                customerMap[key] = { name: m.soldTo, phone: phone, key: key, events: [], totalPaid: 0, totalDebt: 0, visitCount: 0, isBlacklisted: blacklist.includes(phone) };
+                                customerMap[key] = { name: m.soldTo, phone: phone, key: key, events: [], totalPaid: 0, totalDebt: 0, visitCount: 0, isBlacklisted: blacklist.some(b => _np10(b) === _np10(phone)) };
                             }
                             const sd = m.saleDetail;
                             customerMap[key].events.push({
@@ -573,7 +575,7 @@
             events.forEach(ev => {
                 ev.categories?.forEach(cat => {
                     cat.masalar?.forEach(m => {
-                        if(m.isSold && m.saleDetail && m.saleDetail.phone === activePayRefPhone && m.saleDetail.debt > 0) {
+                        if(m.isSold && m.saleDetail && _np10(m.saleDetail.phone) === _np10(activePayRefPhone) && m.saleDetail.debt > 0) {
                             let currentMasaDebt = m.saleDetail.debt;
                             if(remainingPool >= currentMasaDebt) {
                                 m.saleDetail.paid += currentMasaDebt; remainingPool -= currentMasaDebt; m.saleDetail.debt = 0;
@@ -833,7 +835,7 @@
             events.forEach(ev => {
                 ev.categories?.forEach(cat => {
                     cat.masalar?.forEach(m => {
-                        if(m.isSold && m.saleDetail && m.saleDetail.phone === c.phone) toCancel.push({ ev, m });
+                        if(m.isSold && m.saleDetail && _np10(m.saleDetail.phone || '0000') === _np10(c.phone) && String(m.soldTo||'').toLowerCase() === String(c.name||'').toLowerCase()) toCancel.push({ ev, m });
                     });
                 });
             });
@@ -871,7 +873,7 @@
             if(!_up.isAdmin && !_up.pManageStaff) {
                 notify('YETKİNİZ YOK — Yalnızca yöneticiler kara liste değiştirebilir', '#ef4444'); return;
             }
-            const index = blacklist.indexOf(phone);
+            const index = blacklist.findIndex(b => _np10(b) === _np10(phone));
             if(index > -1) {
                 blacklist.splice(index, 1);
                 notify("MÜŞTERİ KARA LİSTEDEN ÇIKARILDI", "#10b981");

@@ -40,6 +40,8 @@ window.BiletProAuth = {
         if (key === 'EventPro_DB_Ultimate_Final') {
             if (window.__bpSkipAutoPush) return;
             if ((prevValue || '') === (value || '')) return;
+            // Yerel düzenleme zamanı: sunucudan çekme (pull) bu sırada kullanıcının düzenlemesini ezmesin
+            try { _origSetItem('bp_local_dirty_ts', String(Date.now())); } catch (_) {}
             // Kısa gecikmeyle push et (aynı tick'te birden fazla yazma varsa birleşsin)
             clearTimeout(window.__bpSyncTimer);
             window.__bpSyncTimer = setTimeout(() => {
