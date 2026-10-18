@@ -1,10 +1,10 @@
 name: Günlük yedek
 
-# Her gün 20:00 (Türkiye saati = 17:00 UTC) veritabanının şifreli yedeğini alır.
-# GitHub zamanlanmış işleri bazen birkaç dakika–yarım saat geciktirebilir.
+# Elle çalıştırılır (Actions → Günlük yedek → Run workflow). Otomatik günlük zamanlama kapalı.
+# Yeniden açmak için aşağıdaki schedule satırlarının başındaki # işaretini kaldırın (20:00 TR = 17:00 UTC).
 on:
-  schedule:
-    - cron: '0 17 * * *'
+  # schedule:
+  #   - cron: '0 17 * * *'
   workflow_dispatch:
 
 permissions:

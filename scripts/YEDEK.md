@@ -1,6 +1,6 @@
 # BiletPro günlük yedek
 
-- Her gün **20:00 (Türkiye)** GitHub Actions "Günlük yedek" işi çalışır (`.github/workflows/yedek.yml`).
+- "Günlük yedek" işi şu an yalnızca elle çalışır (otomatik zamanlama kapalı; 20:00 TR için workflow dosyasındaki schedule satırlarını açın) (`.github/workflows/yedek.yml`).
 - Veritabanındaki etkinlik, bilet, kapı kayıtları, denetim günlüğü ve ayarlar okunur, sıkıştırılır ve **AES-256 ile şifrelenir** (`scripts/yedek-al.mjs`).
 - Şifreli dosya (`.bpy`) Actions → ilgili çalıştırma → **Artifacts** bölümünde 90 gün saklanır. Depo herkese açık olsa da dosya parola olmadan okunamaz.
 - Gerekli iki GitHub secret: `BACKUP_PASSWORD` (yedek hesabı `yedekbot`) ve `BACKUP_PASSPHRASE` (şifreleme parolası).
