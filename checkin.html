@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="theme.css?v=20261018">
 
     <style>
         .silk-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 32px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
@@ -149,7 +149,7 @@
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
 
-    <script src="menu.js?v=20260330"></script>
+    <script src="menu.js?v=20261018"></script>
 
     <div class="flex flex-col h-screen">
         <header class="px-3 sm:px-4 lg:px-[60px] py-3 sm:py-4 flex flex-wrap items-start sm:items-center justify-between gap-2 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
@@ -1213,6 +1213,20 @@
             const el = document.getElementById('ecm-count');
             el.textContent = String(Math.max(1, Math.min(_ecmMax, parseInt(el.textContent,10) + delta)));
         }
+        async function confirmEnterCount() {
+            const p = _ecmPending; if (!p) return;
+            const n = Math.max(1, Math.min(_ecmMax, parseInt(document.getElementById('ecm-count').textContent, 10) || 1));
+            document.getElementById('enterCountModal').classList.add('hidden');
+            _ecmPending = null;
+            if (_scanning) return;
+            _scanning = true;
+            try { await _doCheckin(p.found, p.ei, p.ci, p.mi, n, p.raw); } finally { _scanning = false; }
+        }
+        function cancelEnterCount() {
+            document.getElementById('enterCountModal').classList.add('hidden');
+            _ecmPending = null;
+            reset();
+        }
             function showValid(masa, enterCount){
                 const sd=masa.saleDetail;
                 const ec = enterCount || 1;
@@ -1255,7 +1269,7 @@
                     return;
                 }
                 const ce = _ticketCache.get(raw);
-                if(ce&&ce.masa&&ce.masa.saleDetail){ ce.masa.saleDetail.status='INSIDE'; ce.masa.saleDetail.insideCount=(ce.masa.saleDetail.insideCount||0)+enterCount; }
+                if(ce&&ce.masa&&ce.masa!==found&&ce.masa.saleDetail){ ce.masa.saleDetail.status='INSIDE'; ce.masa.saleDetail.insideCount=(ce.masa.saleDetail.insideCount||0)+enterCount; }
             } else {
                 const _fe = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final')||'[]');
                 const _fm = _fe[ei]&&_fe[ei].categories&&_fe[ei].categories[ci]&&_fe[ei].categories[ci].masalar&&_fe[ei].categories[ci].masalar[mi];
