@@ -499,7 +499,10 @@
         }
 
         function applyPermPreset(prefix = '', preset = 'sales') {
-            const roleId = `${prefix}Role`;
+            // Yeni kayıt formunda alanlar sRole/pSale..., düzenleme formunda eRole/ePSale... biçiminde adlandırılmıştır.
+            const isEdit = prefix === 'e';
+            const roleId = isEdit ? 'eRole' : 'sRole';
+            const pid = (n) => (isEdit ? 'eP' : 'p') + n;
             const roleEl = document.getElementById(roleId);
             if(!roleEl) return;
 
@@ -509,16 +512,16 @@
             }
 
             const ids = {
-                sale: `${prefix}PSale`,
-                discount: `${prefix}PDiscount`,
-                cancel: `${prefix}PCancel`,
-                door: `${prefix}PDoor`,
-                doorPay: `${prefix}PDoorPay`,
-                doorRisk: `${prefix}PDoorRisk`,
-                manageEvents: `${prefix}PManageEvents`,
-                reports: `${prefix}PReports`,
-                manageStaff: `${prefix}PManageStaff`,
-                viewLogs: `${prefix}PViewLogs`
+                sale: pid('Sale'),
+                discount: pid('Discount'),
+                cancel: pid('Cancel'),
+                door: pid('Door'),
+                doorPay: pid('DoorPay'),
+                doorRisk: pid('DoorRisk'),
+                manageEvents: pid('ManageEvents'),
+                reports: pid('Reports'),
+                manageStaff: pid('ManageStaff'),
+                viewLogs: pid('ViewLogs')
             };
 
             const allKeys = Object.keys(ids);
