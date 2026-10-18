@@ -318,6 +318,7 @@
                             </div>
 
                             <button type="button" id="confirmBtn" onclick="finalize()" class="btn-confirm">SATIŞI KAYDET</button>
+                            <button type="button" id="reserveBtn" onclick="openReserveModal()" class="btn-reserve">Rezerve et (ödeme almadan)</button>
                             
                             <button type="button" id="viewTicketBtn" onclick="openExistingTicket()" class="hidden bg-blue-600 text-white w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:bg-blue-700 transition-all tracking-widest mt-2 border border-blue-500">🎫 BİLETİ GÖRÜNTÜLE / PAYLAŞ</button>
                             
@@ -345,6 +346,10 @@
                 </section>
             </div>
         </main>
+    </div>
+
+    <div id="rsvModal" class="hidden fixed inset-0 z-[200000] flex items-center justify-center p-4 modal-bg">
+        <div class="bg-white w-full max-w-[440px] rounded-2xl shadow-2xl p-6 modal-scroll" id="rsvBox"></div>
     </div>
 
     <div id="ticketModal" class="hidden fixed inset-0 z-[200000] flex items-center justify-center p-4 sm:p-6" style="background:rgba(4,5,10,0.92);backdrop-filter:blur(12px);">
@@ -831,6 +836,12 @@
                 return; 
             }
 
+            // Rezerve masa: doğrudan seçilmez; ayrıntı penceresi açılır (satışa çevir / kaldır)
+            if (reservedMap[String(m.no)] && !convertSet.has(String(m.no))) {
+                openReservationDetail(cat, m);
+                return;
+            }
+
             // Soft lock kontrolü: başkası bu masayı işlemde mi?
             const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             const _slUser = _slSession.name || _slSession.username || 'Kasa';
@@ -925,6 +936,139 @@
             });
         }
 
+        // ───── REZERVASYON (ödeme almadan masa tutma) ─────
+        let reservedMap = {};            // masa no -> rezervasyon satırı
+        const convertSet = new Set();    // satışa çevrilecek rezerve masalar
+
+        async function loadReservations() {
+            try {
+                const store = window.BiletProOnlineStore;
+                if (!store || !ev) return;
+                await store.init();
+                const res = await store.listReservations(ev.id);
+                if (!res.ok) return;
+                const next = {};
+                res.rows.forEach(r => { next[String(r.table_no)] = r; });
+                const sig = (o) => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k].customer_name]));
+                const changed = sig(next) !== sig(reservedMap);
+                reservedMap = next;
+                if (changed && basket.length === 0) render();
+            } catch (e) { console.warn('[rezervasyon] yüklenemedi', e); }
+        }
+
+        function rsvEsc(v) { return esc(v == null ? '' : v); }
+        function closeRsvModal() { document.getElementById('rsvModal').classList.add('hidden'); }
+        function openRsvBox(html) { document.getElementById('rsvBox').innerHTML = html; document.getElementById('rsvModal').classList.remove('hidden'); }
+
+        function openReserveModal() {
+            if (!basket.length) { showToast('Önce rezerve edilecek masayı seçin.', 'error'); return; }
+            if (editId !== null) { showToast('Satılmış masa rezerve edilemez.', 'error'); return; }
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            const note = document.getElementById('gateNote').value.trim();
+            const masalar = basket.map(b => 'Masa ' + b.masa.no).join(', ');
+            openRsvBox(`
+                <h3 class="text-lg font-bold mb-1">Masa rezervasyonu</h3>
+                <p class="text-sm text-slate-500 mb-4">${rsvEsc(masalar)} · ödeme alınmaz, bilet oluşmaz. Masa başkasına satılmaz.</p>
+                <label class="label-mini">Ad soyad *</label>
+                <input id="rsvName" class="input-silk mb-3" value="${rsvEsc(name)}" placeholder="Ad Soyad">
+                <label class="label-mini">Telefon</label>
+                <input id="rsvPhone" type="tel" class="input-silk mb-3" value="${rsvEsc(phone)}" placeholder="05XX XXX XX XX">
+                <label class="label-mini">Rezervasyonu tutma süresi (isteğe bağlı)</label>
+                <input id="rsvHold" type="datetime-local" class="input-silk mb-3">
+                <label class="label-mini">Not</label>
+                <textarea id="rsvNote" class="input-silk !h-20 resize-none mb-4" placeholder="Örn. 10 kişi, ödeme cuma günü">${rsvEsc(note)}</textarea>
+                <div class="flex gap-3">
+                    <button class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold" onclick="closeRsvModal()">Vazgeç</button>
+                    <button id="rsvSaveBtn" class="flex-[2] py-3 rounded-xl bg-blue-600 text-white font-semibold" onclick="confirmReserve()">Rezerve et</button>
+                </div>`);
+            setTimeout(() => document.getElementById('rsvName')?.focus(), 50);
+        }
+
+        async function confirmReserve() {
+            const name = document.getElementById('rsvName').value.trim();
+            if (!name) { showToast('Ad soyad zorunlu.', 'error'); return; }
+            const phone = document.getElementById('rsvPhone').value.trim();
+            const note = document.getElementById('rsvNote').value.trim();
+            const holdRaw = document.getElementById('rsvHold').value;
+            const holdUntil = holdRaw ? new Date(holdRaw).toISOString() : null;
+            const btn = document.getElementById('rsvSaveBtn'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
+            const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const by = sess.name || sess.username || 'Kasa';
+            const store = window.BiletProOnlineStore;
+            const done = [], failed = [];
+            try {
+                await store.init();
+                for (const b of basket) {
+                    const r = await store.reserveTable(ev, { tableNo: b.masa.no, category: b.cat.name, name, phone, people: b.p, note, by, holdUntil });
+                    if (r.ok) done.push(b.masa.no); else failed.push({ no: b.masa.no, reason: r.reason, who: r.takenBy });
+                }
+            } catch (e) { console.error(e); failed.push({ no: '?', reason: 'hata' }); }
+            if (typeof writeAuditEvent === 'function' && done.length) writeAuditEvent('Satış', 'Masa Rezerve Edildi', `${by} -> Masa ${done.join(', ')} | ${name}${holdUntil ? ' | süre: ' + holdRaw : ''}`);
+            closeRsvModal();
+            if (failed.length) {
+                const msg = failed.map(f => `Masa ${f.no}: ${f.reason === 'already_reserved' ? 'zaten rezerve (' + (f.who || '') + ')' : f.reason === 'already_sold' ? 'zaten satılmış' : f.reason}`).join(' | ');
+                showToast((done.length ? 'Kısmen rezerve edildi. ' : 'Rezerve edilemedi. ') + msg, 'error');
+            } else {
+                showToast(`Masa ${done.join(', ')} rezerve edildi.`, 'success');
+            }
+            reset();
+            await loadReservations();
+            render();
+        }
+
+        function openReservationDetail(cat, m) {
+            const r = reservedMap[String(m.no)];
+            if (!r) return;
+            const info = (r.payload_json && r.payload_json.reservation) || {};
+            const hold = info.holdUntil ? new Date(info.holdUntil) : null;
+            const expired = hold && hold.getTime() < Date.now();
+            const fmt = (d) => d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            openRsvBox(`
+                <h3 class="text-lg font-bold mb-1">Masa ${rsvEsc(m.no)} · Rezerve</h3>
+                <p class="text-sm text-slate-500 mb-4">${rsvEsc(cat.name)} · ${rsvEsc(r.people_count)} kişi</p>
+                <div class="space-y-2 text-sm mb-4">
+                    <div class="flex justify-between"><span class="text-slate-500">Müşteri</span><b>${rsvEsc(r.customer_name)}</b></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Telefon</span><b>${rsvEsc(r.customer_phone || '—')}</b></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Rezerve eden</span><b>${rsvEsc(info.reservedBy || r.sold_by_username || '—')}</b></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Tutma süresi</span><b class="${expired ? 'text-red-600' : ''}">${hold ? fmt(hold) + (expired ? ' (süresi doldu)' : '') : 'Süresiz'}</b></div>
+                    ${info.note ? `<div class="p-3 rounded-xl bg-slate-50 text-slate-700">${rsvEsc(info.note)}</div>` : ''}
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="py-3 rounded-xl bg-blue-600 text-white font-semibold col-span-2" onclick="startConvertReservation(${cat.id}, ${m.id})">Satışa çevir</button>
+                    <button class="py-3 rounded-xl bg-red-50 text-red-600 font-semibold" onclick="releaseReservation('${rsvEsc(m.no)}')">Rezervi kaldır</button>
+                    <button class="py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold" onclick="closeRsvModal()">Kapat</button>
+                </div>`);
+        }
+
+        function startConvertReservation(catId, masaId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            const r = m && reservedMap[String(m.no)];
+            if (!r) return;
+            closeRsvModal();
+            convertSet.add(String(m.no));
+            selectMasa(catId, masaId);
+            const info = (r.payload_json && r.payload_json.reservation) || {};
+            document.getElementById('custName').value = r.customer_name || '';
+            document.getElementById('custPhone').value = r.customer_phone || '';
+            if (info.note) document.getElementById('gateNote').value = info.note;
+            showToast('Rezervasyon satışa hazır. Tutarı girip "Satışı kaydet"e basın.', 'info');
+        }
+
+        async function releaseReservation(masaNo) {
+            if (!confirm('Masa ' + masaNo + ' rezervasyonu kaldırılsın mı? Masa tekrar satışa açılır.')) return;
+            const r = await window.BiletProOnlineStore.cancelReservation(ev.id, masaNo);
+            closeRsvModal();
+            if (!r.ok) { showToast('Rezervasyon kaldırılamadı: ' + (r.reason || ''), 'error'); }
+            else {
+                const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+                if (typeof writeAuditEvent === 'function') writeAuditEvent('Satış', 'Rezervasyon Kaldırıldı', `${sess.name || sess.username || 'Kasa'} -> Masa ${masaNo}`);
+                showToast('Rezervasyon kaldırıldı.', 'success');
+            }
+            await loadReservations(); render();
+        }
+
         function reset() {
             // Soft lock'ları bırak
             if (window.bpSoftLock && ev) {
@@ -935,6 +1079,7 @@
                 });
             }
             basket = []; 
+            convertSet.clear();
             editId = null; 
             lastDebt = 0; 
             lastMasaDetails = "";
@@ -1088,13 +1233,18 @@
                         };
                     });
 
-                    const lockRes = await window.BiletProOnlineStore.atomicSaleCreate(ev, _atomicRows);
+                    const _convertNow = basket.map(b => String(b.masa.no)).filter(no => convertSet.has(no));
+                    const lockRes = await window.BiletProOnlineStore.atomicSaleCreate(ev, _atomicRows, _convertNow);
                     if (!lockRes?.ok) {
                         if (lockRes?.reason === 'already_sold') {
                             const soldMsg = Object.entries(lockRes.soldTo || {})
                                 .map(([tNo, cust]) => `MASA ${tNo} → ${cust}`)
                                 .join(', ');
                             showToast(`Satış kilidi reddetti: ${soldMsg}`, 'error');
+                        } else if (lockRes?.reason === 'already_reserved') {
+                            const rsvMsg = Object.entries(lockRes.reservedFor || {}).map(([tNo, cust]) => `MASA ${tNo} → ${cust}`).join(', ');
+                            showToast(`Bu masa rezerve edilmiş: ${rsvMsg}. Rezervasyondan "Satışa çevir" ile satın.`, 'error');
+                            loadReservations();
                         } else {
                             showToast('Online satış kilidi başarısız. Lütfen tekrar deneyin.', 'error');
                         }
@@ -1691,11 +1841,11 @@
                                 ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${esc(_softConflict.lockedBy)}</div>`
                                 : '';
                             return `
-                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
+                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${(!m.isSold && reservedMap[String(m.no)]) ? 'reserved' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
                                     ${_conflictBadge}
                                     <p class="m-no">MASA</p>
                                     <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
-                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) : esc(m.kapasite + ' KİŞİLİK')}</p>
+                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
                                     ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
                                     <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${m.isSold ? '0.2' : '0.6'}"></div>
                                 </div>
@@ -1712,6 +1862,8 @@
         // Başlangıçta personelleri listeye ekle
         loadStaff();
         render();
+        setTimeout(loadReservations, 600);
+        setInterval(() => { if (!document.hidden) loadReservations(); }, 6000);
 
         // Realtime: Supabase'den veri değişince bildirim gelir → sepet boşsa sessizce yenile
         window.addEventListener('biletpro:data-updated', function(e) {

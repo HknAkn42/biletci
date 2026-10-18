@@ -700,7 +700,7 @@
         },
 
         // Atomik satış kilidi: aynı etkinlikte aynı masa ikinci kez satılamaz
-        async atomicSaleCreate(legacyEvent, ticketRows) {
+        async atomicSaleCreate(legacyEvent, ticketRows, convertTables) {
             if (this.mode !== 'online' || !this.client) {
                 return { ok: false, reason: 'offline_mode' };
             }
@@ -740,7 +740,8 @@
 
             const { data, error } = await this.client.rpc('ticket_sale_atomic', {
                 p_legacy_event_id: String(legacyEvent.id),
-                p_tickets: rows
+                p_tickets: rows,
+                p_convert_tables: Array.isArray(convertTables) ? convertTables.map(String) : []
             });
 
             if (error) {
@@ -748,6 +749,62 @@
                 return { ok: false, reason: error.message || 'rpc_failed' };
             }
 
+            return data || { ok: false, reason: 'no_data' };
+        },
+
+        // ───── Masa rezervasyonu (ödeme almadan masa tutma) ─────
+        async listReservations(legacyEventId) {
+            if (this.mode !== 'online' || !this.client || !legacyEventId) return { ok: false, rows: [] };
+            const { data: evRow } = await this.client.from('events').select('id').eq('legacy_event_id', String(legacyEventId)).maybeSingle();
+            if (!evRow || !evRow.id) return { ok: true, rows: [] };
+            const { data, error } = await this.client
+                .from('tickets')
+                .select('table_no, category_name, customer_name, customer_phone, people_count, sold_by_username, payload_json, created_at')
+                .eq('event_id', evRow.id)
+                .eq('status', 'RESERVED');
+            if (error) return { ok: false, rows: [], reason: error.message };
+            return { ok: true, rows: data || [] };
+        },
+
+        async reserveTable(legacyEvent, r) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            if (!legacyEvent || !legacyEvent.id) return { ok: false, reason: 'invalid_event' };
+            // Etkinlik satırı yoksa oluştur (RPC event satırı üzerinden çalışır)
+            const { error: evErr } = await this.client.from('events').upsert({
+                legacy_event_id: String(legacyEvent.id),
+                title: legacyEvent.title || 'Etkinlik',
+                company: legacyEvent.company || null,
+                venue: legacyEvent.venue || null,
+                city: legacyEvent.city || null,
+                full_address: legacyEvent.fullAddress || null,
+                event_date: this.normalizeEventDate(legacyEvent.date),
+                door_time: legacyEvent.doorTime || null,
+                start_time: legacyEvent.startTime || null,
+                is_active: legacyEvent.isActive !== false,
+                payload_json: legacyEvent
+            }, { onConflict: 'legacy_event_id' });
+            if (evErr) return { ok: false, reason: 'event_upsert_failed' };
+            const { data, error } = await this.client.rpc('ticket_reserve_atomic', {
+                p_legacy_event_id: String(legacyEvent.id),
+                p_table_no: String(r.tableNo),
+                p_category: r.category || '',
+                p_customer_name: r.name || '',
+                p_customer_phone: r.phone || '',
+                p_people: parseInt(r.people || 1, 10) || 1,
+                p_note: r.note || '',
+                p_reserved_by: r.by || '',
+                p_hold_until: r.holdUntil || null
+            });
+            if (error) return { ok: false, reason: error.message || 'rpc_failed' };
+            return data || { ok: false, reason: 'no_data' };
+        },
+
+        async cancelReservation(legacyEventId, tableNo) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const { data, error } = await this.client.rpc('ticket_reservation_cancel', {
+                p_legacy_event_id: String(legacyEventId), p_table_no: String(tableNo)
+            });
+            if (error) return { ok: false, reason: error.message || 'rpc_failed' };
             return data || { ok: false, reason: 'no_data' };
         },
 
@@ -772,6 +829,7 @@
                     .from('tickets')
                     .select('table_no, customer_name')
                     .eq('event_id', evRow.id)
+                    .neq('status', 'RESERVED')
                     .in('table_no', tableNosStr);
 
                 if (ticketRows?.length) {

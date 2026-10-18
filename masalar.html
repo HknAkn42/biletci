@@ -22,6 +22,9 @@
         .tbl.s-in { border-left-color: var(--success); }
         .tbl.s-out { border-left-color: var(--primary); }
         .tbl.s-wait { border-left-color: var(--warning); background: var(--warning-soft); }
+        .tbl.s-rsv { border-left-color: var(--warning); border-style: dashed; border-left-style: solid; }
+        .tag.rsv { background: var(--surface-3); color: var(--warning-text); border: 1px dashed var(--warning); }
+        .stat.rsv .n { color: var(--warning-text); }
         .tbl.s-free { border-left-color: var(--border-strong); opacity: .6; border-style: dashed; border-left-style: solid; }
         .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
         .tag.in { background: var(--success-soft); color: var(--success-text); }
@@ -51,7 +54,7 @@
 
         <main class="split-main flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[30px] no-scrollbar">
             <div class="max-w-[1500px] mx-auto w-full space-y-5">
-                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3" id="stats"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3" id="stats"></div>
 
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="flex flex-wrap gap-2" id="chips"></div>
@@ -98,6 +101,7 @@
             const s = String(t.status || '').toUpperCase();
             if (s === 'INSIDE') return 'in';
             if (s === 'OUTSIDE') return 'out';
+            if (s === 'RESERVED') return 'rsv';
             return 'wait';
         }
 
@@ -118,17 +122,19 @@
         }
 
         function counts(all) {
-            const sold = all.filter(r => r.t);
+            const sold = all.filter(r => r.t && r.st !== 'rsv');
             const peopleIn = tickets.reduce((a, t) => a + (String(t.status).toUpperCase() === 'INSIDE' ? (t.inside_count || 0) : 0), 0);
+            const realTickets = tickets.filter(t => String(t.status).toUpperCase() !== 'RESERVED');
             return {
                 free: all.filter(r => !r.t).length,
+                rsv: all.filter(r => r.st === 'rsv').length,
                 sold: sold.length,
                 in: sold.filter(r => r.st === 'in').length,
                 out: sold.filter(r => r.st === 'out').length,
                 wait: sold.filter(r => r.st === 'wait').length,
                 debt: sold.filter(r => Number(r.t.debt || 0) > 0).length,
                 peopleIn,
-                people: tickets.reduce((a, t) => a + (t.people_count || 0), 0)
+                people: realTickets.reduce((a, t) => a + (t.people_count || 0), 0)
             };
         }
 
@@ -144,10 +150,11 @@
                 ['wait', c.wait, 'Henüz girmedi'],
                 ['out', c.out, 'Dışarıda'],
                 ['debt', c.debt, 'Borçlu masa'],
+                ['rsv', c.rsv, 'Rezerve (ödeme bekliyor)'],
                 ['', c.peopleIn + ' / ' + c.people, 'İçerideki kişi / toplam']
             ].map(([cls, n, l]) => `<div class="stat ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 
-            const chips = [['all', 'Tümü (' + c.sold + ')'], ['wait', 'Henüz girmedi (' + c.wait + ')'], ['in', 'İçeride (' + c.in + ')'], ['out', 'Dışarıda (' + c.out + ')'], ['debt', 'Borçlu (' + c.debt + ')']];
+            const chips = [['all', 'Tümü (' + c.sold + ')'], ['wait', 'Henüz girmedi (' + c.wait + ')'], ['in', 'İçeride (' + c.in + ')'], ['out', 'Dışarıda (' + c.out + ')'], ['debt', 'Borçlu (' + c.debt + ')'], ['rsv', 'Rezerve (' + c.rsv + ')']];
             document.getElementById('chips').innerHTML = chips.map(([k, l]) => `<button class="chip ${filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')
                 + `<button class="chip ${showFree ? 'on' : ''}" onclick="showFree=!showFree;render()">Boş masalar (${c.free})</button>`;
 
@@ -157,6 +164,7 @@
                 if (filter === 'wait' && r.st !== 'wait') return false;
                 if (filter === 'in' && r.st !== 'in') return false;
                 if (filter === 'out' && r.st !== 'out') return false;
+                if (filter === 'rsv' && r.st !== 'rsv') return false;
                 if (filter === 'debt' && !(r.t && Number(r.t.debt || 0) > 0)) return false;
                 if (q) { const hay = (r.no + ' ' + (r.t && r.t.customer_name || '')).toLocaleLowerCase('tr-TR'); if (!hay.includes(q)) return false; }
                 return true;
@@ -170,14 +178,14 @@
                 return `<section><h2 class="text-sm font-semibold text-slate-500 mb-2">${esc(cat)} <span class="font-normal">(${items.length})</span></h2><div class="grid-t">` +
                     items.map(r => {
                         const t = r.t;
-                        const tagCls = r.st, tagTxt = { in: 'İçeride', out: 'Dışarıda', wait: 'Henüz girmedi', free: 'Boş' }[r.st];
+                        const tagCls = r.st, tagTxt = { in: 'İçeride', out: 'Dışarıda', wait: 'Henüz girmedi', free: 'Boş', rsv: 'Rezerve' }[r.st];
                         const debt = t && Number(t.debt || 0) > 0 ? `<span class="tag debt">Borç ${money(t.debt)}</span>` : '';
                         const when = t ? (r.st === 'in' ? hhmm(t.checkin_time) : r.st === 'out' ? hhmm(t.last_out_time) : '') : '';
-                        const phone = t && t.customer_phone && r.st === 'wait' ? `<a class="text-blue-600 font-medium" href="tel:${esc(t.customer_phone)}">${esc(t.customer_phone)}</a>` : '';
+                        const phone = t && t.customer_phone && (r.st === 'wait' || r.st === 'rsv') ? `<a class="text-blue-600 font-medium" href="tel:${esc(t.customer_phone)}">${esc(t.customer_phone)}</a>` : '';
                         return `<div class="tbl s-${r.st}">
                             <div class="flex items-center justify-between"><span class="no">${esc(r.no)}</span><span class="tag ${tagCls}">${tagTxt}</span></div>
                             <div class="nm">${t ? esc(t.customer_name || '—') : '—'}${r.extra.length ? ` <span class="text-slate-400">+${r.extra.length}</span>` : ''}</div>
-                            <div class="sub"><span>${t ? `${t.inside_count || 0}/${t.people_count || 0} kişi` : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
+                            <div class="sub"><span>${t ? (r.st === 'rsv' ? `${t.people_count || 0} kişi · rezerve` : `${t.inside_count || 0}/${t.people_count || 0} kişi`) : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
                             ${debt || phone ? `<div class="sub">${debt}${phone}</div>` : ''}
                         </div>`;
                     }).join('') + '</div></section>';

@@ -699,6 +699,12 @@ html body .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 
   html body .split-layout > aside .mb-8, html body .split-layout > aside .mb-10 { margin-bottom: 16px; }
 }
 
+/* ===== Rezerve masa ===== */
+html body :is(.masa-silk, .unit-silk).reserved { background: var(--warning-soft); border: 1px dashed var(--warning); }
+html body :is(.masa-silk, .unit-silk).reserved .m-alt { color: var(--warning-text); font-weight: 600; }
+html body .btn-reserve { width: 100%; margin-top: 10px; padding: 12px; border-radius: var(--r-md); background: var(--warning-soft); color: var(--warning-text); border: 1px solid var(--warning-border); font-size: 13px; font-weight: 650; cursor: pointer; transition: filter .15s; }
+html body .btn-reserve:hover { filter: brightness(.97); }
+
 /* ===== MOBİL DOKUNMATİK VE ERİŞİLEBİLİRLİK ===== */
 /* === MOBİL DOKUNMATİK VE ERİŞİLEBİLİRLİK İYİLEŞTİRMELERİ === */
 @media (max-width: 640px) {
