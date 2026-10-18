@@ -38,6 +38,8 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[12.5px] text-slate-500"><span id="saveDot" class="save-dot"></span> <span id="saveTxt">Kaydedildi</span></span>
+                <button class="btn2" onclick="location.href='gise.html?id=' + encodeURIComponent(eventId)">Masa ve kategori ayarları</button>
+                <button class="btn2" onclick="location.href='satis.html?id=' + encodeURIComponent(eventId)">Satış ekranı</button>
                 <button class="btn2" id="undoBtn" onclick="undo()">↶ Geri al</button>
                 <button class="btn2" id="redoBtn" onclick="redo()">↷ İleri al</button>
                 <button class="btn2 pri" onclick="saveNow(true)">Kaydet</button>

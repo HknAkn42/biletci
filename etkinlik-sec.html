@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>BiletPro | Etkinlik Seç</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="theme.css">
+    <style>
+        .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .pk { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; transition: transform .2s, box-shadow .2s, border-color .2s; padding: 0; }
+        .pk:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--primary-border); }
+        .pk .cv { height: 120px; background: var(--surface-3) center/cover; }
+        .pk .bd { padding: 14px 16px 16px; }
+        .pk .co { font-size: 11.5px; font-weight: 600; color: var(--primary-text); }
+        .pk .ti { font-size: 18px; font-weight: 700; margin: 2px 0 6px; letter-spacing: -.01em; }
+        .pk .mt { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+        .pk .go { margin-top: 12px; height: 38px; border-radius: 10px; background: var(--primary); color: var(--on-primary); font-weight: 650; font-size: 13.5px; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+    <script src="menu.js?v=20261018"></script>
+    <div class="flex flex-col h-screen">
+        <header class="px-3 sm:px-5 lg:px-[40px] py-3 bg-white/85 border-b border-[#e2e8f0] shrink-0">
+            <p class="text-[11px] font-semibold text-blue-600 tracking-wide" id="forWhat">Etkinlik seçimi</p>
+            <h1 class="text-lg sm:text-xl font-bold">Hangi etkinlik?</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[32px] no-scrollbar">
+            <div class="max-w-[1200px] mx-auto"><div id="list" class="pick"></div><div id="empty" class="hidden text-center text-slate-500 py-16">Henüz etkinlik yok. <a href="index.html" class="text-blue-600 font-semibold">Kontrol paneline</a> gidip etkinlik oluşturun.</div></div>
+        </main>
+    </div>
+    <script>
+        const NEXT = { 'duzen.html': ['Oturma Düzeni', 'duzen'], 'satis.html': ['Bilet Satış', 'satis'], 'checkin.html': ['Kapı Kontrol', 'checkin'], 'masalar.html': ['Masa Durumu', 'masalar'], 'gise.html': ['Masa ve Kategori', 'gise'] };
+        const next = new URLSearchParams(location.search).get('next') || 'satis.html';
+        const target = NEXT[next] ? next : 'satis.html';
+        injectMenu(NEXT[target][1]);
+        document.getElementById('forWhat').textContent = NEXT[target][0] + ' için etkinlik seçin';
+        const esc = (v) => (window.BiletProSecurity ? window.BiletProSecurity.escapeHtml(v) : String(v == null ? '' : v));
+
+        function render() {
+            let events = [];
+            try { events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || []; } catch (_) {}
+            events = events.filter(e => e && e.isActive !== false).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            const list = document.getElementById('list');
+            document.getElementById('empty').classList.toggle('hidden', events.length > 0);
+            list.innerHTML = events.map(e => {
+                const masa = (e.categories || []).reduce((a, c) => a + (c.masalar || []).filter(m => !m.isDeleted).length, 0);
+                const sold = (e.categories || []).reduce((a, c) => a + (c.masalar || []).filter(m => m.isSold).length, 0);
+                const cover = e.coverBase64 || e.cover || '';
+                return `<button class="pk" onclick="location.href='${target}?id=' + encodeURIComponent('${esc(e.id)}')">
+                    <div class="cv" style="${cover ? "background-image:url('" + esc(cover) + "')" : ''}"></div>
+                    <div class="bd"><div class="co">${esc(e.company || '')}</div><div class="ti">${esc(e.title)}</div>
+                    <div class="mt"><span>${esc(e.date || '')}</span><span>${esc(e.venue || '')}</span><span>${sold}/${masa} masa satıldı</span></div>
+                    <div class="go">${esc(NEXT[target][0])}'e git</div></div></button>`;
+            }).join('');
+        }
+        render();
+        window.addEventListener('biletpro:data-updated', (e) => { e.preventDefault(); render(); });
+        setTimeout(render, 2500);   // ilk senkron sonrası yenile
+    </script>
+</body>
+</html>

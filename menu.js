@@ -19,6 +19,14 @@ window.BiletProAuth = {
     clear() { try { localStorage.removeItem(this.STORAGE_KEY); } catch (_) {} }
 };
 
+(function () {
+    var page = (location.pathname.split('/').pop() || '').trim();
+    var needsEvent = ['gise.html', 'satis.html', 'checkin.html', 'masalar.html', 'duzen.html'];
+    if (needsEvent.indexOf(page) > -1 && !new URLSearchParams(location.search).get('id')) {
+        location.replace('etkinlik-sec.html?next=' + page);
+    }
+})();
+
 /**
  * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
  */
@@ -1161,6 +1169,7 @@ function injectMenu(active = 'dashboard', eventId = null) {
     document.head.appendChild(style);
 
     const eventParams = eventId ? `?id=${eventId}` : '';
+    const evUrl = (page) => eventId ? `${page}?id=${eventId}` : `etkinlik-sec.html?next=${page}`;
     
     // Kullanıcının gerçek yetkilerini yükle (sidebar'da sadece girebileceği sayfalar gösterilsin)
     const _sbStaff = JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]');
@@ -1200,12 +1209,12 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
     const menuItems = [
         { id: 'dashboard',   label: labels.dashboard   || 'Dashboard',        icon: _I.dashboard,  url: 'index.html',                show: visibility.dashboard  !== false },
-        { id: 'gise',        label: labels.gise        || 'Gişe & Mimari',     icon: _I.gise,       url: `gise.html${eventParams}`,    show: visibility.gise       !== false && _canGise },
-        { id: 'satis',       label: labels.satis       || 'Bilet Satış',       icon: _I.satis,      url: `satis.html${eventParams}`,   show: visibility.satis      !== false && _canSale },
+        { id: 'duzen',       label: labels.duzen       || 'Oturma Düzeni',     icon: _I.duzen,      url: evUrl('duzen.html'),         show: isAdmin && visibility.duzen !== false },
+        { id: 'satis',       label: labels.satis       || 'Bilet Satış',       icon: _I.satis,      url: evUrl('satis.html'),         show: visibility.satis      !== false && _canSale },
         { id: 'musteriler',  label: labels.musteriler  || 'Müşteriler',        icon: _I.musteriler, url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false && _canSale },
-        { id: 'checkin',     label: labels.checkin     || 'Kapı Kontrol',      icon: _I.checkin,    url: `checkin.html${eventParams}`, show: visibility.checkin    !== false && _canDoor },
-        { id: 'duzen',       label: labels.duzen       || 'Oturma Düzeni',   icon: _I.duzen,      url: `duzen.html${eventParams}`,   show: isAdmin && visibility.duzen !== false },
-        { id: 'masalar',     label: labels.masalar     || 'Masa Durumu',     icon: _I.masalar,    url: `masalar.html${eventParams}`, show: visibility.masalar !== false && _canDoor },
+        { id: 'checkin',     label: labels.checkin     || 'Kapı Kontrol',      icon: _I.checkin,    url: evUrl('checkin.html'),       show: visibility.checkin    !== false && _canDoor },
+        { id: 'masalar',     label: labels.masalar     || 'Masa Durumu',       icon: _I.masalar,    url: evUrl('masalar.html'),       show: visibility.masalar !== false && _canDoor },
+        { id: 'gise',        label: (labels.gise && !/mimari/i.test(labels.gise)) ? labels.gise : 'Masa & Kategori',   icon: _I.gise,       url: evUrl('gise.html'),          show: visibility.gise       !== false && _canGise },
         { id: 'personel',    label: labels.personel    || 'Personel',          icon: _I.personel,   url: 'personel.html',              show: isAdmin && visibility.personel !== false },
         { id: 'report',      label: labels.report      || 'Raporlar',          icon: _I.report,     url: 'rapor.html',                 show: isAdmin && visibility.report   !== false },
         { id: 'settings',    label: labels.settings    || 'Sistem Ayarları',   icon: _I.settings,   url: 'settings.html',              show: isAdmin && visibility.settings !== false }

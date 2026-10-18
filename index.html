@@ -551,7 +551,7 @@
                             <span>${ico.clock}${esc(ev.doorTime || '--:--')} – ${esc(ev.startTime || '--:--')}</span>
                         </div>
                         <div class="ev-cta" style="grid-template-columns: repeat(${[canManage, canSale, canDoor].filter(Boolean).length || 1}, 1fr)">
-                            ${canManage ? `<button onclick="location.href='gise.html?id=${safeId}'" class="ev-btn ghost">Mimari</button>` : ''}
+                            ${canManage ? `<button onclick="location.href='duzen.html?id=${safeId}'" class="ev-btn ghost">Oturma düzeni</button>` : ''}
                             ${canSale   ? `<button onclick="location.href='satis.html?id=${safeId}'" class="${btnStateClass} ev-btn primary">Satış</button>` : ''}
                             ${canDoor   ? `<button onclick="location.href='checkin.html?id=${safeId}'" class="${btnStateClass} ev-btn soft">Kapı</button>` : ''}
                         </div>

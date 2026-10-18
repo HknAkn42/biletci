@@ -210,6 +210,78 @@
             return data || [];
         },
 
+        // Etkinliklerdeki masa satış durumunu sunucudaki bilet satırlarıyla eşitler.
+        //  - Sunucuda bilet var, yerelde yok → yerelde satılmış yapılır
+        //  - Yerelde satılmış, sunucuda bilet yok → iptal edilmiştir; yerelde boşa çıkarılır
+        //  - Giriş durumu, ödeme ve borç sunucudaki değerlere eşitlenir
+        async reconcileWithTickets(merged, idMap) {
+            const ids = (merged || []).map(ev => idMap[String(ev && ev.id)]).filter(Boolean);
+            if (!ids.length) return false;
+            const { data, error } = await this.client
+                .from('tickets')
+                .select('event_id,table_no,status,customer_name,customer_phone,people_count,inside_count,paid,debt,ticket_hash,sold_by_username,payload_json')
+                .in('event_id', ids)
+                .limit(20000);
+            if (error || !Array.isArray(data)) return false;      // okunamadıysa yerel veriye dokunma
+            const byEv = new Map();
+            data.forEach((r) => { if (!byEv.has(r.event_id)) byEv.set(r.event_id, new Map()); byEv.get(r.event_id).set(String(r.table_no), r); });
+            let changed = false;
+            merged.forEach((ev) => {
+                if (!idMap[String(ev && ev.id)]) return;                      // sunucuda etkinlik satırı yok
+                const map = byEv.get(idMap[String(ev && ev.id)]) || new Map();   // bilet yoksa boş küme: yerelde "satılmış" görünenler iptal sayılır
+                (ev.categories || []).forEach((cat) => (cat.masalar || []).forEach((m) => {
+                    if (!m || m.isDeleted) return;
+                    const row = map.get(String(m.no));
+                    if (row && String(row.status).toUpperCase() !== 'RESERVED') {
+                        if (!m.isSold) {
+                            const pj = row.payload_json || {};
+                            const sd = Object.assign({}, pj.saleDetail || {});
+                            m.isSold = true;
+                            m.soldTo = row.customer_name || sd.soldTo || '';
+                            m.saleDetail = Object.assign({
+                                phone: row.customer_phone || '', people: row.people_count, paid: Number(row.paid) || 0, debt: Number(row.debt) || 0,
+                                ticketHash: row.ticket_hash, status: row.status || 'READY', soldBy: row.sold_by_username || '', categoryName: cat.name
+                            }, sd);
+                            changed = true;
+                        } else if (m.saleDetail) {
+                            const sd = m.saleDetail;
+                            if (row.status && sd.status !== row.status) { sd.status = row.status; changed = true; }
+                            if ((Number(sd.insideCount) || 0) !== (Number(row.inside_count) || 0)) { sd.insideCount = Number(row.inside_count) || 0; changed = true; }
+                            if ((Number(sd.debt) || 0) !== (Number(row.debt) || 0)) { sd.debt = Number(row.debt) || 0; changed = true; }
+                            if ((Number(sd.paid) || 0) !== (Number(row.paid) || 0)) { sd.paid = Number(row.paid) || 0; changed = true; }
+                        }
+                    } else if (!row && m.isSold && m.saleDetail && m.saleDetail.ticketHash) {
+                        m.isSold = false; delete m.soldTo; delete m.saleDetail; changed = true;
+                    }
+                }));
+            });
+            return changed;
+        },
+
+        // Satış iptali: bilet satırını sunucudan siler (masa tekrar satılabilir olur)
+        async cancelTicketOnline(legacyEventId, tableNo) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const { data: evRow, error: e1 } = await this.client.from('events').select('id').eq('legacy_event_id', String(legacyEventId)).maybeSingle();
+            if (e1) return { ok: false, reason: e1.message };
+            if (!evRow || !evRow.id) return { ok: true, reason: 'event_not_found_online' };
+            const { error } = await this.client.from('tickets').delete().eq('event_id', evRow.id).eq('table_no', String(tableNo)).neq('status', 'RESERVED');
+            if (error) return { ok: false, reason: error.message };
+            return { ok: true };
+        },
+
+        // Bilet tablosundan masa durumları (satış ekranı canlı görünümü için)
+        async listTicketStates(legacyEventId) {
+            if (this.mode !== 'online' || !this.client || !legacyEventId) return { ok: false, rows: [] };
+            const { data: evRow } = await this.client.from('events').select('id').eq('legacy_event_id', String(legacyEventId)).maybeSingle();
+            if (!evRow || !evRow.id) return { ok: true, rows: [] };
+            const { data, error } = await this.client
+                .from('tickets')
+                .select('table_no, customer_name, customer_phone, people_count, sold_by_username, status, payload_json')
+                .eq('event_id', evRow.id).limit(20000);
+            if (error) return { ok: false, rows: [], reason: error.message };
+            return { ok: true, rows: data || [] };
+        },
+
         async pullOnlineToLocal() {
             if (this.mode !== 'online' || !this.client) {
                 return { ok: false, reason: 'offline_mode', changed: false, count: 0 };
@@ -217,7 +289,7 @@
 
             const { data, error } = await this.client
                 .from('events')
-                .select('legacy_event_id, payload_json, updated_at')
+                .select('id, legacy_event_id, payload_json, updated_at')
                 .order('updated_at', { ascending: false });
 
             if (error) {
@@ -320,6 +392,12 @@
             });
 
             const merged = Object.values(mergedMap).filter((ev) => !deletedIds.has(String(ev && ev.id)));
+
+            // Satış durumunun doğruluk kaynağı bilet tablosudur: iptal edilen / başka kasada satılan masalar yerelde de düzeltilir.
+            const idMap = {};
+            rows.forEach((r) => { if (r && r.legacy_event_id && r.id) idMap[String(r.legacy_event_id)] = r.id; });
+            try { await this.reconcileWithTickets(merged, idMap); } catch (e) { console.warn('[BiletPro OnlineStore] reconcile hatası:', e); }
+
             const nextRaw = JSON.stringify(merged);
             const changed = localRaw !== nextRaw;
 

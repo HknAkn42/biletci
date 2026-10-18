@@ -529,20 +529,13 @@
             </div>
 
             <div class="grid grid-cols-2 gap-3 no-print">
-                <button onclick="printTicket()" style="background:linear-gradient(135deg,#1a1c2e,#22253a);border:1px solid rgba(255,215,0,0.25);color:rgba(255,215,0,0.85);" class="py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:border-yellow-400 transition-all tracking-widest">🖨️ YAZDIR</button>
-                
-                <button onclick="sendTicketLink()" id="linkShareBtn" style="background:linear-gradient(135deg,#128c4a,#25D366);border:1px solid rgba(37,211,102,0.5);color:#fff;" class="col-span-2 py-5 rounded-2xl font-black text-[12px] shadow-lg flex items-center justify-center gap-2">
-                    💬 BİLETİ WHATSAPP'TAN GÖNDER (TEK TIK)
-                </button>
+                <button onclick="printTicket()" style="background:linear-gradient(135deg,#1a1c2e,#22253a);border:1px solid rgba(255,215,0,0.25);color:rgba(255,215,0,0.85);" class="col-span-2 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:border-yellow-400 transition-all tracking-widest">🖨️ YAZDIR</button>
+                <button onclick="sendTicketLink()" id="linkShareBtn" style="background:#25D366;color:#fff;box-shadow:0 10px 24px rgba(37,211,102,.35)" class="col-span-2 py-4 rounded-2xl font-bold text-[15px] flex items-center justify-center gap-3 transition-all"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg><span>WhatsApp ile gönder</span></button>
                 <button onclick="shareTicketImages()" id="imgShareBtn" style="background:linear-gradient(135deg,#1a1c2e,#22253a);border:1px solid rgba(255,215,0,0.3);color:rgba(255,215,0,0.9);" class="col-span-2 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg">
-                    🖼️ Resim (JPEG) olarak paylaş / indir
+                    Resim (JPEG) olarak paylaş / indir
                 </button>
                 <button onclick="copyTicketLink()" id="linkCopyBtn" style="background:linear-gradient(135deg,#0d0e14,#141824);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.75);" class="col-span-2 py-3 rounded-2xl font-black text-[10px] uppercase">
-                    🔗 Bilet linkini kopyala
-                </button>
-                
-                <button onclick="copyAndShareWhatsApp()" id="shareBtn" style="background:linear-gradient(135deg,#1a2b1e,#203829);border:1px solid rgba(37,211,102,0.3);color:#25D366;" class="py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg flex items-center justify-center gap-2 hover:border-green-400 transition-all tracking-wider">
-                    💬 WHATSAPP
+                    Bilet linkini kopyala
                 </button>
                 
                 <button onclick="closeTicketModal()" style="background:linear-gradient(135deg,#0d0e14,#141824);border:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.4);" class="col-span-2 py-5 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:border-white/20 transition-all tracking-widest mt-2">KAPAT (ESC)</button>
@@ -856,6 +849,14 @@
                 return; 
             }
 
+            // Başka kasada (başka hesapta) satılmış masa: seçilemez
+            const _se = soldElsewhere(m);
+            if (_se) {
+                showToast('Masa ' + m.no + ' az önce ' + (_se.customer_name || 'başka bir kasada') + ' adına satıldı.', 'error');
+                render();
+                return;
+            }
+
             // Rezerve masa: doğrudan seçilmez; ayrıntı penceresi açılır (satışa çevir / kaldır)
             if (reservedMap[String(m.no)] && !convertSet.has(String(m.no))) {
                 openReservationDetail(cat, m);
@@ -944,8 +945,13 @@
             if(!perms.pCancel) return showToast("Satış iptal yetkiniz yok!", "error");
             if(!editId) return;
             
-            showConfirm("SATIŞI İPTAL ET", "Satışı iptal edip masayı boşa çıkarmak istiyor musunuz? Bu işlem geri alınamaz.", () => {
+            showConfirm("SATIŞI İPTAL ET", "Satışı iptal edip masayı boşa çıkarmak istiyor musunuz? Bu işlem geri alınamaz.", async () => {
                 const targetM = ev.categories.find(c => c.id === basket[0].cat.id).masalar.find(mm => mm.id === editId);
+                const _st = window.BiletProOnlineStore;
+                if (_st && _st.getMode && _st.getMode() === 'online') {
+                    const _r = await _st.cancelTicketOnline(ev.id, targetM.no);
+                    if (!_r.ok) { showToast('İptal sunucuya yazılamadı: ' + (_r.reason || ''), 'error'); return; }
+                }
                 targetM.isSold = false; 
                 delete targetM.soldTo; 
                 delete targetM.saleDetail;
@@ -960,20 +966,52 @@
         let reservedMap = {};            // masa no -> rezervasyon satırı
         const convertSet = new Set();    // satışa çevrilecek rezerve masalar
 
+        let _lastLocalPull = 0;
+        async function refreshLocalFromServer() {
+            try {
+                const st = window.BiletProOnlineStore; await st.init();
+                await st.pullOnlineToLocal();
+                const fresh = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+                const fe = fresh.find(x => String(x.id) === String(eventId));
+                if (fe) { events = fresh; ev = fe; if (basket.length === 0) render(); }
+            } catch (e) { console.warn('[yerel tazeleme]', e); }
+        }
+        let soldMap = {};                // masa no -> sunucudaki bilet (başka kasada satılmış olabilir)
+        function soldElsewhere(m) { return m && !m.isSold ? (soldMap[String(m.no)] || null) : null; }
+
         async function loadReservations() {
             try {
                 const store = window.BiletProOnlineStore;
                 if (!store || !ev) return;
                 await store.init();
-                const res = await store.listReservations(ev.id);
+                const res = await store.listTicketStates(ev.id);
                 if (!res.ok) return;
-                const next = {};
-                res.rows.forEach(r => { next[String(r.table_no)] = r; });
+                const nextR = {}, nextS = {};
+                res.rows.forEach(r => {
+                    if (String(r.status).toUpperCase() === 'RESERVED') nextR[String(r.table_no)] = r;
+                    else nextS[String(r.table_no)] = r;
+                });
                 const sig = (o) => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k].customer_name]));
-                const changed = sig(next) !== sig(reservedMap);
-                reservedMap = next;
-                if (changed && basket.length === 0) render();
-            } catch (e) { console.warn('[rezervasyon] yüklenemedi', e); }
+                const changed = sig(nextR) !== sig(reservedMap) || sig(nextS) !== sig(soldMap);
+                reservedMap = nextR; soldMap = nextS;
+                // Yerel veri sunucudan farklıysa (başka kasada satış / iptal) yerel veriyi sunucudan tazele
+                try {
+                    const mismatch = (ev.categories || []).some(c => (c.masalar || []).some(m => !m.isDeleted && ((!m.isSold && soldMap[String(m.no)]) || (m.isSold && m.saleDetail && m.saleDetail.ticketHash && !soldMap[String(m.no)]))));
+                    if (mismatch && Date.now() - _lastLocalPull > 3000) { _lastLocalPull = Date.now(); refreshLocalFromServer(); }
+                } catch (_) {}
+                if (changed) {
+                    if (basket.length === 0) render();
+                    else {
+                        // seçili masalardan biri başka kasada satıldıysa sepetten çıkar ve uyar
+                        const gone = basket.filter(bi => soldElsewhere(bi.masa));
+                        if (gone.length && editId === null) {
+                            gone.forEach(bi => { const i = basket.indexOf(bi); if (i > -1) basket.splice(i, 1); window.bpSoftLock?.release(ev.id, bi.masa.no); });
+                            showToast('Masa ' + gone.map(g => g.masa.no).join(', ') + ' başka bir kasada satıldı, sepetten çıkarıldı.', 'error');
+                            render(); recalc();
+                        } else if (typeof refreshPlan === 'function') refreshPlan();
+                    }
+                }
+            } catch (e) { console.warn('[masa durumu] yüklenemedi', e); }
         }
 
         function rsvEsc(v) { return esc(v == null ? '' : v); }
@@ -992,7 +1030,7 @@
                 <p class="text-sm text-slate-500 mb-4">${rsvEsc(masalar)} · ödeme alınmaz, bilet oluşmaz. Masa başkasına satılmaz.</p>
                 <label class="label-mini">Ad soyad *</label>
                 <input id="rsvName" class="input-silk mb-3" value="${rsvEsc(name)}" placeholder="Ad Soyad">
-                <label class="label-mini">Telefon</label>
+                <label class="label-mini">Telefon *</label>
                 <input id="rsvPhone" type="tel" class="input-silk mb-3" value="${rsvEsc(phone)}" placeholder="05XX XXX XX XX">
                 <label class="label-mini">Rezervasyonu tutma süresi (isteğe bağlı)</label>
                 <input id="rsvHold" type="datetime-local" class="input-silk mb-3">
@@ -1007,8 +1045,8 @@
 
         async function confirmReserve() {
             const name = document.getElementById('rsvName').value.trim();
-            if (!name) { showToast('Ad soyad zorunlu.', 'error'); return; }
             const phone = document.getElementById('rsvPhone').value.trim();
+            if (!validateCustomer(name, phone, document.getElementById('rsvName'), document.getElementById('rsvPhone'))) return;
             const note = document.getElementById('rsvNote').value.trim();
             const holdRaw = document.getElementById('rsvHold').value;
             const holdUntil = holdRaw ? new Date(holdRaw).toISOString() : null;
@@ -1093,7 +1131,7 @@
         let salesView = 'list';
         let planCtrl = null;
         let planEvRef = null;
-        try { salesView = localStorage.getItem('BiletPro_SatisView') === 'plan' ? 'plan' : 'list'; } catch (_) {}
+        salesView = 'plan'; try { if (localStorage.getItem('BiletPro_SatisView') === 'list') salesView = 'list'; } catch (_) {}
 
         function planMatches(m) {
             if (searchTerm && !(String(m.no).includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm)))) return false;
@@ -1104,6 +1142,8 @@
         function planState(cat, m) {
             const dim = planMatches(m) ? '' : 'dimmed';
             if (m.isSold) return { state: 'sold', cls: dim, sub: (m.soldTo || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (m.soldTo || '') };
+            const _se = soldElsewhere(m);
+            if (_se) return { state: 'sold', cls: dim, sub: String(_se.customer_name || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (_se.customer_name || '') };
             const r = reservedMap[String(m.no)];
             if (basket.some(b => b.masa.id === m.id)) return { state: 'selected', cls: dim, title: 'Masa ' + m.no + ' · seçili' };
             if (r) return { state: 'reserved', cls: dim, sub: (r.customer_name || 'rezerve').slice(0, 10), title: 'Masa ' + m.no + ' · rezerve · ' + (r.customer_name || '') };
@@ -1146,6 +1186,16 @@
         }
 
         // Masa kapasitesinden az kişiye satış: kişi sayısı 1..kapasite arasında ayarlanır (boş kalan koltuk kayıt altına alınır)
+        // Müşteri adı ve geçerli cep telefonu olmadan satış / rezervasyon yapılamaz
+        function normPhone10(raw) { let p = String(raw || '').replace(/\D/g, ''); if (p.startsWith('90') && p.length >= 12) p = p.slice(2); return p.replace(/^0+/, ''); }
+        function markInvalid(el) { if (!el) return; el.style.borderColor = 'var(--danger)'; el.style.boxShadow = '0 0 0 3px var(--danger-soft)'; el.focus(); setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 2500); }
+        function validateCustomer(name, phone, nameEl, phoneEl) {
+            const nm = String(name || '').trim();
+            if (nm.length < 3 || !/\p{L}{2,}/u.test(nm)) { markInvalid(nameEl); showToast('Müşteri adı soyadı zorunludur.', 'error'); return false; }
+            if (!/^5\d{9}$/.test(normPhone10(phone))) { markInvalid(phoneEl); showToast('Geçerli bir cep telefonu girin (05XX XXX XX XX).', 'error'); return false; }
+            return true;
+        }
+
         function setBasketPeople(masaId, delta) {
             const it = basket.find(b => b.masa.id === masaId); if (!it) return;
             const max = Number(it.masa.kapasite) || it.p;
@@ -1270,7 +1320,8 @@
             const _noPrice = basket.filter(b => isCustomPrice(b) && unitPrice(b) <= 0);
             if (_noPrice.length) { showToast('Fiyat girilmemiş: ' + _noPrice.map(b => b.cat.name + ' (Masa ' + b.masa.no + ')').join(', ') + '. Kişi başı fiyatı yazın.', 'error'); return; }
 
-            if(!n || basket.length === 0) return showToast("Müşteri adı ve masa seçimi zorunludur!", "error");
+            if(basket.length === 0) return showToast("Önce masa seçin!", "error");
+            if(!validateCustomer(n, ph, document.getElementById('custName'), document.getElementById('custPhone'))) return;
 
             let isUpdate = editId !== null;
             let _atomicRows = null;
@@ -1646,8 +1697,8 @@
 
         function setLinkBtnState(ready) {
             const b = document.getElementById('linkShareBtn'); if (!b) return;
-            b.style.opacity = ready ? '1' : '.6';
-            b.innerHTML = ready ? "💬 BİLETİ WHATSAPP'TAN GÖNDER (TEK TIK)" : '⏳ BİLET LİNKİ HAZIRLANIYOR…';
+            b.style.opacity = ready ? '1' : '.65';
+            const lbl = b.querySelector('span'); if (lbl) lbl.textContent = ready ? 'WhatsApp ile gönder' : 'Bilet linki hazırlanıyor…';
         }
 
         function prepareShareLink(hash) {
@@ -1668,7 +1719,7 @@
                     await new Promise(r => setTimeout(r, 900));
                 }
                 const b = document.getElementById('linkShareBtn');
-                if (b) b.innerHTML = '⚠️ BİLET LİNKİ OLUŞTURULAMADI — "WHATSAPP" DÜĞMESİNİ KULLANIN';
+                if (b) { const lbl = b.querySelector('span'); if (lbl) lbl.textContent = 'Bilet linki oluşturulamadı — resim düğmesini kullanın'; }
             };
             sharePrep = run().catch(e => console.warn('[bilet linki]', e));
             return sharePrep;
@@ -1963,7 +2014,7 @@
                 const allAvailableCaps = [];
                 ev.categories.forEach(cat => {
                     (cat.masalar || []).forEach(m => {
-                        if (!m.isDeleted && !m.isSold && m.kapasite > 0) {
+                        if (!m.isDeleted && !m.isSold && !soldElsewhere(m) && m.kapasite > 0) {
                             allAvailableCaps.push(m.kapasite);
                         }
                     });
@@ -2031,18 +2082,18 @@
                             const sel = basket.find(bi => bi.masa.id === m.id);
                             const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
                             const _slUser = _slSession.name || _slSession.username || '';
-                            const _softConflict = !m.isSold && window.bpSoftLock?.getConflict(ev.id, m.no, _slUser);
+                            const _se = soldElsewhere(m); const _isSold = m.isSold || !!_se; const _softConflict = !_isSold && window.bpSoftLock?.getConflict(ev.id, m.no, _slUser);
                             const _conflictBadge = _softConflict
                                 ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${esc(_softConflict.lockedBy)}</div>`
                                 : '';
                             return `
-                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${m.isSold ? 'sold' : ''} ${(!m.isSold && reservedMap[String(m.no)]) ? 'reserved' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
+                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${_isSold ? 'sold' : ''} ${(!_isSold && reservedMap[String(m.no)]) ? 'reserved' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
                                     ${_conflictBadge}
                                     <p class="m-no">MASA</p>
-                                    <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
-                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) + (m.saleDetail && m.saleDetail.people && m.saleDetail.people < m.kapasite ? ' · <span style="color:var(--warning-text)">' + m.saleDetail.people + '/' + m.kapasite + '</span>' : '') : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
+                                    <p class="m-kap">${_isSold ? 'DOLU' : m.no}</p>
+                                    <p class="m-alt">${_isSold ? esc(m.isSold ? m.soldTo : (_se && _se.customer_name)) + (m.saleDetail && m.saleDetail.people && m.saleDetail.people < m.kapasite ? ' · <span style="color:var(--warning-text)">' + m.saleDetail.people + '/' + m.kapasite + '</span>' : '') : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
                                     ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
-                                    <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${m.isSold ? '0.2' : '0.6'}"></div>
+                                    <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${_isSold ? '0.2' : '0.6'}"></div>
                                 </div>
                             `;
                         }).join('')}
@@ -2060,7 +2111,7 @@
         render();
         applySalesView();
         setTimeout(loadReservations, 600);
-        setInterval(() => { if (!document.hidden) loadReservations(); }, 6000);
+        setInterval(() => { if (!document.hidden) loadReservations(); }, 4000);
 
         // Realtime: Supabase'den veri değişince bildirim gelir → sepet boşsa sessizce yenile
         window.addEventListener('biletpro:data-updated', function(e) {
