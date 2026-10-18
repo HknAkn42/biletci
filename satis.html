@@ -236,6 +236,7 @@
                 
                 <aside class="space-y-6">
                     <div class="silk-card animate-pop lg:sticky lg:top-4">
+                        <button type="button" onclick="openHS()" class="hs-open">🎟️ Hızlı satış · oturma düzeninden seç</button>
                         <div class="mb-8 text-center">
                             <h3 id="hubMainTitle" class="text-lg font-extrabold uppercase tracking-tight text-slate-800">BİLET SATIŞ</h3>
                             <div class="w-12 h-1.5 bg-blue-600 rounded-full mt-2 mx-auto"></div>
@@ -275,7 +276,7 @@
 
                             <div>
                                 <span class="label-mini">Seçili Masalar</span>
-                                <div id="basketList" class="max-h-48 overflow-y-auto no-scrollbar space-y-2 p-1"></div>
+                                <div id="basketList" class="space-y-2 p-1" style="max-height:42vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain"></div>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -357,6 +358,7 @@
                     <div class="flex items-center gap-2" id="viewToggle">
                         <button type="button" id="vtList" class="chip on" onclick="setSalesView('list')">Liste</button>
                         <button type="button" id="vtPlan" class="chip" onclick="setSalesView('plan')">Plan (sahne ve masalar)</button>
+                        <button type="button" class="chip" onclick="openHS()" style="border-color:var(--primary);color:var(--primary-text)">⛶ Tam ekran satış</button>
                     </div>
                     <div id="planBox" class="hidden" style="height:66vh;min-height:420px"></div>
                     <div id="masterList" class="space-y-8"></div>
@@ -365,6 +367,52 @@
         </main>
     </div>
 
+    <style>
+        .hs-open{width:100%;margin-bottom:14px;padding:14px 16px;border-radius:16px;border:0;font-weight:800;font-size:13px;letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 8px 22px rgba(79,70,229,.35);cursor:pointer}
+        #hsOverlay{position:fixed;inset:0;z-index:150000;background:var(--bg,#f5f6fa);display:flex;flex-direction:column}
+        #hsOverlay.hidden{display:none}
+        .hs-top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface,#fff);border-bottom:1px solid var(--border,#e5e7eb)}
+        .hs-top .t{flex:1;min-width:0}
+        .hs-top .t b{display:block;font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .hs-top .t span{font-size:11.5px;color:var(--muted,#6b7280)}
+        .hs-x{width:40px;height:40px;border-radius:12px;border:1px solid var(--border-strong,#d1d5db);background:var(--surface-3,#f3f4f6);font-size:18px;font-weight:700;cursor:pointer}
+        #hsPlan{flex:1;min-height:0;padding:8px}
+        .hs-cart{background:var(--surface,#fff);border-top:1px solid var(--border,#e5e7eb);box-shadow:0 -10px 30px rgba(0,0,0,.08);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+        .hs-cart-head{display:flex;align-items:center;gap:10px}
+        .hs-cartbtn{position:relative;width:50px;height:50px;border-radius:16px;background:var(--primary-soft,#eef2ff);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;flex:none}
+        .hs-badge{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;border-radius:11px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
+        .hs-badge.bump{animation:hsbump .4s ease}
+        @keyframes hsbump{0%{transform:scale(1)}40%{transform:scale(1.6)}100%{transform:scale(1)}}
+        .hs-sum{flex:1;min-width:0;cursor:pointer}
+        .hs-sum b{display:block;font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .hs-sum span{font-size:12px;color:var(--muted,#6b7280)}
+        .hs-next{flex:none;padding:14px 18px;border-radius:14px;border:0;font-weight:800;font-size:14px;color:#fff;background:#16a34a;cursor:pointer;box-shadow:0 6px 16px rgba(22,163,74,.35)}
+        .hs-next:disabled{background:#9ca3af;box-shadow:none;cursor:not-allowed}
+        #hsSheet{max-height:42vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+        #hsSheet.hidden{display:none}
+        .hs-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border,#e5e7eb);border-radius:12px;background:var(--surface-2,#f9fafb)}
+        .hs-row .n{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex:none}
+        .hs-row .m{flex:1;min-width:0;font-size:12.5px}
+        .hs-row .m b{display:block;font-size:13px}
+        .hs-row button.st{width:30px;height:30px;border-radius:9px;border:1px solid var(--border-strong,#d1d5db);background:var(--surface,#fff);font-weight:800}
+        .hs-row button.rm{width:32px;height:32px;border-radius:10px;border:0;background:#fee2e2;color:#dc2626;font-weight:800}
+        .hs-fly{position:fixed;z-index:160000;border-radius:50%;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+    </style>
+    <div id="hsOverlay" class="hidden">
+        <div class="hs-top">
+            <button type="button" class="hs-x" onclick="closeHS()" title="Kapat">✕</button>
+            <div class="t"><b id="hsTitle">Hızlı satış</b><span>Masalara dokunarak seçin · tekrar dokunun kaldırır</span></div>
+        </div>
+        <div id="hsPlan"></div>
+        <div class="hs-cart">
+            <div class="hs-cart-head">
+                <div class="hs-cartbtn" id="hsCartBtn" onclick="toggleHSSheet()">🛒<span class="hs-badge" id="hsBadge">0</span></div>
+                <div class="hs-sum" onclick="toggleHSSheet()"><b id="hsSummary">Masa seçin</b><span id="hsTotal">Sepet boş</span></div>
+                <button type="button" class="hs-next" id="hsNext" onclick="hsContinue()" disabled>Devam et →</button>
+            </div>
+            <div id="hsSheet" class="hidden"></div>
+        </div>
+    </div>
     <div id="rsvModal" class="hidden fixed inset-0 z-[200000] flex items-center justify-center p-4 modal-bg">
         <div class="bg-white w-full max-w-[440px] rounded-2xl shadow-2xl p-6 modal-scroll" id="rsvBox"></div>
     </div>
@@ -1214,6 +1262,101 @@
             await loadReservations(); render();
         }
 
+        // ───── HIZLI SATIŞ (tam ekran oturma düzeni + sepet) ─────
+        let hsCtrl = null, hsEvRef = null;
+        function openHS() {
+            const ov = document.getElementById('hsOverlay'); if (!ov || !window.SeatMap) return;
+            ov.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+            document.getElementById('hsTitle').textContent = (ev && ev.title) || 'Hızlı satış';
+            const box = document.getElementById('hsPlan');
+            if (hsCtrl) { try { hsCtrl.destroy(); } catch (_) {} hsCtrl = null; }
+            hsEvRef = ev;
+            hsCtrl = SeatMap.create(box, ev, {
+                mode: 'view',
+                getState: planState,
+                onTap: (cat, m) => hsTap(cat, m),
+                legend: [[['var(--border-strong)', 'var(--surface)'], 'Boş'], [['var(--primary)', 'var(--primary)'], 'Seçili'], [['var(--warning)', 'var(--warning-soft)'], 'Rezerve'], [['var(--border-strong)', 'var(--surface-3)'], 'Satılmış']]
+            });
+            hsUpdateCart();
+        }
+        function closeHS() {
+            const ov = document.getElementById('hsOverlay'); if (ov) ov.classList.add('hidden');
+            document.body.style.overflow = '';
+            if (hsCtrl) { try { hsCtrl.destroy(); } catch (_) {} hsCtrl = null; }
+            const sh = document.getElementById('hsSheet'); if (sh) sh.classList.add('hidden');
+        }
+        function hsTap(cat, m) {
+            if (m.isSold || soldElsewhere(m)) { closeHS(); selectMasa(cat.id, m.id); return; }   // satılmış masa: mevcut satış düzenleme akışı
+            const before = basket.length;
+            selectMasa(cat.id, m.id);
+            if (basket.length > before) hsFly(cat, m);
+            hsUpdateCart();
+        }
+        function hsFly(cat, m) {
+            try {
+                const g = document.querySelector('#hsPlan .sm-t[data-k="' + String(m.no).replace(/"/g, '') + '"]');
+                const tgt = document.getElementById('hsCartBtn'); if (!g || !tgt) return;
+                const a = g.getBoundingClientRect(), b = tgt.getBoundingClientRect();
+                const size = Math.max(34, Math.min(56, a.width));
+                const el = document.createElement('div'); el.className = 'hs-fly'; el.textContent = m.no;
+                el.style.cssText += ';width:' + size + 'px;height:' + size + 'px;left:' + (a.x + a.width / 2 - size / 2) + 'px;top:' + (a.y + a.height / 2 - size / 2) + 'px;background:' + (cat.color || '#4f46e5') + ';font-size:' + Math.round(size * 0.4) + 'px';
+                document.body.appendChild(el);
+                const dx = (b.x + b.width / 2) - (a.x + a.width / 2), dy = (b.y + b.height / 2) - (a.y + a.height / 2);
+                const done = () => { el.remove(); const bd = document.getElementById('hsBadge'); if (bd) { bd.classList.remove('bump'); void bd.offsetWidth; bd.classList.add('bump'); } };
+                if (el.animate) {
+                    const an = el.animate([
+                        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                        { transform: 'translate(' + (dx * 0.5) + 'px,' + (dy * 0.5 - 70) + 'px) scale(1.15)', opacity: 1, offset: 0.45 },
+                        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.3)', opacity: .35 }
+                    ], { duration: 650, easing: 'cubic-bezier(.4,0,.2,1)' });
+                    an.onfinish = done;
+                } else done();
+            } catch (_) {}
+        }
+        function hsTotals() {
+            let total = 0, people = 0, unknown = false;
+            basket.forEach(i => { const up = unitPrice(i); if (!up) unknown = true; total += up * i.p; people += i.p; });
+            return { total, people, unknown };
+        }
+        function hsUpdateCart() {
+            const ov = document.getElementById('hsOverlay'); if (!ov || ov.classList.contains('hidden')) return;
+            document.getElementById('hsBadge').textContent = String(basket.length);
+            const t = hsTotals();
+            document.getElementById('hsSummary').textContent = basket.length ? 'Masa ' + basket.map(b => b.masa.no).join(', ') : 'Masa seçin';
+            document.getElementById('hsTotal').textContent = basket.length ? (t.people + ' kişi · ' + (t.total ? '₺' + t.total.toLocaleString('tr-TR') : '') + (t.unknown ? (t.total ? ' + ' : '') + 'özel fiyat girilecek' : '')) : 'Sepet boş';
+            document.getElementById('hsNext').disabled = basket.length === 0;
+            renderHSSheet();
+        }
+        function toggleHSSheet() {
+            const sh = document.getElementById('hsSheet'); sh.classList.toggle('hidden'); renderHSSheet();
+        }
+        function renderHSSheet() {
+            const sh = document.getElementById('hsSheet'); if (!sh || sh.classList.contains('hidden')) return;
+            if (!basket.length) { sh.innerHTML = '<div style="text-align:center;padding:10px;color:var(--muted,#6b7280);font-size:13px">Sepet boş</div>'; return; }
+            sh.innerHTML = basket.map(i => {
+                const up = unitPrice(i);
+                const priceBox = isCustomPrice(i) ? '<span style="font-size:11px">x ₺</span><input type="number" min="0" step="50" inputmode="decimal" class="cp-input" data-cat="' + i.cat.id + '" value="' + (i.price || '') + '" placeholder="fiyat" oninput="applyPriceToCategory(' + i.cat.id + ', this.value); hsUpdateCart()" style="width:84px">' : '';
+                return '<div class="hs-row"><div class="n" style="background:' + (i.cat.color || '#4f46e5') + '">' + esc(i.masa.no) + '</div>'
+                    + '<div class="m"><b>' + esc(i.cat.name) + '</b><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><button type="button" class="st" onclick="setBasketPeople(' + i.masa.id + ', -1)">−</button>' + esc(i.p) + ' / ' + esc(i.masa.kapasite) + ' kişi<button type="button" class="st" onclick="setBasketPeople(' + i.masa.id + ', 1)">+</button>' + priceBox + '</span>'
+                    + (i.p < i.masa.kapasite ? '<span style="color:var(--warning-text,#b45309);font-size:11.5px;font-weight:600">' + (i.masa.kapasite - i.p) + ' koltuk boş kalacak</span>' : '') + '</div>'
+                    + '<div style="font-weight:800;font-size:13px">' + (up ? '₺' + (up * i.p).toLocaleString('tr-TR') : '—') + '</div>'
+                    + '<button type="button" class="rm" onclick="hsRemove(' + i.masa.id + ')">✕</button></div>';
+            }).join('');
+        }
+        function hsRemove(masaId) {
+            const it = basket.find(b => b.masa.id === masaId); if (!it) return;
+            selectMasa(it.cat.id, it.masa.id); hsUpdateCart();
+        }
+        function hsContinue() {
+            if (!basket.length) return;
+            closeHS();
+            setTimeout(() => {
+                const el = document.getElementById('custName'); if (!el) return;
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => { try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); } }, 450);
+            }, 60);
+        }
+
         async function releaseReservation(masaNo) {
             if (!confirm('Masa ' + masaNo + ' rezervasyonu kaldırılsın mı? Masa tekrar satışa açılır.')) return;
             const r = await window.BiletProOnlineStore.cancelReservation(ev.id, masaNo);
@@ -1270,6 +1413,7 @@
         }
 
         function refreshPlan(force) {
+            if (hsCtrl) { try { if (hsEvRef !== ev) openHS(); else hsCtrl.refresh(); } catch (_) {} hsUpdateCart(); }
             if (salesView !== 'plan' || !ev) return;
             const box = document.getElementById('planBox');
             if (!box || typeof SeatMap === 'undefined') return;
