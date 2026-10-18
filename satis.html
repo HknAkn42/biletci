@@ -947,15 +947,18 @@
             
             showConfirm("SATIŞI İPTAL ET", "Satışı iptal edip masayı boşa çıkarmak istiyor musunuz? Bu işlem geri alınamaz.", async () => {
                 const targetM = ev.categories.find(c => c.id === basket[0].cat.id).masalar.find(mm => mm.id === editId);
+                const _no = targetM.no;
+                // 1) Yerelde boşa çıkar ve kaydet (bayat eşitleme bileti geri yazamasın)
+                targetM.isSold = false;
+                delete targetM.soldTo;
+                delete targetM.saleDetail;
+                save();
+                // 2) Sunucuda iptal et; başarısız olursa sunucudaki gerçek duruma geri dön
                 const _st = window.BiletProOnlineStore;
                 if (_st && _st.getMode && _st.getMode() === 'online') {
-                    const _r = await _st.cancelTicketOnline(ev.id, targetM.no);
-                    if (!_r.ok) { showToast('İptal sunucuya yazılamadı: ' + (_r.reason || ''), 'error'); return; }
+                    const _r = await _st.cancelTicketOnline(ev.id, _no);
+                    if (!_r.ok) { showToast('İptal sunucuya yazılamadı: ' + (_r.reason || ''), 'error'); try { await refreshLocalFromServer(); } catch (_) {} return; }
                 }
-                targetM.isSold = false; 
-                delete targetM.soldTo; 
-                delete targetM.saleDetail;
-                save(); 
                 if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Satış", "Satış İptal", `Masa ${targetM.no} satışı iptal edildi (${session.name})`);
                 showToast("SATIŞ İPTAL EDİLDİ", "error"); 
                 reset();

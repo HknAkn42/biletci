@@ -223,6 +223,7 @@
                 .in('event_id', ids)
                 .limit(20000);
             if (error || !Array.isArray(data)) return false;      // okunamadıysa yerel veriye dokunma
+            const cancelledSet = await this.getCancelledSet(true).catch(() => new Set());
             const byEv = new Map();
             data.forEach((r) => { if (!byEv.has(r.event_id)) byEv.set(r.event_id, new Map()); byEv.get(r.event_id).set(String(r.table_no), r); });
             let changed = false;
@@ -250,7 +251,8 @@
                             if ((Number(sd.debt) || 0) !== (Number(row.debt) || 0)) { sd.debt = Number(row.debt) || 0; changed = true; }
                             if ((Number(sd.paid) || 0) !== (Number(row.paid) || 0)) { sd.paid = Number(row.paid) || 0; changed = true; }
                         }
-                    } else if (!row && m.isSold && m.saleDetail && m.saleDetail.ticketHash) {
+                    } else if (m.isSold && m.saleDetail && m.saleDetail.ticketHash && cancelledSet.has(String(m.saleDetail.ticketHash))) {
+                        // Satış iptal edilmiş (başka cihazda): yerelde de boşa çıkar
                         m.isSold = false; delete m.soldTo; delete m.saleDetail; changed = true;
                     }
                 }));
@@ -258,12 +260,40 @@
             return changed;
         },
 
-        // Satış iptali: bilet satırını sunucudan siler (masa tekrar satılabilir olur)
+        // İptal edilen biletlerin listesi (mezar taşı): bayat cihazlar iptal edilmiş satışı geri yazamaz.
+        _cancelCache: { at: 0, set: new Set() },
+        async getCancelledSet(force) {
+            if (!force && Date.now() - this._cancelCache.at < 15000) return this._cancelCache.set;
+            if (this.mode !== 'online' || !this.client) return this._cancelCache.set;
+            const { data, error } = await this.client.from('app_config').select('value').eq('key', 'BiletPro_CancelledTickets').maybeSingle();
+            if (error) return this._cancelCache.set;
+            const arr = Array.isArray(data && data.value) ? data.value : [];
+            this._cancelCache = { at: Date.now(), set: new Set(arr.map(String)) };
+            return this._cancelCache.set;
+        },
+        async addCancelled(hashes) {
+            const list = (hashes || []).map(String).filter(Boolean);
+            if (!list.length) return { ok: true };
+            const cur = new Set(await this.getCancelledSet(true));
+            list.forEach(h => cur.add(h));
+            const arr = Array.from(cur).slice(-5000);
+            const { error } = await this.client.from('app_config').upsert({ key: 'BiletPro_CancelledTickets', value: arr }, { onConflict: 'key' });
+            if (error) return { ok: false, reason: error.message };
+            this._cancelCache = { at: Date.now(), set: new Set(arr) };
+            return { ok: true };
+        },
+
+        // Satış iptali: önce bilet kodu iptal listesine yazılır, sonra bilet satırı silinir (masa tekrar satılabilir olur)
         async cancelTicketOnline(legacyEventId, tableNo) {
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
             const { data: evRow, error: e1 } = await this.client.from('events').select('id').eq('legacy_event_id', String(legacyEventId)).maybeSingle();
             if (e1) return { ok: false, reason: e1.message };
             if (!evRow || !evRow.id) return { ok: true, reason: 'event_not_found_online' };
+            const { data: found, error: e2 } = await this.client.from('tickets').select('ticket_hash').eq('event_id', evRow.id).eq('table_no', String(tableNo)).neq('status', 'RESERVED');
+            if (e2) return { ok: false, reason: e2.message };
+            const hashes = (found || []).map(r => r.ticket_hash);
+            const t = await this.addCancelled(hashes);
+            if (!t.ok) return { ok: false, reason: t.reason };
             const { error } = await this.client.from('tickets').delete().eq('event_id', evRow.id).eq('table_no', String(tableNo)).neq('status', 'RESERVED');
             if (error) return { ok: false, reason: error.message };
             return { ok: true };
@@ -623,6 +653,12 @@
                 });
             });
 
+            // İptal edilmiş biletler geri yazılmaz (bayat cihaz, iptal edilen satışı diriltemez)
+            try {
+                const cancelled = ticketRows.length ? await this.getCancelledSet(true) : new Set();
+                for (let i = ticketRows.length - 1; i >= 0; i--) if (cancelled.has(String(ticketRows[i].ticket_hash))) ticketRows.splice(i, 1);
+            } catch (_) {}
+
             if (!ticketRows.length) {
                 // Çoklu kullanıcıda yanlışlıkla diğer cihaz satışlarını silmemek için
                 // "boş geldi -> hepsini sil" davranışı kaldırıldı.
@@ -709,6 +745,10 @@
             const dbIds = dbRows.map((r) => r.id).filter(Boolean);
 
             if (dbIds.length) {
+                try {
+                    const { data: old } = await this.client.from('tickets').select('ticket_hash').in('event_id', dbIds).limit(20000);
+                    await this.addCancelled((old || []).map(r => r.ticket_hash));
+                } catch (_) {}
                 const { error: delErr } = await this.client
                     .from('tickets')
                     .delete()

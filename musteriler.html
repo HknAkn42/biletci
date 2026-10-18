@@ -819,7 +819,7 @@
 
         function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
 
-        function confirmDeleteCustomer() {
+        async function confirmDeleteCustomer() {
             const _up = _getMusterilerUserPerms();
             if(!_up.isAdmin && !_up.pManageStaff) {
                 notify('YETKİNİZ YOK — Yalnızca yöneticiler müşteri silebilir', '#ef4444'); return;
@@ -827,17 +827,34 @@
             const c = customers.find(x => x.key === deletingCustomerKey);
             if(!c) return;
 
-            // Remove all saleDetails for this customer
+            // Bu müşterinin satışları: önce sunucudaki biletler silinir (masalar tekrar satılabilir olsun),
+            // sonra yerel kayıtlar temizlenir. Sunucuya yazılamazsa hiçbir şey silinmez.
+            const toCancel = [];
             events.forEach(ev => {
                 ev.categories?.forEach(cat => {
                     cat.masalar?.forEach(m => {
-                        if(m.isSold && m.saleDetail && m.saleDetail.phone === c.phone) {
-                            m.isSold = false;
-                            delete m.saleDetail;
-                        }
+                        if(m.isSold && m.saleDetail && m.saleDetail.phone === c.phone) toCancel.push({ ev, m });
                     });
                 });
             });
+            // 1) Yerelde boşa çıkar ve kaydet: bayat bir eşitleme bu biletleri sunucuya geri yazamasın
+            toCancel.forEach(t => { t.m.isSold = false; delete t.m.soldTo; delete t.m.saleDetail; });
+            localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
+            // 2) Sunucudaki biletleri iptal et; başarısız olursa sunucudaki gerçek duruma geri dön
+            const store = window.BiletProOnlineStore;
+            if (store) {
+                try { await store.init(); } catch (_) {}
+                if (store.getMode && store.getMode() === 'online') {
+                    for (const t of toCancel) {
+                        const r = await store.cancelTicketOnline(t.ev.id, t.m.no);
+                        if (!r.ok) {
+                            notify('SUNUCUDAKİ BİLET SİLİNEMEDİ: ' + (r.reason || ''), '#ef4444');
+                            try { await store.pullOnlineToLocal(); events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]'); processData(); renderCustomers(); } catch (_) {}
+                            return;
+                        }
+                    }
+                }
+            }
 
             localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(events));
             if(typeof writeAuditEvent === 'function') {

@@ -357,11 +357,18 @@
             }
             if(masa.isSold) { 
                 // YENİ: showConfirm kullanımı
-                showConfirm("SATIŞI İPTAL ET", "DİKKAT: Satılmış birimi boşa düşürmek istiyor musunuz? Tüm satış verileri silinir.", () => {
+                showConfirm("SATIŞI İPTAL ET", "DİKKAT: Satılmış birimi boşa düşürmek istiyor musunuz? Tüm satış verileri silinir.", async () => {
                     const _buyer = masa.soldTo || '?';
                     const _seller = (masa.saleDetail && masa.saleDetail.soldBy) || '?';
                     if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Gişeden Satış İptal', `Masa ${masa.no} | Alıcı: ${_buyer} | Satıcı: ${_seller} | Etkinlik: ${ev.title}`);
-                    masa.isSold = false; delete masa.soldTo; delete masa.saleDetail; saveAndRender(); showToast("Birim boşa düşürüldü.", "success");
+                    const _no = masa.no;
+                    masa.isSold = false; delete masa.soldTo; delete masa.saleDetail; saveAndRender();
+                    const _st = window.BiletProOnlineStore;
+                    if (_st && _st.getMode && _st.getMode() === 'online') {
+                        const _r = await _st.cancelTicketOnline(ev.id, _no);
+                        if (!_r.ok) { showToast("Sunucudaki bilet silinemedi: " + (_r.reason || ''), "error"); try { await _st.pullOnlineToLocal(); location.reload(); } catch (_) {} return; }
+                    }
+                    showToast("Birim boşa düşürüldü.", "success");
                 });
                 return; 
             }
