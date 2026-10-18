@@ -1,0 +1,38 @@
+name: Günlük yedek
+
+# Her gün 20:00 (Türkiye saati = 17:00 UTC) veritabanının şifreli yedeğini alır.
+# GitHub zamanlanmış işleri bazen birkaç dakika–yarım saat geciktirebilir.
+on:
+  schedule:
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yedek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Yedek al (şifreli)
+        env:
+          BACKUP_USER: yedekbot
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_OUT_DIR: yedek-cikti
+        run: node scripts/yedek-al.mjs
+
+      - name: Yedeği sakla (90 gün)
+        uses: actions/upload-artifact@v4
+        with:
+          name: biletpro-yedek-${{ github.run_id }}
+          path: yedek-cikti/*.bpy
+          retention-days: 90
+          if-no-files-found: error
