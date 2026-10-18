@@ -39,6 +39,7 @@
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
     <script src="menu.js?v=20261018"></script>
+    <script src="seatmap.js?v=1"></script>
 
     <div class="flex flex-col h-screen">
         <header class="px-3 sm:px-5 lg:px-[40px] py-3 flex flex-wrap items-center justify-between gap-3 bg-white/85 backdrop-blur-[30px] border-b border-[#e2e8f0] z-[100] shrink-0">
@@ -54,13 +55,15 @@
 
         <main class="split-main flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[30px] no-scrollbar">
             <div class="max-w-[1500px] mx-auto w-full space-y-5">
-                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3" id="stats"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3" id="stats"></div>
 
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="flex flex-wrap gap-2" id="chips"></div>
                     <input id="q" type="search" placeholder="Masa no veya isim ara…" class="input-silk !mb-0 !w-full sm:!w-[260px] sm:ml-auto" oninput="render()">
                 </div>
 
+                <div class="flex gap-2"><button id="vList" class="chip on" onclick="setView('list')">Liste</button><button id="vPlan" class="chip" onclick="setView('plan')">Plan (sahne ve masalar)</button></div>
+                <div id="planBox" class="hidden" style="height:66vh;min-height:420px"></div>
                 <div id="groups" class="space-y-6"></div>
             </div>
         </main>
@@ -113,7 +116,7 @@
             layout.forEach(l => {
                 const ts = byNo.get(l.no);
                 seen.add(l.no);
-                out.push({ no: l.no, cat: l.cat, color: l.color, t: ts ? ts[0] : null, extra: ts ? ts.slice(1) : [] });
+                out.push({ no: l.no, cat: l.cat, color: l.color, cap: l.kapasite, t: ts ? ts[0] : null, extra: ts ? ts.slice(1) : [] });
             });
             // düzende olmayan ama satılmış masalar
             byNo.forEach((ts, no) => { if (!seen.has(no)) out.push({ no, cat: ts[0].category_name || 'Genel', t: ts[0], extra: ts.slice(1) }); });
@@ -123,11 +126,13 @@
 
         function counts(all) {
             const sold = all.filter(r => r.t && r.st !== 'rsv');
+            const emptySeats = sold.reduce((a, r) => a + Math.max(0, (Number(r.cap) || 0) - (Number(r.t.people_count) || 0)), 0);
             const peopleIn = tickets.reduce((a, t) => a + (String(t.status).toUpperCase() === 'INSIDE' ? (t.inside_count || 0) : 0), 0);
             const realTickets = tickets.filter(t => String(t.status).toUpperCase() !== 'RESERVED');
             return {
                 free: all.filter(r => !r.t).length,
                 rsv: all.filter(r => r.st === 'rsv').length,
+                emptySeats,
                 sold: sold.length,
                 in: sold.filter(r => r.st === 'in').length,
                 out: sold.filter(r => r.st === 'out').length,
@@ -151,6 +156,7 @@
                 ['out', c.out, 'Dışarıda'],
                 ['debt', c.debt, 'Borçlu masa'],
                 ['rsv', c.rsv, 'Rezerve (ödeme bekliyor)'],
+                ['wait', c.emptySeats, 'Boş koltuk (satılan masalarda)'],
                 ['', c.peopleIn + ' / ' + c.people, 'İçerideki kişi / toplam']
             ].map(([cls, n, l]) => `<div class="stat ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 
@@ -185,15 +191,47 @@
                         return `<div class="tbl s-${r.st}">
                             <div class="flex items-center justify-between"><span class="no">${esc(r.no)}</span><span class="tag ${tagCls}">${tagTxt}</span></div>
                             <div class="nm">${t ? esc(t.customer_name || '—') : '—'}${r.extra.length ? ` <span class="text-slate-400">+${r.extra.length}</span>` : ''}</div>
-                            <div class="sub"><span>${t ? (r.st === 'rsv' ? `${t.people_count || 0} kişi · rezerve` : `${t.inside_count || 0}/${t.people_count || 0} kişi`) : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
+                            <div class="sub"><span>${t ? (r.st === 'rsv' ? `${t.people_count || 0} kişi · rezerve` : `${t.inside_count || 0}/${t.people_count || 0} kişi` + (r.cap && t.people_count < r.cap ? ` · <b style="color:var(--warning-text)">${r.cap - t.people_count} koltuk boş</b>` : '')) : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
                             ${debt || phone ? `<div class="sub">${debt}${phone}</div>` : ''}
                         </div>`;
                     }).join('') + '</div></section>';
             }).join('');
+            if (typeof refreshPlan === 'function') refreshPlan();
             document.getElementById('groups').innerHTML = html || '<div class="p-10 text-center text-slate-500 stat">Bu filtreye uyan masa yok.</div>';
         }
 
         function setFilter(k) { filter = k; render(); }
+
+        let view = (function () { try { return localStorage.getItem('BiletPro_MasalarView') === 'plan' ? 'plan' : 'list'; } catch (_) { return 'list'; } })();
+        let planCtrl = null, planEvRef = null, planByNo = new Map();
+        function setView(v) { view = v === 'plan' ? 'plan' : 'list'; try { localStorage.setItem('BiletPro_MasalarView', view); } catch (_) {} applyView(); }
+        function applyView() {
+            const plan = view === 'plan';
+            document.getElementById('planBox').classList.toggle('hidden', !plan);
+            document.getElementById('groups').classList.toggle('hidden', plan);
+            document.getElementById('vList').classList.toggle('on', !plan);
+            document.getElementById('vPlan').classList.toggle('on', plan);
+            refreshPlan(true);
+        }
+        function refreshPlan(force) {
+            if (view !== 'plan') return;
+            const ev = localEvent(); if (!ev) return;
+            planByNo = new Map(rows().map(r => [String(r.no), r]));
+            const stateOf = (cat, m, key) => {
+                const r = planByNo.get(String(key)); const t = r && r.t;
+                if (!t) return { state: 'free', sub: (m.kapasite || '') + ' kişi', title: 'Masa ' + m.no + ' · boş' };
+                const nm = String(t.customer_name || '');
+                if (r.st === 'in') return { state: 'st-in', sub: (t.inside_count || 0) + '/' + (t.people_count || 0), title: 'Masa ' + m.no + ' · içeride · ' + nm };
+                if (r.st === 'out') return { state: 'st-out', sub: 'dışarıda', title: 'Masa ' + m.no + ' · dışarıda · ' + nm };
+                if (r.st === 'rsv') return { state: 'reserved', sub: nm.slice(0, 9), title: 'Masa ' + m.no + ' · rezerve · ' + nm };
+                return { state: 'st-wait', sub: nm.slice(0, 9), title: 'Masa ' + m.no + ' · henüz girmedi · ' + nm };
+            };
+            const box = document.getElementById('planBox');
+            if (!planCtrl || force || planEvRef !== ev) {
+                planEvRef = ev;
+                planCtrl = SeatMap.create(box, ev, { mode: 'view', getState: (c, m, k) => stateOf(c, m, k), legend: [[['var(--success)', 'var(--success-soft)'], 'İçeride'], [['var(--primary)', 'var(--primary-soft)'], 'Dışarıda'], [['var(--warning)', 'var(--warning-soft)'], 'Henüz girmedi / rezerve'], [['var(--border-strong)', 'var(--surface)'], 'Boş']] });
+            } else { planCtrl.refresh(); }
+        }
 
         function setLive(ok, txt) {
             document.getElementById('liveDot').className = 'live-dot' + (ok ? '' : ' err');
@@ -231,6 +269,7 @@
 
         buildLayout();
         render();
+        applyView();
         setTimeout(() => refresh(), 400);
         setInterval(() => { if (!document.hidden) refresh(); }, 5000);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

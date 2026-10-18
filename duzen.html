@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>BiletPro | Oturma Düzeni</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="theme.css">
+    <style>
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px; }
+        .panel h3 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+        .tpl { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); margin-bottom: 8px; cursor: pointer; transition: border-color .15s, background .15s; }
+        .tpl:hover { border-color: var(--primary); background: var(--primary-soft); }
+        .tpl b { display: block; font-size: 13.5px; color: var(--text); }
+        .tpl span { font-size: 12px; color: var(--muted); }
+        .btn2 { height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+        .btn2:hover { background: var(--surface-3); }
+        .btn2.pri { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+        .btn2[disabled] { opacity: .45; cursor: not-allowed; }
+        .row2 { display: flex; flex-wrap: wrap; gap: 6px; }
+        .fld { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 8px 0 4px; }
+        .fld + input, .fld + select { width: 100%; }
+        .save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; }
+        .save-dot.busy { background: var(--warning); }
+        @media (min-width: 1024px) { #canvasBox { height: calc(100vh - 150px); } }
+        @media (max-width: 1023px) { #canvasBox { height: 62vh; } }
+    </style>
+</head>
+<body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
+    <script src="menu.js?v=20261018"></script>
+    <script src="seatmap.js?v=1"></script>
+
+    <div class="flex flex-col h-screen">
+        <header class="px-3 sm:px-5 lg:px-[40px] py-3 flex flex-wrap items-center justify-between gap-3 bg-white/85 border-b border-[#e2e8f0] z-[100] shrink-0">
+            <div class="min-w-0">
+                <p class="text-[11px] font-semibold text-blue-600 tracking-wide">Yönetici</p>
+                <h1 id="headTitle" class="text-lg sm:text-xl font-bold truncate">Oturma düzeni</h1>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[12.5px] text-slate-500"><span id="saveDot" class="save-dot"></span> <span id="saveTxt">Kaydedildi</span></span>
+                <button class="btn2" id="undoBtn" onclick="undo()">↶ Geri al</button>
+                <button class="btn2" id="redoBtn" onclick="redo()">↷ İleri al</button>
+                <button class="btn2 pri" onclick="saveNow(true)">Kaydet</button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-[24px] no-scrollbar">
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 max-w-[1700px] mx-auto">
+                <div>
+                    <div id="canvasBox"></div>
+                    <p class="text-[12.5px] text-slate-500 mt-2">Masayı sürükleyerek taşıyın. Birden çok masa seçmek için Shift ile tıklayın. Boş alanı sürükleyerek kaydırın, tekerlek ya da + / − ile yakınlaştırın. Ok tuşları seçileni hareket ettirir (Shift ile daha büyük adım).</p>
+                </div>
+
+                <aside class="space-y-3">
+                    <div class="panel">
+                        <h3>Hazır taslaklar</h3>
+                        <div id="tplList"></div>
+                        <p class="text-[12px] text-slate-500">Taslak seçince masalar yeniden dizilir; sonra elle değiştirebilirsiniz.</p>
+                    </div>
+
+                    <div class="panel" id="selPanel">
+                        <h3>Seçili öğe</h3>
+                        <div id="selBody" class="text-[13px] text-slate-500">Bir masa, sahne ya da alan seçin.</div>
+                    </div>
+
+                    <div class="panel">
+                        <h3>Alan ekle</h3>
+                        <div class="row2">
+                            <button class="btn2" onclick="addLabel('Bar')">Bar</button>
+                            <button class="btn2" onclick="addLabel('DJ')">DJ</button>
+                            <button class="btn2" onclick="addLabel('Giriş')">Giriş</button>
+                            <button class="btn2" onclick="addLabel('WC')">WC</button>
+                            <button class="btn2" onclick="addLabel('Pist')">Pist</button>
+                            <button class="btn2" onclick="addLabel('Metin')">+ Metin</button>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <h3>Kategoriye göre seç</h3>
+                        <select id="catSel" class="input-silk !mb-2" onchange="selectCategory(this.value)"></select>
+                        <h3 class="mt-3">Plan boyutu</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="fld" style="margin-top:0">Genişlik</label><input id="canW" type="number" min="600" max="3000" step="50" class="input-silk !mb-0" onchange="setCanvas()"></div>
+                            <div><label class="fld" style="margin-top:0">Yükseklik</label><input id="canH" type="number" min="500" max="4000" step="50" class="input-silk !mb-0" onchange="setCanvas()"></div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        injectMenu('duzen', eventId);
+        const esc = (v) => (window.BiletProSecurity ? window.BiletProSecurity.escapeHtml(v) : String(v ?? ''));
+
+        let events = [];
+        let ev = null;
+        let ctrl = null;
+        let sel = { tables: [], labels: [], stage: false };
+        const history = []; let hIdx = -1; let saveTimer = null; let restoring = false;
+
+        function load() {
+            try { events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || []; } catch (_) { events = []; }
+            ev = events.find(e => String(e.id) === String(eventId));
+        }
+
+        if (!eventId) {
+            document.querySelector('main').innerHTML = '<div class="p-10 text-center text-slate-500">Önce Kontrol Paneli\'nden bir etkinlik seçin, sonra menüden "Oturma Düzeni"ne girin.</div>';
+        } else {
+            load();
+            if (!ev) {
+                document.querySelector('main').innerHTML = '<div class="p-10 text-center text-slate-500">Etkinlik bulunamadı.</div>';
+            } else { init(); }
+        }
+
+        function init() {
+            document.getElementById('headTitle').textContent = (ev.title || 'Etkinlik') + ' · Oturma düzeni';
+            SeatMap.ensureLayout(ev);
+            // şablon listesi
+            document.getElementById('tplList').innerHTML = Object.entries(SeatMap.templates).map(([k, t]) =>
+                `<button class="tpl" onclick="applyTpl('${k}')"><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('');
+            // kategori listesi
+            document.getElementById('catSel').innerHTML = '<option value="">Kategori seçin…</option>' + (ev.categories || []).map((c, i) => `<option value="${i}">${esc(c.name)} (${(c.masalar || []).filter(m => !m.isDeleted).length})</option>`).join('');
+            build();
+            pushHistory();
+        }
+
+        function build() {
+            ctrl = SeatMap.create(document.getElementById('canvasBox'), ev, {
+                mode: 'edit',
+                onChange: onLayoutChange,
+                onSelect: (s) => { sel = s; renderSel(); },
+                getState: () => ({ state: 'free' })
+            });
+            syncCanvasInputs();
+            renderSel();
+        }
+
+        function syncCanvasInputs() { document.getElementById('canW').value = ev.layout.w; document.getElementById('canH').value = ev.layout.h; }
+
+        /* ---- geçmiş (geri al / ileri al) ---- */
+        function pushHistory() {
+            if (restoring) return;
+            const snap = JSON.stringify(ev.layout);
+            if (history[hIdx] === snap) return;
+            history.splice(hIdx + 1); history.push(snap); if (history.length > 60) history.shift(); hIdx = history.length - 1;
+            updUndo();
+        }
+        function updUndo() { document.getElementById('undoBtn').disabled = hIdx <= 0; document.getElementById('redoBtn').disabled = hIdx >= history.length - 1; }
+        function undo() { if (hIdx <= 0) return; hIdx--; restore(); }
+        function redo() { if (hIdx >= history.length - 1) return; hIdx++; restore(); }
+        function restore() { restoring = true; ev.layout = JSON.parse(history[hIdx]); build(); restoring = false; updUndo(); scheduleSave(); }
+
+        /* ---- kaydetme ---- */
+        function onLayoutChange() { pushHistory(); scheduleSave(); syncCanvasInputs(); }
+        function scheduleSave() {
+            document.getElementById('saveDot').className = 'save-dot busy'; document.getElementById('saveTxt').textContent = 'Kaydediliyor…';
+            clearTimeout(saveTimer); saveTimer = setTimeout(() => saveNow(false), 700);
+        }
+        function saveNow(manual) {
+            clearTimeout(saveTimer);
+            try {
+                // başka sekmede / cihazdan gelen en güncel etkinlik verisini koru, yalnızca layout'u yaz
+                const fresh = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || [];
+                const i = fresh.findIndex(e => String(e.id) === String(eventId));
+                if (i >= 0) { fresh[i].layout = ev.layout; } else { fresh.push(ev); }
+                localStorage.setItem('EventPro_DB_Ultimate_Final', JSON.stringify(fresh));
+                events = fresh;
+                if (typeof writeAuditEvent === 'function' && manual) writeAuditEvent('Etkinlik', 'Oturma Düzeni Kaydedildi', (ev.title || '') + ' oturma düzeni güncellendi.');
+            } catch (e) { console.error(e); if (typeof showToast === 'function') showToast('Kaydedilemedi', 'error'); return; }
+            document.getElementById('saveDot').className = 'save-dot';
+            document.getElementById('saveTxt').textContent = 'Kaydedildi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            if (manual && typeof showToast === 'function') showToast('Oturma düzeni kaydedildi.', 'success');
+        }
+
+        /* ---- taslak ---- */
+        function applyTpl(k) {
+            if (!confirm('Masalar bu taslağa göre yeniden dizilecek. Mevcut yerleşim değişecek (Geri al ile dönebilirsiniz). Devam edilsin mi?')) return;
+            SeatMap.applyTemplate(ev, k);
+            build(); onLayoutChange();
+        }
+
+        /* ---- seçim paneli ---- */
+        function selectedTables() { return sel.tables.map(k => ev.layout.tables[k]).filter(Boolean); }
+
+        function renderSel() {
+            const box = document.getElementById('selBody');
+            const nT = sel.tables.length, nL = sel.labels.length;
+            if (!nT && !nL && !sel.stage) { box.innerHTML = 'Bir masa, sahne ya da alan seçin.'; return; }
+            let h = '';
+            if (sel.stage) {
+                const S = ev.layout.stage;
+                h += `<label class="fld">Sahne yazısı</label><input class="input-silk !mb-2" value="${esc(S.label)}" oninput="editStage('label', this.value)">
+                      <div class="grid grid-cols-2 gap-2"><div><label class="fld">Genişlik</label><input type="number" class="input-silk !mb-0" value="${S.w}" min="80" step="10" onchange="editStage('w', +this.value)"></div>
+                      <div><label class="fld">Yükseklik</label><input type="number" class="input-silk !mb-0" value="${S.h}" min="40" step="10" onchange="editStage('h', +this.value)"></div></div>`;
+            }
+            if (nL) {
+                const l = ev.layout.labels.find(x => x.id === sel.labels[0]);
+                if (l) h += `<label class="fld">Alan yazısı</label><input class="input-silk !mb-2" value="${esc(l.text)}" oninput="editLabel('${esc(l.id)}','text',this.value)">
+                      <div class="grid grid-cols-2 gap-2"><div><label class="fld">Genişlik</label><input type="number" class="input-silk !mb-0" value="${l.w}" min="30" step="10" onchange="editLabel('${esc(l.id)}','w',+this.value)"></div>
+                      <div><label class="fld">Yükseklik</label><input type="number" class="input-silk !mb-0" value="${l.h}" min="30" step="10" onchange="editLabel('${esc(l.id)}','h',+this.value)"></div></div>
+                      <button class="btn2 mt-3" style="color:var(--danger-text)" onclick="deleteLabels()">Alanı sil</button>`;
+            }
+            if (nT) {
+                h += `<p class="mb-2"><b>${nT}</b> masa seçili${nT === 1 ? ' (Masa ' + esc(sel.tables[0]) + ')' : ''}</p>
+                      <label class="fld" style="margin-top:0">Şekil</label>
+                      <div class="row2"><button class="btn2" onclick="setShape('round')">Yuvarlak</button><button class="btn2" onclick="setShape('square')">Kare</button><button class="btn2" onclick="setShape('rect')">Dikdörtgen</button></div>
+                      <label class="fld">Döndür (derece)</label>
+                      <div class="row2"><button class="btn2" onclick="rotateSel(-15)">⟲ 15°</button><button class="btn2" onclick="rotateSel(15)">⟳ 15°</button><button class="btn2" onclick="rotateSel(90)">90°</button><button class="btn2" onclick="rotateSel(0, true)">Sıfırla</button></div>`;
+                if (nT > 1) h += `<label class="fld">Hizala</label>
+                      <div class="row2"><button class="btn2" onclick="alignSel('y')">Aynı satır</button><button class="btn2" onclick="alignSel('x')">Aynı sütun</button></div>
+                      <label class="fld">Eşit aralık</label>
+                      <div class="row2"><button class="btn2" onclick="distribute('x')">Yatay</button><button class="btn2" onclick="distribute('y')">Dikey</button></div>`;
+            }
+            box.innerHTML = h;
+        }
+
+        function commit() { ctrl.refresh(); onLayoutChange(); }
+        function editStage(f, v) { ev.layout.stage[f] = v; ctrl.refresh(); onLayoutChangeDebounced(); }
+        function editLabel(id, f, v) { const l = ev.layout.labels.find(x => x.id === id); if (!l) return; l[f] = v; ctrl.refresh(); onLayoutChangeDebounced(); }
+        let dbT = null; function onLayoutChangeDebounced() { clearTimeout(dbT); dbT = setTimeout(onLayoutChange, 400); }
+        function setShape(s) { selectedTables().forEach(p => p.shape = s); commit(); }
+        function rotateSel(deg, reset) { selectedTables().forEach(p => { p.r = reset ? 0 : (((Number(p.r) || 0) + deg) % 360 + 360) % 360; }); commit(); }
+        function snap(v) { const g = ev.layout.grid || 10; return Math.round(v / g) * g; }
+        function alignSel(axis) { const ps = selectedTables(); if (ps.length < 2) return; const avg = snap(ps.reduce((a, p) => a + p[axis], 0) / ps.length); ps.forEach(p => p[axis] = avg); commit(); }
+        function distribute(axis) {
+            const ps = selectedTables().sort((a, b) => a[axis] - b[axis]); if (ps.length < 3) { if (typeof showToast === 'function') showToast('Eşit aralık için en az 3 masa seçin.', 'info'); return; }
+            const min = ps[0][axis], max = ps[ps.length - 1][axis], step = (max - min) / (ps.length - 1);
+            ps.forEach((p, i) => p[axis] = snap(min + step * i)); commit();
+        }
+        function deleteLabels() { ev.layout.labels = ev.layout.labels.filter(l => !sel.labels.includes(String(l.id))); sel = { tables: [], labels: [], stage: false }; ctrl.select([], false); commit(); renderSel(); }
+        function addLabel(text) {
+            const L = ev.layout, id = 'l' + Date.now();
+            const big = text === 'Pist';
+            L.labels.push({ id, kind: big ? 'pist' : 'label', x: Math.round(L.w / 2 - 70), y: Math.round(L.h / 2 - 25), w: big ? 280 : 140, h: big ? 160 : 50, text });
+            commit(); ctrl.select(['L:' + id], false);
+        }
+        function selectCategory(i) {
+            if (i === '') return; const c = ev.categories[+i]; if (!c) return;
+            ctrl.select((c.masalar || []).filter(m => !m.isDeleted).map(m => String(m.no)), false);
+        }
+        function setCanvas() {
+            const w = Math.max(600, Math.min(3000, +document.getElementById('canW').value || ev.layout.w));
+            const h = Math.max(500, Math.min(4000, +document.getElementById('canH').value || ev.layout.h));
+            ev.layout.w = w; ev.layout.h = h; ctrl.relayout(); onLayoutChange();
+        }
+
+        // Düzenleme sırasında sayfanın uzaktan veri değişimiyle yeniden yüklenmesini engelle (yarım kalan işi kaybetmeyelim)
+        window.addEventListener('biletpro:data-updated', (e) => e.preventDefault());
+
+        window.addEventListener('beforeunload', () => { if (saveTimer) saveNow(false); });
+    </script>
+</body>
+</html>

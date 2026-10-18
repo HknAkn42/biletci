@@ -26,6 +26,8 @@
         .radar-box input:focus { border-color: #0f172a !important; }
         .radar-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
 
+        .chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .chip.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
         .live-lock-shell { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 14px 16px; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04); }
         .live-lock-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -195,6 +197,7 @@
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
 
     <script src="menu.js?v=20260330"></script>
+    <script src="seatmap.js?v=1"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
@@ -342,6 +345,11 @@
                         </div>
                         <div id="liveLockPanel" class="flex flex-wrap gap-2"></div>
                     </div>
+                    <div class="flex items-center gap-2" id="viewToggle">
+                        <button type="button" id="vtList" class="chip on" onclick="setSalesView('list')">Liste</button>
+                        <button type="button" id="vtPlan" class="chip" onclick="setSalesView('plan')">Plan (sahne ve masalar)</button>
+                    </div>
+                    <div id="planBox" class="hidden" style="height:66vh;min-height:420px"></div>
                     <div id="masterList" class="space-y-8"></div>
                 </section>
             </div>
@@ -1069,6 +1077,70 @@
             await loadReservations(); render();
         }
 
+        // ───── PLAN GÖRÜNÜMÜ (sahne + masa yerleşimi) ─────
+        let salesView = 'list';
+        let planCtrl = null;
+        let planEvRef = null;
+        try { salesView = localStorage.getItem('BiletPro_SatisView') === 'plan' ? 'plan' : 'list'; } catch (_) {}
+
+        function planMatches(m) {
+            if (searchTerm && !(String(m.no).includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm)))) return false;
+            if (personFilterCount > 0 && window.__relCaps && window.__relCaps.size && !window.__relCaps.has(m.kapasite)) return false;
+            return true;
+        }
+
+        function planState(cat, m) {
+            const dim = planMatches(m) ? '' : 'dimmed';
+            if (m.isSold) return { state: 'sold', cls: dim, sub: (m.soldTo || '').slice(0, 10), title: 'Masa ' + m.no + ' · satılmış · ' + (m.soldTo || '') };
+            const r = reservedMap[String(m.no)];
+            if (basket.some(b => b.masa.id === m.id)) return { state: 'selected', cls: dim, title: 'Masa ' + m.no + ' · seçili' };
+            if (r) return { state: 'reserved', cls: dim, sub: (r.customer_name || 'rezerve').slice(0, 10), title: 'Masa ' + m.no + ' · rezerve · ' + (r.customer_name || '') };
+            const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const user = sess.name || sess.username || '';
+            const lk = window.bpSoftLock && window.bpSoftLock.getConflict(ev.id, m.no, user);
+            if (lk) return { state: 'locked', cls: dim, sub: String(lk.lockedBy || '').slice(0, 8), title: 'Masa ' + m.no + ' · ' + lk.lockedBy + ' işlemde' };
+            return { state: 'free', cls: dim, sub: m.kapasite + ' kişi', title: 'Masa ' + m.no + ' · ' + cat.name + ' · ₺' + (cat.pricePerPerson || 0).toLocaleString('tr-TR') + '/kişi' };
+        }
+
+        function setSalesView(mode) {
+            salesView = mode === 'plan' ? 'plan' : 'list';
+            try { localStorage.setItem('BiletPro_SatisView', salesView); } catch (_) {}
+            applySalesView();
+        }
+
+        function applySalesView() {
+            const plan = salesView === 'plan';
+            document.getElementById('planBox').classList.toggle('hidden', !plan);
+            document.getElementById('masterList').classList.toggle('hidden', plan);
+            document.getElementById('vtList').classList.toggle('on', !plan);
+            document.getElementById('vtPlan').classList.toggle('on', plan);
+            if (plan) refreshPlan(true);
+        }
+
+        function refreshPlan(force) {
+            if (salesView !== 'plan' || !ev) return;
+            const box = document.getElementById('planBox');
+            if (!box || typeof SeatMap === 'undefined') return;
+            if (!planCtrl || force || planEvRef !== ev) {
+                planEvRef = ev;
+                // Düzen daha önce hazırlanmadıysa kullanıcı Masa dizilimini otomatik görür (kaydedilmez; düzenleme için "Oturma Düzeni" sayfası)
+                planCtrl = SeatMap.create(box, ev, {
+                    mode: 'view',
+                    getState: planState,
+                    onTap: (cat, m) => selectMasa(cat.id, m.id),
+                    legend: [[['var(--border-strong)', 'var(--surface)'], 'Boş'], [['var(--primary)', 'var(--primary)'], 'Seçili'], [['var(--warning)', 'var(--warning-soft)'], 'Rezerve'], [['var(--border-strong)', 'var(--surface-3)'], 'Satılmış']]
+                });
+            } else { planCtrl.refresh(); }
+        }
+
+        // Masa kapasitesinden az kişiye satış: kişi sayısı 1..kapasite arasında ayarlanır (boş kalan koltuk kayıt altına alınır)
+        function setBasketPeople(masaId, delta) {
+            const it = basket.find(b => b.masa.id === masaId); if (!it) return;
+            const max = Number(it.masa.kapasite) || it.p;
+            it.p = Math.max(1, Math.min(max, it.p + delta));
+            render(); recalc();
+        }
+
         function reset() {
             // Soft lock'ları bırak
             if (window.bpSoftLock && ev) {
@@ -1751,7 +1823,13 @@
                 d.innerHTML = `
                     <div>
                         <p class="text-[11px] font-black uppercase text-slate-800">MASA ${esc(i.masa.no)}</p>
-                        <p class="text-[10px] text-blue-600 font-bold">${esc(i.p)} KİŞİ x ₺${esc(i.cat.pricePerPerson)}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <button type="button" onclick="setBasketPeople(${i.masa.id}, -1)" class="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold leading-none">−</button>
+                            <span class="text-[12px] font-bold text-blue-600 min-w-[64px] text-center">${esc(i.p)} / ${esc(i.masa.kapasite)} kişi</span>
+                            <button type="button" onclick="setBasketPeople(${i.masa.id}, 1)" class="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold leading-none">+</button>
+                            <span class="text-[10px] text-slate-500">x ₺${esc(i.cat.pricePerPerson)}</span>
+                        </div>
+                        ${i.p < i.masa.kapasite ? '<p class="text-[11px] font-semibold mt-1" style="color:var(--warning-text)">' + (i.masa.kapasite - i.p) + ' koltuk boş kalacak</p>' : ''}
                     </div>
                     <button onclick="removeB(${i.masa.id})" class="w-8 h-8 rounded-xl bg-red-50 text-red-500 font-black text-sm hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">×</button>
                 `;
@@ -1764,6 +1842,7 @@
 
             // === KİŞİ SAYISI FİLTRESİ ===
             let relevantCapacities = new Set();
+            window.__relCaps = relevantCapacities;
             if (personFilterCount > 0) {
                 const allAvailableCaps = [];
                 ev.categories.forEach(cat => {
@@ -1845,7 +1924,7 @@
                                     ${_conflictBadge}
                                     <p class="m-no">MASA</p>
                                     <p class="m-kap">${m.isSold ? 'DOLU' : m.no}</p>
-                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
+                                    <p class="m-alt">${m.isSold ? esc(m.soldTo) + (m.saleDetail && m.saleDetail.people && m.saleDetail.people < m.kapasite ? ' · <span style="color:var(--warning-text)">' + m.saleDetail.people + '/' + m.kapasite + '</span>' : '') : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
                                     ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
                                     <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${m.isSold ? '0.2' : '0.6'}"></div>
                                 </div>
@@ -1857,11 +1936,13 @@
             });
 
             renderLiveLocks();
+            if (typeof refreshPlan === "function") refreshPlan();
         }
         
         // Başlangıçta personelleri listeye ekle
         loadStaff();
         render();
+        applySalesView();
         setTimeout(loadReservations, 600);
         setInterval(() => { if (!document.hidden) loadReservations(); }, 6000);
 

@@ -738,11 +738,10 @@
                 return { ok: false, reason: 'event_upsert_failed' };
             }
 
-            const { data, error } = await this.client.rpc('ticket_sale_atomic', {
-                p_legacy_event_id: String(legacyEvent.id),
-                p_tickets: rows,
-                p_convert_tables: Array.isArray(convertTables) ? convertTables.map(String) : []
-            });
+            // p_convert_tables yalnızca rezervasyon satışa çevrilirken gönderilir (eski/yeni SQL sürümüyle uyumlu kalır)
+            const rpcArgs = { p_legacy_event_id: String(legacyEvent.id), p_tickets: rows };
+            if (Array.isArray(convertTables) && convertTables.length) rpcArgs.p_convert_tables = convertTables.map(String);
+            const { data, error } = await this.client.rpc('ticket_sale_atomic', rpcArgs);
 
             if (error) {
                 console.error('[BiletPro OnlineStore] atomicSaleCreate rpc error:', error);

@@ -699,6 +699,8 @@ html body .masalar-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 
   html body .split-layout > aside .mb-8, html body .split-layout > aside .mb-10 { margin-bottom: 16px; }
 }
 
+.sm-t.dimmed { opacity: .22; }
+
 /* ===== Rezerve masa ===== */
 html body :is(.masa-silk, .unit-silk).reserved { background: var(--warning-soft); border: 1px dashed var(--warning); }
 html body :is(.masa-silk, .unit-silk).reserved .m-alt { color: var(--warning-text); font-weight: 600; }
