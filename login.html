@@ -107,6 +107,7 @@
         .login-toast.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
         .login-toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
     </style>
+    <link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -126,6 +127,16 @@
             <input type="text" id="username" class="input-premium" placeholder="Kullanıcı Adı">
             <input type="password" id="password" class="input-premium" placeholder="Şifre" style="text-transform: none;">
             <button onclick="handleInitialLogin()" class="btn-main">GİRİŞİ KAYDET</button>
+        </div>
+
+        <div id="stepSetup" class="hidden animate-fade">
+            <p class="text-xs font-bold text-slate-300 mb-6 leading-relaxed">Sistemde henüz kullanıcı yok.<br>İlk yönetici hesabını oluşturun.</p>
+            <input type="text" id="setupName" class="input-premium" placeholder="Ad Soyad" style="text-transform: none;">
+            <input type="text" id="setupUser" class="input-premium" placeholder="Kullanıcı Adı" style="text-transform: none;">
+            <input type="password" id="setupPass" class="input-premium" placeholder="Şifre (en az 8 karakter)" style="text-transform: none;">
+            <input type="password" id="setupPass2" class="input-premium" placeholder="Şifre (tekrar)" style="text-transform: none;">
+            <input type="password" id="setupSettingsPin" inputmode="numeric" class="input-premium" placeholder="Ayarlar PIN (4-12 rakam)" style="text-transform: none;">
+            <button onclick="handleSetupAdmin()" class="btn-main">YÖNETİCİ HESABINI OLUŞTUR</button>
         </div>
 
         <div id="stepCreatePin" class="hidden animate-fade">
@@ -154,7 +165,6 @@
     </div>
 
     <script>
-        // MASTER ADMIN ZORUNLU KONTROLÜ
         let staff = [];
         const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
 
@@ -163,27 +173,9 @@
             if (!Array.isArray(staff)) staff = [];
         }
 
-        function ensureMasterUser() {
-            const hasAdmin = staff.some(u => String((u && u.role) || '').trim().toLowerCase() === 'admin');
-            if (hasAdmin) return;
-
-            let hakanIndex = staff.findIndex(u => normalizeUsername(u && u.username) === "hakan");
-            if (hakanIndex === -1) {
-                staff.push({ username: "Hakan", password: "52655265", pin: null, name: "Hakan Akın", role: "admin", isActive: true, perms: {} });
-            } else {
-                const existing = staff[hakanIndex] || {};
-                staff[hakanIndex] = {
-                    ...existing,
-                    password: existing.password || "52655265",
-                    role: "admin",
-                    isActive: true,
-                    perms: { ...(existing.perms || {}) }
-                };
-            }
-            localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
-        }
-
         let __lastStaffSyncAt = 0;
+        // Yalnızca online veritabanına ulaşılıp personel kaydı gerçekten yoksa true olur.
+        let __onlineStaffEmpty = false;
         async function refreshStaffFromOnline(force = false) {
             const now = Date.now();
             if (!force && now - __lastStaffSyncAt < 5000) return;
@@ -192,18 +184,17 @@
                 if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.init === 'function') {
                     const initRes = await window.BiletProOnlineStore.init();
                     if (initRes && initRes.mode === 'online' && typeof window.BiletProOnlineStore.pullStaffFromOnline === 'function') {
-                        await window.BiletProOnlineStore.pullStaffFromOnline();
+                        const pullRes = await window.BiletProOnlineStore.pullStaffFromOnline();
+                        __onlineStaffEmpty = !!(pullRes && pullRes.reason === 'no_staff_data');
                     }
                 }
             } catch (_) {}
 
             loadStaffFromLocal();
-            ensureMasterUser();
             __lastStaffSyncAt = now;
         }
 
         loadStaffFromLocal();
-        ensureMasterUser();
 
         let lastUser = null;
         let tempUser = null; 
@@ -215,11 +206,46 @@
             await refreshStaffFromOnline(true);
             sessionStorage.removeItem('BiletPro_LoggedInTab');
             localStorage.removeItem('BiletPro_LastUser');
-            showStep('stepLogin');
+            showStep(needsSetup() ? 'stepSetup' : 'stepLogin');
         };
+
+        function needsSetup() {
+            return __onlineStaffEmpty;
+        }
+
+        async function handleSetupAdmin() {
+            await refreshStaffFromOnline(true);
+            if (!needsSetup()) { showStep('stepLogin'); return; }
+            const name = document.getElementById('setupName').value.trim();
+            const username = normalizeUsername(document.getElementById('setupUser').value);
+            const pass = document.getElementById('setupPass').value;
+            const pass2 = document.getElementById('setupPass2').value;
+            const pin = document.getElementById('setupSettingsPin').value.trim();
+            if (!name || !username) return showLoginToast('❌ Ad ve kullanıcı adı zorunlu', 'error');
+            if (pass.length < 8) return showLoginToast('❌ Şifre en az 8 karakter olmalı', 'error');
+            if (pass !== pass2) return showLoginToast('❌ Şifreler aynı değil', 'error');
+            if (!/^[0-9]{4,12}$/.test(pin)) return showLoginToast('❌ Ayarlar PIN 4-12 rakam olmalı', 'error');
+
+            const perms = {};
+            ['pSale','pDiscount','pCancel','pDoor','pDoorPay','pDoorRisk','pManageEvents','pReports','pManageStaff','pViewLogs'].forEach(k => perms[k] = true);
+            const admin = { name, username, passwordHash: await window.BiletProSecurity.hashPassword(pass), pin: null, role: 'admin', isActive: true, perms };
+
+            const res = await window.BiletProOnlineStore.pushStaffToOnline([admin]);
+            if (!res || !res.ok) return showLoginToast('❌ Kaydedilemedi: ' + ((res && res.reason) || 'bağlantı yok'), 'error');
+
+            localStorage.setItem('BiletPro_Staff', JSON.stringify([admin]));
+            const cfg = window.BiletProCore.getConfig();
+            cfg.security = { ...(cfg.security || {}), settingsPin: pin };
+            window.BiletProCore.saveConfig(cfg);
+            loadStaffFromLocal();
+            __onlineStaffEmpty = false;
+            showLoginToast('✅ Yönetici hesabı oluşturuldu. Giriş yapın.', 'success');
+            showStep('stepLogin');
+        }
 
         function showStep(id) {
             document.getElementById('stepLogin').classList.add('hidden');
+            document.getElementById('stepSetup').classList.add('hidden');
             document.getElementById('stepCreatePin').classList.add('hidden');
             document.getElementById('stepPinLogin').classList.add('hidden');
             document.getElementById(id).classList.remove('hidden');
@@ -230,10 +256,19 @@
             const u = document.getElementById('username').value.trim().toLowerCase();
             const p = document.getElementById('password').value;
             
-            // Kullanıcı adını küçük harfe çevirip öyle arıyoruz
-            const user = staff.find(x => normalizeUsername(x && x.username) === u && String(x && x.password) === String(p));
+            const user = staff.find(x => normalizeUsername(x && x.username) === u && x && x.isActive !== false);
+            const verification = user && window.BiletProSecurity
+                ? await window.BiletProSecurity.verifyPassword(user.passwordHash || user.password, p)
+                : { ok: false };
 
-            if (user) {
+            if (user && verification.ok) {
+                // Eski düz metin şifreler başarılı girişte tek yönlü özete taşınır.
+                if (verification.legacy && window.BiletProSecurity) {
+                    user.passwordHash = await window.BiletProSecurity.hashPassword(p);
+                    delete user.password;
+                    localStorage.setItem('BiletPro_Staff', JSON.stringify(staff));
+                    window.BiletProOnlineStore?.pushStaffToOnline?.(staff).catch(() => {});
+                }
                 if(typeof window.writeAuditEvent === 'function') {
                     window.writeAuditEvent('Güvenlik', 'Giriş Başarılı (Şifre)', `${user.name || user.username} kullanıcı adı/şifre doğrulaması geçti.`);
                 }

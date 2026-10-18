@@ -265,6 +265,10 @@
             const base = window.BiletProCore.getConfig();
             const cfg = readFormToConfig(base);
             const nextPin = String((cfg.security && cfg.security.settingsPin) || '').trim();
+            if(!nextPin) {
+                if(typeof showToast === 'function') showToast('Ayarlar için yeni bir PIN belirlemelisiniz.', 'error');
+                return;
+            }
             if(nextPin && !/^\d{4,12}$/.test(nextPin)) {
                 if(typeof showToast === 'function') showToast('PIN sadece 4-12 haneli rakamlardan oluşmalı.', 'error');
                 return;

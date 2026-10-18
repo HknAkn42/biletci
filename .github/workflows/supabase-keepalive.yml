@@ -1,0 +1,20 @@
+name: Supabase keepalive
+
+# Ücretsiz Supabase projeleri 7 gün işlem almazsa duraklatılır.
+# Bu iş günde bir kez veritabanına hafif bir okuma isteği atar.
+on:
+  schedule:
+    - cron: '17 6 */2 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase'e istek at
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: sb_publishable_lYENVrZ-QIKlDSyzorUN1g_0qOELxt9" \
+            "https://xlwmzalusrhhmxbvrmdx.supabase.co/rest/v1/app_config?select=key&limit=1")
+          echo "HTTP $code"
+          test "$code" = "200"

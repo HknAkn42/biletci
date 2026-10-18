@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>EventPro | Bilet Satış Terminali</title>
+    <title>BiletPro | Bilet Satış Terminali</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
     
@@ -226,8 +226,8 @@
             </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pb-24 lg:pb-[150px] no-scrollbar">
-            <div class="grid grid-cols-1 lg:grid-cols-[430px_1fr] gap-5 lg:gap-[45px] items-start w-full max-w-[1850px]">
+        <main class="split-main flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pb-24 lg:pb-[150px] no-scrollbar">
+            <div class="split-layout grid grid-cols-1 lg:grid-cols-[430px_1fr] gap-5 lg:gap-[45px] items-start w-full max-w-[1850px]">
                 
                 <aside class="space-y-6">
                     <div class="silk-card animate-pop lg:sticky lg:top-4">
@@ -347,8 +347,8 @@
         </main>
     </div>
 
-    <div id="ticketModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6" style="background:rgba(4,5,10,0.92);backdrop-filter:blur(12px);">
-        <div class="w-full max-w-[440px] max-h-[95vh] overflow-y-auto no-scrollbar animate-pop relative pb-6 pt-6">
+    <div id="ticketModal" class="hidden fixed inset-0 z-[200000] flex items-center justify-center p-4 sm:p-6" style="background:rgba(4,5,10,0.92);backdrop-filter:blur(12px);">
+        <div class="w-full max-w-[440px] modal-scroll animate-pop relative pb-6 pt-6">
             
             <button onclick="closeTicketModal()" class="absolute top-0 right-4 text-white hover:text-red-400 transition-all font-black text-3xl no-print z-50">&times;</button>
 

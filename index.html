@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>EventPro | Kontrol Paneli</title>
+    <title>BiletPro | Kontrol Paneli</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
@@ -165,7 +165,7 @@
                 </div>
             </div>
 
-            <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 sm:gap-6 lg:gap-[45px] w-full max-w-[1850px]">
+            <div id="eventGrid" class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 sm:gap-6 lg:gap-5 w-full max-w-[1850px]">
             </div>
 
             <!-- SON İŞLEMLER (AUDIT LOG) BÖLÜMÜ -->
@@ -186,8 +186,8 @@
         </main>
     </div>
 
-    <div id="evModal" class="hidden fixed inset-0 modal-bg z-[8000] flex items-center justify-center p-3 sm:p-6">
-        <div class="bg-white w-full max-w-[650px] p-4 sm:p-[50px] rounded-[28px] sm:rounded-[45px] shadow-2xl animate-pop max-h-[95vh] overflow-y-auto no-scrollbar">
+    <div id="evModal" class="hidden fixed inset-0 modal-bg z-[200000] flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white w-full max-w-[650px] p-4 sm:p-[50px] rounded-[28px] sm:rounded-[45px] shadow-2xl animate-pop modal-scroll">
             <h3 id="modalTitle" class="text-2xl font-black text-slate-800 uppercase mb-10 italic tracking-tight">ETKİNLİK OLUŞTUR</h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
@@ -510,49 +510,50 @@
                 // Aktiflik Durumu
                 const isActive = ev.isActive !== false; // Varsayılan true
                 const passiveClass = isActive ? "" : "is-passive";
-                const badgeHtml = isActive 
-                    ? `<div class="absolute top-6 left-6 bg-green-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg z-20 tracking-widest">AKTİF</div>`
-                    : `<div class="absolute top-6 left-6 bg-slate-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg z-20 tracking-widest">PASİF</div>`;
-                
+                const badgeHtml = isActive
+                    ? `<span class="ev-badge ok">Aktif</span>`
+                    : `<span class="ev-badge off">Pasif</span>`;
+
                 const btnStateClass = isActive ? "" : "btn-disabled";
+                const ico = {
+                    pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+                    cal: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+                    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'
+                };
 
                 const card = document.createElement('div');
-                card.className = `event-card animate-pop ${passiveClass}`;
+                card.className = `event-card ev-compact animate-pop ${passiveClass}`;
                 card.innerHTML = `
-                    <div class="h-[260px] relative overflow-hidden bg-slate-50">
-                        ${badgeHtml}
-                        <img src="${cover}" class="cover-img w-full h-full object-cover transition-all duration-500">
-                        <div class="logo-mühür">
-                            <img src="${ev.logo || 'https://via.placeholder.com/150/f8fafc/94a3b8?text=LOGO'}" class="w-full h-full object-cover">
-                        </div>
-                        
-                        <div class="absolute top-3 right-3 flex flex-wrap justify-end gap-2 z-20 max-w-[82%]">
-                            ${canManage ? `
-                            <button onclick="toggleStatus('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${isActive ? 'text-amber-500 hover:bg-amber-500' : 'text-green-600 hover:bg-green-500'} hover:text-white font-black text-[9px] sm:text-[10px] uppercase shadow-lg transition-all">${isActive ? 'DURDUR' : 'BAŞLAT'}</button>
-                            <button onclick="editEvent('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-blue-600 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-blue-600 hover:text-white transition-all">DÜZENLE</button>
-                            <button onclick="deleteEvent('${safeId}')" class="bg-white/90 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-red-500 font-black text-[9px] sm:text-[10px] uppercase shadow-lg hover:bg-red-500 hover:text-white transition-all">SİL</button>
-                            ` : ''}
+                    <div class="ev-cover">
+                        <img src="${cover}" class="cover-img" alt="">
+                        <div class="ev-cover-top">
+                            ${badgeHtml}
+                            <div class="ev-actions">
+                                ${canManage ? `
+                                <button onclick="toggleStatus('${safeId}')" class="ev-icon-btn" title="${isActive ? 'Durdur' : 'Başlat'}">${isActive ? '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>' : '<svg viewBox="0 0 24 24"><path d="m7 4 13 8-13 8Z"/></svg>'}</button>
+                                <button onclick="editEvent('${safeId}')" class="ev-icon-btn" title="Düzenle"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                <button onclick="deleteEvent('${safeId}')" class="ev-icon-btn danger" title="Sil"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="p-4 sm:p-8 lg:p-[55px] sm:px-6 lg:px-[35px] pb-6 sm:pb-8 lg:pb-[35px] flex-1 flex flex-col relative z-20">
-                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 block">${esc(ev.company || 'GENEL OPERASYON')}</span>
-                        <h2 class="text-xl sm:text-3xl font-black text-slate-800 uppercase leading-[1.1] mb-4 sm:mb-5 tracking-tighter">${esc(ev.title)}</h2>
-                        
-                        <div class="grid grid-cols-2 gap-5 pt-6 border-t border-slate-100 mt-auto">
-                            <div><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">LOKASYON</span><p class="text-[12px] font-bold text-slate-700 truncate mt-1">📍 ${esc(ev.venue || 'Belirsiz')}</p></div>
-                            <div class="text-right"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">TARİH</span><p class="text-[13px] font-black text-slate-800 mt-1">${esc(ev.date || '-')}</p></div>
+                    <div class="ev-body">
+                        <div class="ev-head">
+                            <div class="ev-logo"><img src="${ev.logo || 'https://via.placeholder.com/150/f8fafc/94a3b8?text=LOGO'}" alt=""></div>
+                            <div class="ev-titles">
+                                <span class="ev-company">${esc(ev.company || 'Genel operasyon')}</span>
+                                <h2 class="ev-title">${esc(ev.title)}</h2>
+                            </div>
                         </div>
-                        
-                        <div class="flex flex-wrap gap-3 sm:gap-4 mt-5 p-4 sm:p-5 bg-slate-50 rounded-[24px] border border-slate-100">
-                            <div class="flex-1"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">KAPI AÇILIŞ</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${esc(ev.doorTime || '--:--')}</p></div>
-                            <div class="flex-1 border-l border-slate-200 pl-4"><span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">BAŞLAMA</span><p class="text-[15px] font-black text-slate-800 italic mt-1">${esc(ev.startTime || '--:--')}</p></div>
+                        <div class="ev-meta">
+                            <span>${ico.pin}${esc(ev.venue || 'Belirsiz')}</span>
+                            <span>${ico.cal}${esc(ev.date || '-')}</span>
+                            <span>${ico.clock}${esc(ev.doorTime || '--:--')} – ${esc(ev.startTime || '--:--')}</span>
                         </div>
-                        
-                        <div class="grid gap-3 mt-8" style="grid-template-columns: repeat(${[canManage, canSale, canDoor].filter(Boolean).length || 1}, 1fr)">
-                            ${canManage ? `<button onclick="location.href='gise.html?id=${safeId}'" class="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-[9px] uppercase transition-all hover:bg-slate-200">MİMARİ</button>` : ''}
-                            ${canSale   ? `<button onclick="location.href='satis.html?id=${safeId}'" class="${btnStateClass} py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">SATIŞ</button>` : ''}
-                            ${canDoor   ? `<button onclick="location.href='checkin.html?id=${safeId}'" class="${btnStateClass} py-4 bg-blue-500 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl hover:bg-blue-600 transition-all">KAPI</button>` : ''}
+                        <div class="ev-cta" style="grid-template-columns: repeat(${[canManage, canSale, canDoor].filter(Boolean).length || 1}, 1fr)">
+                            ${canManage ? `<button onclick="location.href='gise.html?id=${safeId}'" class="ev-btn ghost">Mimari</button>` : ''}
+                            ${canSale   ? `<button onclick="location.href='satis.html?id=${safeId}'" class="${btnStateClass} ev-btn primary">Satış</button>` : ''}
+                            ${canDoor   ? `<button onclick="location.href='checkin.html?id=${safeId}'" class="${btnStateClass} ev-btn soft">Kapı</button>` : ''}
                         </div>
                     </div>`;
                 container.appendChild(card);

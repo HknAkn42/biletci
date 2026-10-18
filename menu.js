@@ -1,3 +1,5 @@
+/* Tema: boyamadan önce uygula (kayıtlı seçim yoksa açık tema) */
+(function(){ try { var t = localStorage.getItem("BiletPro_Theme") || (localStorage.getItem("BiletPro_DarkMode") === "1" ? "dark" : "light"); document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light"); } catch (_) { document.documentElement.setAttribute("data-theme", "light"); } })();
 /**
  * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
  */
@@ -101,29 +103,7 @@
         return 'index.html';
     }
 
-    // 1. İLK KURULUM İÇİN BOOTSTRAP ADMIN TANIMI
-    // Not: Bu kullanıcı sadece sistemde hiç admin yoksa oluşturulur.
-    const BOOTSTRAP_ADMIN = {
-        name: "Hakan",
-        username: "Hakan",
-        password: "52655265",
-        role: "admin",
-        isActive: true,
-        perms: {
-            pSale: true,
-            pDiscount: true,
-            pCancel: true,
-            pDoor: true,
-            pDoorPay: true,
-            pDoorRisk: true,
-            pManageEvents: true,
-            pReports: true,
-            pManageStaff: true,
-            pViewLogs: true
-        }
-    };
-
-    // 2. OTURUM KONTROLÜ
+    // 1. OTURUM KONTROLÜ
     let session = safeJSONParse(localStorage.getItem('BiletPro_Session'));
     const path = window.location.pathname;
     const rawPage = path.split("/").pop();
@@ -146,32 +126,11 @@
         sessionStorage.setItem('BiletPro_LoggedInTab', '1');
     }
 
-    // 3. PERSONEL VERİTABANINDA EN AZ BİR ADMIN KULLANICI GARANTİSİ
+    // Bir yönetici hesabı asla tarayıcı tarafında otomatik oluşturulmaz.
+    // Böyle bir "bootstrap" hesap, tarayıcı verisi silindiğinde yetkisiz erişim sağlar.
     let staffData = safeJSONParse(localStorage.getItem('BiletPro_Staff'), []) || [];
-    const hasAdmin = staffData.some(s => String((s && s.role) || '').trim().toLowerCase() === 'admin');
-    if (!hasAdmin) {
-        const seedIdx = staffData.findIndex(
-            s => normalizeUsername(s && s.username) === normalizeUsername(BOOTSTRAP_ADMIN.username)
-        );
 
-        if (seedIdx === -1) {
-            staffData.push({ ...BOOTSTRAP_ADMIN });
-        } else {
-            const existing = staffData[seedIdx] || {};
-            staffData[seedIdx] = {
-                ...existing,
-                // Mevcut şifreyi koru; boşsa bootstrap şifresi ver
-                password: existing.password || BOOTSTRAP_ADMIN.password,
-                role: 'admin',
-                isActive: true,
-                perms: { ...(BOOTSTRAP_ADMIN.perms || {}), ...(existing.perms || {}) }
-            };
-        }
-
-        localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
-    }
-
-    // 4. OTURUM KULLANICISI GERÇEKTEN VAR MI / AKTİF Mİ / YETKİLİ Mİ?
+    // 2. OTURUM KULLANICISI GERÇEKTEN VAR MI / AKTİF Mİ / YETKİLİ Mİ?
     if (session && currentPage !== 'login.html') {
         const sessionUsername = normalizeUsername(session.username);
         const sessionRole = String(session.role || '').trim().toLowerCase();
@@ -256,9 +215,9 @@ const BILETPRO_DEFAULT_CONFIG = {
     online: {
         enabled: true,
         provider: 'supabase',
-        supabaseUrl: 'https://mocdbcfranfwovmgdzxb.supabase.co',
-        supabaseAnonKey: 'sb_publishable_bjm3h83n-CJ-yue8Wd-0Yg_ckutU_Yc',
-        projectRef: 'mocdbcfranfwovmgdzxb'
+        supabaseUrl: 'https://xlwmzalusrhhmxbvrmdx.supabase.co',
+        supabaseAnonKey: 'sb_publishable_lYENVrZ-QIKlDSyzorUN1g_0qOELxt9',
+        projectRef: 'xlwmzalusrhhmxbvrmdx'
     },
     menuLabels: {
         dashboard: 'DASHBOARD',
@@ -281,7 +240,7 @@ const BILETPRO_DEFAULT_CONFIG = {
         settings: true
     },
     security: {
-        settingsPin: '52655265'
+        settingsPin: ''
     }
 };
 
@@ -304,7 +263,30 @@ function bpEscapeAttr(value) {
 
 window.BiletProSecurity = {
     escapeHtml: bpEscapeHtml,
-    escapeAttr: bpEscapeAttr
+    escapeAttr: bpEscapeAttr,
+    async hashPassword(password) {
+        if (!window.crypto?.subtle) throw new Error('secure_crypto_unavailable');
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), 'PBKDF2', false, ['deriveBits']);
+        const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 210000, hash: 'SHA-256' }, material, 256);
+        const toB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+        return `pbkdf2$210000$${toB64(salt)}$${toB64(new Uint8Array(bits))}`;
+    },
+    async verifyPassword(stored, candidate) {
+        const value = String(stored || '');
+        if (!value.startsWith('pbkdf2$')) return { ok: value === String(candidate), legacy: true };
+        const [, iterations, saltB64, hashB64] = value.split('$');
+        try {
+            const fromB64 = (input) => Uint8Array.from(atob(input), c => c.charCodeAt(0));
+            const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(candidate)), 'PBKDF2', false, ['deriveBits']);
+            const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: fromB64(saltB64), iterations: Number(iterations), hash: 'SHA-256' }, material, 256));
+            const expected = fromB64(hashB64);
+            if (bits.length !== expected.length) return { ok: false, legacy: false };
+            let difference = 0;
+            for (let i = 0; i < bits.length; i++) difference |= bits[i] ^ expected[i];
+            return { ok: difference === 0, legacy: false };
+        } catch (_) { return { ok: false, legacy: false }; }
+    }
 };
 
 function mergeDeep(base, override) {
@@ -326,6 +308,9 @@ window.BiletProCore = {
     getConfig() {
         const raw = safeJSON(localStorage.getItem('BiletPro_Config'), {});
         const merged = mergeDeep(BILETPRO_DEFAULT_CONFIG, raw || {});
+
+        // Eski sürümün bilinen varsayılan PIN'i artık geçerli bir güvenlik anahtarı değildir.
+        if (merged.security?.settingsPin === '52655265') merged.security.settingsPin = '';
 
         // Canlı çoklu cihaz modu: eski localStorage config "enabled:false" bırakmış olsa bile online açık gelsin
         if (merged.online && merged.online.provider === 'supabase' && merged.online.supabaseUrl && merged.online.supabaseAnonKey) {
@@ -469,11 +454,7 @@ document.head.appendChild(uiStyles);
 window.addEventListener('DOMContentLoaded', () => {
     initDynamicViewportHeight();
 
-    // Dark mode init — kayıtlıysa uygula
-    if (localStorage.getItem('BiletPro_DarkMode') === '1') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        _applyDarkModeStyles();
-    }
+    if (typeof window._syncThemeSwitch === "function") window._syncThemeSwitch();
     // Sayfa fade-in
     document.body.classList.add('bp-ready');
     // Sync pill
@@ -988,116 +969,25 @@ window.BiletProActionAudit = {
    ========================================== */
 
 // Dark mode CSS — JS ile inject edilir (Tailwind CDN cache sorununu aşar)
-const _DM_CSS = `
-html[data-theme="dark"] { color-scheme: dark; }
-html[data-theme="dark"] body,
-html[data-theme="dark"] main { background-color: #0f172a !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] header { background: rgba(15,23,42,0.97) !important; border-color: #1e293b !important; }
-html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3,
-html[data-theme="dark"] h4, html[data-theme="dark"] h5, html[data-theme="dark"] h6 { color: #f1f5f9 !important; }
-html[data-theme="dark"] .event-card, html[data-theme="dark"] .silk-card,
-html[data-theme="dark"] .glass-card, html[data-theme="dark"] .category-shell { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] .cat-header { background: #1e293b !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] .cat-header:hover { background: #253352 !important; }
-html[data-theme="dark"] .sidebar-silk { background: rgba(8,15,28,0.99) !important; border-color: #1e293b !important; }
-html[data-theme="dark"] .u-sec { background: #080f1c !important; border-color: #1e293b !important; }
-html[data-theme="dark"] .quick-actions { background: #080f1c !important; }
-html[data-theme="dark"] .nav-link { color: #94a3b8 !important; }
-html[data-theme="dark"] .nav-link:hover { background: rgba(255,255,255,0.05) !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] .nav-link.active { background: rgba(37,99,235,0.18) !important; color: #60a5fa !important; }
-html[data-theme="dark"] .nav-link.active::before { background: #3b82f6 !important; }
-html[data-theme="dark"] .masa-silk, html[data-theme="dark"] .unit-silk { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] .masa-silk.sold, html[data-theme="dark"] .unit-silk.sold { background: #0f172a !important; }
-html[data-theme="dark"] .m-kap { color: #f1f5f9 !important; }
-html[data-theme="dark"] .m-no, html[data-theme="dark"] .m-alt { color: #94a3b8 !important; }
-html[data-theme="dark"] .basket-item { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] .finance-summary { background: #0f172a !important; border-color: #1e293b !important; color: #e2e8f0 !important; }
-html[data-theme="dark"] input:not([type="file"]), html[data-theme="dark"] select, html[data-theme="dark"] textarea,
-html[data-theme="dark"] .input-silk { background: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important; }
-html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #475569 !important; }
-html[data-theme="dark"] .toast-silk { background: rgba(30,41,59,0.98) !important; border-color: #334155 !important; }
-html[data-theme="dark"] .toast-text { color: #f1f5f9 !important; }
-html[data-theme="dark"] .confirm-box, html[data-theme="dark"] .action-modal { background: #1e293b !important; color: #e2e8f0 !important; border-color: #334155 !important; }
-html[data-theme="dark"] .confirm-title { color: #f1f5f9 !important; }
-html[data-theme="dark"] .confirm-desc { color: #94a3b8 !important; }
-html[data-theme="dark"] .btn-c-cancel { background: #0f172a !important; color: #94a3b8 !important; }
-html[data-theme="dark"] .bp-top-user { color: #f1f5f9 !important; }
-html[data-theme="dark"] .bp-top-role.admin { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
-html[data-theme="dark"] .bp-top-role.user { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
-html[data-theme="dark"] .bp-top-time { background: #1e3a8a !important; border-color: #1d4ed8 !important; color: #93c5fd !important; }
-html[data-theme="dark"] .sb-user-badge { border-color: #1e293b !important; }
-html[data-theme="dark"] .bp-sync-pill { background: rgba(30,41,59,0.95) !important; color: #94a3b8 !important; }
-/* Tailwind utility overrides */
-html[data-theme="dark"] .bg-white { background-color: #1e293b !important; }
-html[data-theme="dark"] .bg-white\/85, html[data-theme="dark"] .bg-white\/90 { background-color: rgba(15,23,42,0.95) !important; }
-html[data-theme="dark"] .bg-slate-50 { background-color: #0f172a !important; }
-html[data-theme="dark"] .bg-slate-100 { background-color: #1a2744 !important; }
-html[data-theme="dark"] .bg-slate-900 { background-color: #020918 !important; }
-html[data-theme="dark"] .bg-slate-800 { background-color: #0f172a !important; }
-html[data-theme="dark"] .bg-blue-50 { background-color: #0d1f3c !important; }
-html[data-theme="dark"] .bg-blue-100 { background-color: #1e3a8a !important; }
-html[data-theme="dark"] .bg-green-50 { background-color: #052e16 !important; }
-html[data-theme="dark"] .bg-amber-50 { background-color: #291800 !important; }
-html[data-theme="dark"] .bg-red-50 { background-color: #2d0a0a !important; }
-html[data-theme="dark"] .bg-\[\\#f4f7fa\] { background-color: #0f172a !important; }
-html[data-theme="dark"] .border-slate-100, html[data-theme="dark"] .border-slate-200 { border-color: #1e293b !important; }
-html[data-theme="dark"] .border-slate-300 { border-color: #334155 !important; }
-html[data-theme="dark"] .border-t, html[data-theme="dark"] .border-b { border-color: #1e293b !important; }
-html[data-theme="dark"] .text-slate-900, html[data-theme="dark"] .text-slate-800 { color: #f1f5f9 !important; }
-html[data-theme="dark"] .text-slate-700 { color: #e2e8f0 !important; }
-html[data-theme="dark"] .text-slate-600 { color: #cbd5e1 !important; }
-html[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
-html[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
-html[data-theme="dark"] .text-blue-600 { color: #60a5fa !important; }
-html[data-theme="dark"] .text-blue-700 { color: #93c5fd !important; }
-html[data-theme="dark"] .text-blue-500 { color: #60a5fa !important; }
-html[data-theme="dark"] .text-blue-400 { color: #93c5fd !important; }
-html[data-theme="dark"] .text-green-700 { color: #4ade80 !important; }
-html[data-theme="dark"] .text-green-600 { color: #34d399 !important; }
-html[data-theme="dark"] .text-amber-500 { color: #fbbf24 !important; }
-html[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
-html[data-theme="dark"] .text-white { color: #f8fafc !important; }
-html[data-theme="dark"] table thead { background: #0f172a !important; }
-html[data-theme="dark"] th, html[data-theme="dark"] td { border-color: #1e293b !important; color: #cbd5e1 !important; }
-html[data-theme="dark"] tbody tr:hover { background: #1e293b !important; }
-html[data-theme="dark"] .btn-pay { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
-html[data-theme="dark"] .btn-pay.active { background: #1d4ed8 !important; color: #fff !important; }
-html[data-theme="dark"] .out-btn { background: #1e293b !important; color: #cbd5e1 !important; border-color: #334155 !important; }
-html[data-theme="dark"] .shadow-sm, html[data-theme="dark"] .shadow,
-html[data-theme="dark"] .shadow-xl, html[data-theme="dark"] .shadow-2xl { box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important; }
-@media print { html[data-theme="dark"] * { color: #000 !important; background: #fff !important; } }
-`;
-
-function _applyDarkModeStyles() {
-    if (document.getElementById('bpDarkModeStyleTag')) return;
-    const s = document.createElement('style');
-    s.id = 'bpDarkModeStyleTag';
-    s.textContent = _DM_CSS;
-    // <body> sonuna ekle: Tailwind CDN'den SONRA gelir, kesinlikle override eder
-    (document.body || document.head).appendChild(s);
-}
-
-function _removeDarkModeStyles() {
-    const s = document.getElementById('bpDarkModeStyleTag');
-    if (s) s.remove();
-}
-
-window.toggleDarkMode = function() {
+/* ==========================================
+   TEMA (AÇIK / KOYU)
+   Renkler theme.css içindeki değişkenlerle yönetilir.
+   ========================================== */
+window.setTheme = function(mode) {
     const html = document.documentElement;
-    const isDark = html.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-        html.removeAttribute('data-theme');
-        localStorage.removeItem('BiletPro_DarkMode');
-        _removeDarkModeStyles();
-    } else {
-        html.setAttribute('data-theme', 'dark');
-        localStorage.setItem('BiletPro_DarkMode', '1');
-        _applyDarkModeStyles();
-    }
-    const btn = document.getElementById('bpDarkToggle');
-    if (btn) btn.innerHTML = isDark ? '🌙 KARANLIK MOD' : '☀️ AYDINLIK MOD';
-    const ico = document.getElementById('bpDarkToggleIco');
-    if (ico) ico.textContent = isDark ? '🌙' : '☀️';
+    const next = mode === 'dark' ? 'dark' : 'light';
+    html.classList.add('bp-theme-anim');
+    html.setAttribute('data-theme', next);
+    try { localStorage.setItem('BiletPro_Theme', next); localStorage.removeItem('BiletPro_DarkMode'); } catch (_) {}
+    if (typeof window._syncThemeSwitch === 'function') window._syncThemeSwitch();
+    setTimeout(() => html.classList.remove('bp-theme-anim'), 400);
+};
+window.toggleDarkMode = function() {
+    window.setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+};
+window._syncThemeSwitch = function() {
+    const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    document.querySelectorAll('#bpThemeSwitch button').forEach(b => b.classList.toggle('on', b.dataset.mode === cur));
 };
 
 /* ==========================================
@@ -1115,173 +1005,131 @@ function injectMenu(active = 'dashboard', eventId = null) {
 
     const style = document.createElement('style');
     style.innerHTML = `
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        :root { --sb-c: 95px; --sb-e: 280px; --silk-accent: #2563eb; --silk-text: #0f172a; }
-        html, body { height: 100%; margin: 0; padding: 0 !important; overflow: hidden; background: #f4f7fa; }
+        :root { --sb-c: 76px; --sb-e: 264px; }
+        html, body { height: 100%; margin: 0; padding: 0 !important; overflow: hidden; background: var(--bg); }
 
-        /* ÖNEMLİ DEĞİŞİKLİK: flex-row body yapısında içerik alanı doğru genişliği alsın */
-        body { display: flex !important; flex-direction: row !important; font-family: 'Plus Jakarta Sans', sans-serif !important; }
-
-        /* Sidebar'ın yanındaki tüm doğrudan body çocukları (sidebar hariç) flex-1 olsun */
+        /* flex-row body: sidebar solda, içerik sağda */
+        body { display: flex !important; flex-direction: row !important; }
         body > *:not(.sidebar-silk) { flex: 1; min-width: 0; overflow: hidden; }
 
-        .sidebar-silk { width: var(--sb-c); height: 100vh; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(40px); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; padding: 40px 0; z-index: 100000; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink: 0; overflow: hidden; position: relative; }
-        .sidebar-silk.expanded { width: var(--sb-e); align-items: flex-start; overflow-y: auto; overflow-x: hidden; }
-        .menu-btn { position: absolute; top: 40px; width: 56px; height: 56px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 10; }
-        .sidebar-silk.expanded .menu-btn { left: 20px; transform: none; }
-        .sidebar-silk:not(.expanded) .menu-btn { left: 50%; transform: translateX(-50%); }
-        .m-line { width: 22px; height: 2.5px; background: var(--silk-text); border-radius: 5px; transition: 0.3s; }
-        .expanded .l1 { transform: translateY(7.5px) rotate(45deg); }
-        .expanded .l2 { opacity: 0; }
-        .expanded .l3 { transform: translateY(-7.5px) rotate(-45deg); }
-        .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 8px; }
-        .nav-link { width: 100%; display: flex; align-items: center; padding: 6px 35px; color: #64748b; text-decoration: none; transition: 0.2s; position: relative; white-space: nowrap; min-width: 0; }
-        .nav-link i { font-size: 20px; min-width: 22px; text-align: center; font-style: normal; }
-        .nav-txt { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 18px; letter-spacing: 1.2px; color: var(--silk-text); opacity: 0; visibility: hidden; transition: 0.3s; overflow: hidden; text-overflow: ellipsis; }
-        .expanded .nav-txt { opacity: 1; visibility: visible; }
-        .nav-link.active { color: var(--silk-accent); background: rgba(37, 99, 235, 0.04); }
-        .nav-link.active::before { content: ''; position: absolute; left: 0; top: 15%; bottom: 15%; width: 5px; background: var(--silk-accent); border-radius: 0 5px 5px 0; }
-        main, .main-content {
-            flex: 1;
-            min-height: 0;
-            height: auto;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-            background: #f4f7fa;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
+        .sidebar-silk {
+            width: var(--sb-c); height: 100vh; height: 100dvh; flex-shrink: 0;
+            background: var(--surface); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; align-items: stretch;
+            padding: 14px 12px; gap: 6px; z-index: 100000; position: relative;
+            overflow: hidden; transition: width .28s cubic-bezier(.2,.8,.2,1);
         }
+        .sidebar-silk.expanded { width: var(--sb-e); overflow-y: auto; overflow-x: hidden; }
+
+        /* Üst: marka + menü düğmesi */
+        .sb-head { display: flex; align-items: center; gap: 10px; height: 44px; margin-bottom: 8px; padding: 0 2px; flex-shrink: 0; }
+        .sb-logo {
+            width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; cursor: pointer;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6); color: #fff;
+            display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);
+        }
+        .sb-logo svg { width: 20px; height: 20px; }
+        .sb-brand { display: none; flex-direction: column; line-height: 1.1; min-width: 0; flex: 1; }
+        .sb-brand b { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+        .sb-brand span { font-size: 11px; color: var(--faint); font-weight: 500; }
+        .sb-toggle {
+            display: none; width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--muted); cursor: pointer; align-items: center; justify-content: center;
+        }
+        .sb-toggle:hover { background: var(--surface-3); color: var(--text); }
+        .sb-toggle svg { width: 16px; height: 16px; }
+        .sidebar-silk.expanded .sb-brand { display: flex; }
+        .sidebar-silk.expanded .sb-toggle { display: inline-flex; }
+
+        .nav-section { display: none; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 10px 12px 4px; }
+        .sidebar-silk.expanded .nav-section { display: block; }
+
+        .nav-list { width: 100%; flex: 1; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+        .nav-link {
+            display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px;
+            border-radius: 11px; color: var(--muted); text-decoration: none; position: relative;
+            white-space: nowrap; min-width: 0; transition: background .15s, color .15s;
+        }
+        .nav-link i { width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; font-style: normal; }
+        .nav-link i svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .nav-txt { font-size: 14px; font-weight: 550; margin: 0; letter-spacing: 0; color: inherit; opacity: 0; visibility: hidden; overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
+        .sidebar-silk.expanded .nav-txt { opacity: 1; visibility: visible; }
+        .sidebar-silk:not(.expanded) .nav-link { justify-content: center; padding: 0; }
+        .sidebar-silk:not(.expanded) .nav-txt { display: none; }
+        .nav-link:hover { background: var(--surface-3); color: var(--text); }
+        .nav-link.active { background: var(--primary-soft); color: var(--primary-text); }
+        .nav-link.active .nav-txt { font-weight: 650; }
+        .sidebar-silk:not(.expanded) .nav-link[data-tip]:hover::after {
+            content: attr(data-tip); position: fixed; left: calc(var(--sb-c) + 8px); background: var(--text); color: var(--bg);
+            font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 8px; pointer-events: none; white-space: nowrap; z-index: 200001;
+        }
+
+        main, .main-content {
+            flex: 1; min-height: 0; height: auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain; background: var(--bg); position: relative;
+        }
+
+        /* Modal kartları: ekrana sığmayan içerik kaydırılabilir */
+        .modal-scroll { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto !important; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
         .u-sec { display: none !important; }
         .quick-actions { display: none !important; }
 
-        /* Kompakt sidebar alt toolbar */
-        .sb-bottom {
-            width: 100%;
-            border-top: 1px solid #e2e8f0;
-            background: #f8fafc;
-            flex-shrink: 0;
-        }
-        /* Collapsed: ikon sütunu */
-        .sb-ico-col {
-            display: flex; flex-direction: column; align-items: center;
-            padding: 10px 0 14px; gap: 6px;
-        }
-        .sidebar-silk.expanded .sb-ico-col { display: none; }
-        .sb-ico {
-            width: 42px; height: 34px; border-radius: 11px;
-            background: #fff; border: 1px solid #e2e8f0; color: #64748b;
-            font-size: 15px; cursor: pointer; display: flex;
-            align-items: center; justify-content: center; transition: 0.2s;
-        }
-        .sb-ico:hover { background: #f1f5f9; transform: translateY(-1px); }
-        .sb-ico.exit { border-color: #fee2e2; color: #ef4444; }
-        .sb-ico.exit:hover { background: #fff1f2; }
-        .sb-ico.dark-ico { background: #1e293b; border-color: #334155; color: #94a3b8; }
-        /* Expanded: compact 2-col grid */
-        .sb-tool-grid {
-            display: none; padding: 8px 12px 12px;
-            grid-template-columns: 1fr 1fr; gap: 5px;
-        }
-        .sidebar-silk.expanded .sb-tool-grid { display: grid; }
-        .sb-t {
-            display: flex; align-items: center; justify-content: center; gap: 3px;
-            padding: 6px 4px; border-radius: 9px; background: #fff;
-            border: 1px solid #e2e8f0; color: #475569;
-            font-size: 8px; font-weight: 900; text-transform: uppercase;
-            letter-spacing: .5px; cursor: pointer; transition: 0.15s;
-            white-space: nowrap; line-height: 1;
-        }
-        .sb-t:hover { background: #f1f5f9; }
-        .sb-t.wide { grid-column: span 2; }
-        .sb-t.exit { border-color: #fee2e2; color: #ef4444; }
-        .sb-t.exit:hover { background: #fff1f2; }
-        .sb-t.admin-btn { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-        .sb-t.admin-btn:hover { background: #dbeafe; }
-        .sb-t.dark-btn { background: #1e293b; color: #94a3b8; border-color: #334155; }
-        .sb-t.dark-btn:hover { background: #253352; }
-        .sb-t.warn-btn { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-        .sb-t.warn-btn:hover { background: #ffedd5; }
-
-        .sb-user-badge {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 0 14px;
-            margin-top: 96px;
-            border-bottom: 1px solid #e2e8f0;
-            flex-shrink: 0;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .sidebar-silk.expanded .sb-user-badge {
-            justify-content: flex-start;
-            padding: 10px 20px 14px;
-            gap: 10px;
-        }
-        .sb-user-info {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 0;
-            overflow: hidden;
-        }
+        /* Alt bölüm: kullanıcı + araçlar */
+        .sb-bottom { width: 100%; flex-shrink: 0; border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .sb-user-badge { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 12px; min-width: 0; margin: 0; border: 0; }
+        .sidebar-silk:not(.expanded) .sb-user-badge { justify-content: center; padding: 6px 0; }
+        .sb-user-info { display: none; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
         .sidebar-silk.expanded .sb-user-info { display: flex; }
         .bp-top-avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #1e3a8a, #2563eb);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: .5px;
-            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: var(--primary-soft); color: var(--primary-text);
+            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; border: 1px solid var(--primary-border);
         }
-        .bp-top-info { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
-        .bp-top-user { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .7px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .bp-top-role { width: fit-content; font-size: 9px; font-weight: 900; letter-spacing: .8px; border-radius: 999px; padding: 3px 8px; line-height: 1; }
-        .bp-top-role.admin { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        .bp-top-role.user { background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; }
-        .bp-top-time {
-            font-size: 12px;
-            font-weight: 900;
-            color: #1d4ed8;
-            letter-spacing: .9px;
-            background: #eef2ff;
-            border: 1px solid #c7d2fe;
-            border-radius: 12px;
-            padding: 7px 10px;
-            line-height: 1;
+        .bp-top-user { font-size: 13.5px; font-weight: 650; color: var(--text); text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+        .bp-top-role { width: fit-content; font-size: 11px; font-weight: 600; letter-spacing: 0; padding: 1px 8px; border-radius: 999px; line-height: 1.5; }
+        .bp-top-role.admin { background: var(--primary-soft); color: var(--primary-text); border: 0; }
+        .bp-top-role.user { background: var(--surface-3); color: var(--text-2); border: 0; }
+        .bp-top-time { display: none; }
+        .sb-clock { display: none; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 8px; }
+        .sidebar-silk.expanded .sb-clock { display: block; }
+
+        .sb-tools { display: flex; flex-direction: column; gap: 4px; }
+                .sb-t {
+            display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 10px;
+            background: transparent; border: 0; color: var(--muted); font-size: 13px; font-weight: 550; cursor: pointer;
+            text-transform: none; letter-spacing: 0; white-space: nowrap; transition: background .15s, color .15s; width: 100%; text-align: left;
         }
+        .sb-t svg { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .sidebar-silk:not(.expanded) .sb-t { justify-content: center; padding: 0; }
+        .sidebar-silk:not(.expanded) .sb-t span { display: none; }
+        .sb-t:hover { background: var(--surface-3); color: var(--text); }
+        .sb-t.exit:hover { background: var(--danger-soft); color: var(--danger-text); }
+        .sb-t.warn-btn:hover { background: var(--warning-soft); color: var(--warning-text); }
+        .sb-more { display: none; flex-direction: column; gap: 4px; }
+        .sidebar-silk.expanded .sb-more { display: flex; }
+
+        /* Açık / koyu tema anahtarı */
+        .theme-switch { display: flex; padding: 3px; gap: 2px; background: var(--surface-3); border-radius: 11px; }
+        .theme-switch button {
+            flex: 1; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+        }
+        .theme-switch button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .theme-switch button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+        .sidebar-silk:not(.expanded) .theme-switch { background: transparent; padding: 0; }
+        .sidebar-silk:not(.expanded) .theme-switch button span { display: none; }
+        .sidebar-silk:not(.expanded) .theme-switch button.on { display: none; }
+        .sidebar-silk:not(.expanded) .theme-switch button { height: 36px; }
+        .sidebar-silk:not(.expanded) .theme-switch button:hover { background: var(--surface-3); color: var(--text); }
 
         @media (max-width: 1023px) {
-            :root { --sb-c: 76px; }
-            .sidebar-silk { padding: 18px 0; }
-            .menu-btn { top: 16px; }
-            .nav-list { padding-top: 8px; }
+            :root { --sb-c: 64px; }
+            .sidebar-silk { padding: 10px 8px; }
             .sidebar-silk.expanded {
-                position: fixed;
-                left: 0;
-                top: 0;
-                bottom: 0;
-                width: min(86vw, 320px);
-                box-shadow: 20px 0 50px rgba(0,0,0,0.12);
+                position: fixed; left: 0; top: 0; bottom: 0; width: min(86vw, 300px);
+                box-shadow: 20px 0 50px rgba(0,0,0,.18);
             }
-            .u-sec { max-height: 52vh; }
-            .sb-user-badge { margin-top: 72px; }
-            .sidebar-silk.expanded .sb-user-badge { padding: 10px 14px 12px; }
-            .sidebar-silk.expanded .sb-user-info { width: calc(100% - 44px); }
-            .bp-top-avatar { width: 30px; height: 30px; border-radius: 10px; font-size: 11px; }
-            .bp-top-user { font-size: 10px; }
-            .bp-top-role { font-size: 8px; padding: 2px 6px; }
-            .bp-top-time { font-size: 10px; padding: 6px 8px; }
         }
-    `;
+`;
     document.head.appendChild(style);
 
     const eventParams = eventId ? `?id=${eventId}` : '';
@@ -1296,71 +1144,83 @@ function injectMenu(active = 'dashboard', eventId = null) {
     const _canSale = isAdmin || _sbPerms.pSale === true;
     const _canDoor = isAdmin || _sbPerms.pDoor === true;
 
+
+    const _svg = (p) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>';
+    const _I = {
+        dashboard: _svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+        gise: _svg('<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 11v2M13 17v2"/>'),
+        satis: _svg('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'),
+        musteriler: _svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
+        checkin: _svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'),
+        personel: _svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>'),
+        report: _svg('<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>'),
+        settings: _svg('<path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>'),
+        sun: _svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
+        moon: _svg('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'),
+        logout: _svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'),
+        book: _svg('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>'),
+        download: _svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'),
+        upload: _svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'),
+        flask: _svg('<path d="M10 2v7.31L4.5 20a1 1 0 0 0 .9 1.5h13.2a1 1 0 0 0 .9-1.5L14 9.31V2M8.5 2h7"/>'),
+        chevrons: _svg('<path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/>'),
+        mark: _svg('<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 5v14" stroke="currentColor" stroke-width="2" stroke-dasharray="2 3"/>')
+    };
+    // Etiketler ayarlardan BÜYÜK HARFLE gelebilir; menüde okunaklı yazıya çevir.
+    const _nice = (t) => String(t || '').toLocaleLowerCase('tr-TR').replace(/(^|[\s&/-])(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase('tr-TR'));
+
     const menuItems = [
-        { id: 'dashboard',   label: labels.dashboard   || 'DASHBOARD',         icon: '📊', url: 'index.html',                show: visibility.dashboard  !== false },
-        { id: 'gise',        label: labels.gise        || 'GİŞE & MİMARİ',     icon: '🎫', url: `gise.html${eventParams}`,    show: visibility.gise       !== false && _canGise },
-        { id: 'satis',       label: labels.satis       || 'BİLET SATIŞ',       icon: '💰', url: `satis.html${eventParams}`,   show: visibility.satis      !== false && _canSale },
-        { id: 'musteriler',  label: labels.musteriler  || 'MÜŞTERİLER',        icon: '👥', url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false && _canSale },
-        { id: 'checkin',     label: labels.checkin     || 'KAPI KONTROL',      icon: '🛡️', url: `checkin.html${eventParams}`, show: visibility.checkin    !== false && _canDoor },
-        { id: 'personel',    label: labels.personel    || 'PERSONEL',          icon: '🔑', url: 'personel.html',              show: isAdmin && visibility.personel !== false },
-        { id: 'report',      label: labels.report      || 'RAPORLAR',          icon: '📈', url: 'rapor.html',                 show: isAdmin && visibility.report   !== false },
-        { id: 'settings',    label: labels.settings    || 'SİSTEM AYARLARI',   icon: '⚙️', url: 'settings.html',             show: isAdmin && visibility.settings !== false }
+        { id: 'dashboard',   label: labels.dashboard   || 'Dashboard',        icon: _I.dashboard,  url: 'index.html',                show: visibility.dashboard  !== false },
+        { id: 'gise',        label: labels.gise        || 'Gişe & Mimari',     icon: _I.gise,       url: `gise.html${eventParams}`,    show: visibility.gise       !== false && _canGise },
+        { id: 'satis',       label: labels.satis       || 'Bilet Satış',       icon: _I.satis,      url: `satis.html${eventParams}`,   show: visibility.satis      !== false && _canSale },
+        { id: 'musteriler',  label: labels.musteriler  || 'Müşteriler',        icon: _I.musteriler, url: `musteriler.html${eventParams}`, show: visibility.musteriler !== false && _canSale },
+        { id: 'checkin',     label: labels.checkin     || 'Kapı Kontrol',      icon: _I.checkin,    url: `checkin.html${eventParams}`, show: visibility.checkin    !== false && _canDoor },
+        { id: 'personel',    label: labels.personel    || 'Personel',          icon: _I.personel,   url: 'personel.html',              show: isAdmin && visibility.personel !== false },
+        { id: 'report',      label: labels.report      || 'Raporlar',          icon: _I.report,     url: 'rapor.html',                 show: isAdmin && visibility.report   !== false },
+        { id: 'settings',    label: labels.settings    || 'Sistem Ayarları',   icon: _I.settings,   url: 'settings.html',              show: isAdmin && visibility.settings !== false }
     ];
 
+    const _brandName = (cfg.brand && cfg.brand.appName) || 'BiletPro';
     let html = `
         <nav class="sidebar-silk" id="proSidebar">
-            <div class="menu-btn" onclick="toggleProSidebar()">
-                <div class="m-line l1"></div><div class="m-line l2"></div><div class="m-line l3"></div>
-            </div>
-            <div class="sb-user-badge">
-                <div class="bp-top-avatar" id="bpTopAvatar">${String((session.name || 'M').trim().charAt(0) || 'M').toUpperCase()}</div>
-                <div class="sb-user-info">
-                    <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
-                    <span class="bp-top-role ${roleClass}" id="bpTopRole">${roleLabel}</span>
-                    <span class="bp-top-time" id="bpTopClock">--:--:--</span>
-                </div>
+            <div class="sb-head">
+                <div class="sb-logo" onclick="toggleProSidebar()" title="Menü">${_I.mark}</div>
+                <div class="sb-brand"><b>${_brandName}</b><span>Etkinlik Yönetimi</span></div>
+                <button class="sb-toggle" onclick="toggleProSidebar()" title="Menüyü daralt">${_I.chevrons}</button>
             </div>
             <div class="nav-list">
                 ${menuItems.filter(i => i.show).map(i => `
-                    <a href="${i.id === 'settings' ? '#' : i.url}" ${i.id === 'settings' ? 'onclick="event.preventDefault(); openSystemSettings();"' : ''} class="nav-link ${active === i.id ? 'active' : ''}">
-                        <i>${i.icon}</i><span class="nav-txt">${i.label}</span>
+                    <a href="${i.id === 'settings' ? '#' : i.url}" ${i.id === 'settings' ? 'onclick="event.preventDefault(); openSystemSettings();"' : ''} class="nav-link ${active === i.id ? 'active' : ''}" data-tip="${_nice(i.label)}">
+                        <i>${i.icon}</i><span class="nav-txt">${_nice(i.label)}</span>
                     </a>
                 `).join('')}
             </div>
             <div class="sb-bottom">
-                <!-- Collapsed: ikon sütunu -->
-                <div class="sb-ico-col">
-                    <button onclick="toggleDarkMode()" class="sb-ico dark-ico" id="bpDarkToggleIco" title="Mod Değiştir">🌙</button>
-                    <button onclick="logout(event)" class="sb-ico exit" title="Çıkış">🚪</button>
+                <div class="sb-more">
+                    <button onclick="openGuide()" class="sb-t">${_I.book}<span>Kılavuz</span></button>
+                    <button onclick="backupAllData()" class="sb-t">${_I.download}<span>Yedek Al</span></button>
+                    <button onclick="triggerRestoreDialog()" class="sb-t">${_I.upload}<span>Yedekten Geri Yükle</span></button>
+                    <button onclick="resetDemoData()" class="sb-t warn-btn">${_I.flask}<span>Demo Verisi</span></button>
                 </div>
-                <!-- Expanded: kompakt 2 kolonlu grid -->
-                <div class="sb-tool-grid">
-                    <button id="bpDarkToggle" onclick="toggleDarkMode()" class="sb-t dark-btn wide">🌙 KARANLIK MOD</button>
-                    <button onclick="logout(event)" class="sb-t exit">🚪 ÇIKIŞ</button>
-                    <button onclick="openGuide()" class="sb-t">📘 KILAVUZ</button>
-                    <button onclick="backupAllData()" class="sb-t">💾 YEDEK AL</button>
-                    <button onclick="triggerRestoreDialog()" class="sb-t">📥 GERİ YÜK.</button>
-                    ${isAdmin ? '<button onclick="openSystemSettings()" class="sb-t admin-btn">⚙️ AYARLAR</button>' : '<button onclick="resetDemoData()" class="sb-t warn-btn">🧪 DEMO</button>'}
-                    ${isAdmin ? '<button onclick="resetDemoData()" class="sb-t warn-btn wide">🧪 DEMO SIFIRLA</button>' : ''}
+                <div class="theme-switch" id="bpThemeSwitch">
+                    <button data-mode="light" onclick="setTheme('light')" title="Açık tema">${_I.sun}<span>Açık</span></button>
+                    <button data-mode="dark" onclick="setTheme('dark')" title="Koyu tema">${_I.moon}<span>Koyu</span></button>
                 </div>
+                <div class="sb-user-badge">
+                    <div class="bp-top-avatar" id="bpTopAvatar">${String((session.name || 'M').trim().charAt(0) || 'M').toLocaleUpperCase('tr-TR')}</div>
+                    <div class="sb-user-info">
+                        <span class="bp-top-user" id="bpTopUser">${session.name || 'Misafir'}</span>
+                        <span class="bp-top-role ${roleClass}" id="bpTopRole">${roleLabel === 'YÖNETİCİ' ? 'Yönetici' : 'Personel'}</span>
+                    </div>
+                    <span class="bp-top-time" id="bpTopClock"></span>
+                </div>
+                <button onclick="logout(event)" class="sb-t exit">${_I.logout}<span>Çıkış Yap</span></button>
             </div>
         </nav>
-    `;
+    
+`;
     document.body.insertAdjacentHTML('afterbegin', html);
 
-    // Dark mode button text init
-    const _dmBtn = document.getElementById('bpDarkToggle');
-    if (_dmBtn && document.documentElement.getAttribute('data-theme') === 'dark') {
-        _dmBtn.innerHTML = '☀️ AYDINLIK MOD';
-    }
-    const _dmIco = document.getElementById('bpDarkToggleIco');
-    if (_dmIco && document.documentElement.getAttribute('data-theme') === 'dark') {
-        _dmIco.textContent = '☀️';
-    }
-    // Dark mode aktifse style tag'i body'e ekle (DOMContentLoaded'dan önce çalışabilir)
-    if (document.documentElement.getAttribute('data-theme') === 'dark') {
-        _applyDarkModeStyles();
-    }
+    if (typeof window._syncThemeSwitch === 'function') window._syncThemeSwitch();
 
     // Sayfa geçiş animasyonu: nav-link tıklamalarında fade-out
     setTimeout(() => {
@@ -1540,7 +1400,7 @@ function hasValidSettingsPinSession() {
 
 function getSettingsPin() {
     const cfg = window.BiletProCore.getConfig();
-    return String((cfg && cfg.security && cfg.security.settingsPin) || '52655265').trim();
+    return String((cfg && cfg.security && cfg.security.settingsPin) || '').trim();
 }
 
 function requestSettingsPinModal() {
@@ -1549,13 +1409,13 @@ function requestSettingsPinModal() {
         overlay.className = 'confirm-overlay show';
         overlay.innerHTML = `
             <div class="confirm-box" style="max-width:460px; text-align:left;">
-                <div class="confirm-title" style="font-size:18px; margin-bottom:8px;">AYARLAR PIN DOĞRULAMA</div>
+                <div class="confirm-title" style="font-size:18px; margin-bottom:8px;">Ayarlar PIN doğrulama</div>
                 <div class="confirm-desc" style="margin-bottom:14px;">Sistem ayarlarına girmek için yönetici PIN kodunu girin.</div>
-                <input id="settingsPinInput" type="password" placeholder="PIN" style="width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-weight:800;font-size:14px;outline:none;" />
-                <div id="settingsPinErr" style="display:none;margin-top:8px;font-size:12px;font-weight:800;color:#dc2626;">PIN yanlış.</div>
+                <input id="settingsPinInput" type="password" placeholder="PIN" style="width:100%;padding:12px 14px;" />
+                <div id="settingsPinErr" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--danger-text);">PIN yanlış.</div>
                 <div class="confirm-actions" style="margin-top:16px;">
-                    <button class="btn-c-cancel" id="settingsPinCancel">VAZGEÇ</button>
-                    <button class="btn-c-confirm" id="settingsPinConfirm" style="background:#2563eb;box-shadow:0 10px 25px rgba(37,99,235,.25);">DOĞRULA</button>
+                    <button class="btn-c-cancel" id="settingsPinCancel">Vazgeç</button>
+                    <button class="btn-c-confirm" id="settingsPinConfirm">Doğrula</button>
                 </div>
             </div>
         `;
@@ -1572,7 +1432,13 @@ function requestSettingsPinModal() {
         const err = overlay.querySelector('#settingsPinErr');
         const checkPin = () => {
             const typed = String(input.value || '').trim();
-            if (typed && typed === getSettingsPin()) {
+            const configuredPin = getSettingsPin();
+            if (!configuredPin) {
+                err.textContent = 'Ayarlar PIN’i tanımlı değil. Yönetici tarafından yapılandırılmalı.';
+                err.style.display = 'block';
+                return;
+            }
+            if (typed && typed === configuredPin) {
                 sessionStorage.setItem(BILETPRO_SETTINGS_PIN_SESSION_KEY, String(Date.now() + (15 * 60 * 1000)));
                 cleanup(true);
                 return;

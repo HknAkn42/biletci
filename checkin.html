@@ -1644,7 +1644,7 @@
             renderRiskQuickReasons();
         }
 
-        function resolveRiskApprover(username, pin) {
+        async function resolveRiskApprover(username, pin) {
             const u = String(username || '').trim().toLowerCase();
             const p = String(pin || '').trim();
             if(!u || !p) return null;
@@ -1653,7 +1653,10 @@
             if(!user || user.isActive === false) return null;
             const canRisk = user.role === 'admin' || !!(user.perms && user.perms.pDoorRisk === true);
             if(!canRisk) return null;
-            if(String(user.password || '') !== p) return null;
+            const verification = window.BiletProSecurity
+                ? await window.BiletProSecurity.verifyPassword(user.passwordHash || user.password, p)
+                : { ok: false };
+            if(!verification.ok) return null;
             return user;
         }
 
@@ -1663,7 +1666,7 @@
             const pinEl = document.getElementById('riskApprovePin');
             const reasonEl = document.getElementById('riskApproveReason');
             const errEl = document.getElementById('riskApproveError');
-            const approver = resolveRiskApprover(userEl && userEl.value, pinEl && pinEl.value);
+            const approver = await resolveRiskApprover(userEl && userEl.value, pinEl && pinEl.value);
             if(!approver) {
                 if(errEl) {
                     errEl.textContent = 'Kullanıcı/şifre hatalı veya yetki yetersiz.';

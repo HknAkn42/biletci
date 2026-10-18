@@ -38,9 +38,9 @@
             online: {
                 enabled: true,
                 provider: 'supabase',
-                supabaseUrl: 'https://mocdbcfranfwovmgdzxb.supabase.co',
-                supabaseAnonKey: 'sb_publishable_bjm3h83n-CJ-yue8Wd-0Yg_ckutU_Yc',
-                projectRef: 'mocdbcfranfwovmgdzxb'
+                supabaseUrl: 'https://xlwmzalusrhhmxbvrmdx.supabase.co',
+                supabaseAnonKey: 'sb_publishable_lYENVrZ-QIKlDSyzorUN1g_0qOELxt9',
+                projectRef: 'xlwmzalusrhhmxbvrmdx'
             }
         };
     }
@@ -806,9 +806,20 @@
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
             if (!Array.isArray(staffArray)) return { ok: false, reason: 'invalid_data' };
 
+            // Düz metin şifreleri asla online yapılandırma kaydına göndermeyin.
+            // Eski hesaplar ilk başarılı girişte passwordHash alanına taşınır.
+            const safeStaff = await Promise.all(staffArray.map(async (staff) => {
+                const copy = { ...(staff || {}) };
+                if (!copy.passwordHash && copy.password && window.BiletProSecurity?.hashPassword) {
+                    copy.passwordHash = await window.BiletProSecurity.hashPassword(copy.password);
+                }
+                delete copy.password;
+                return copy;
+            }));
+
             const { error } = await this.client
                 .from('app_config')
-                .upsert({ key: 'BiletPro_Staff', value: staffArray }, { onConflict: 'key' });
+                .upsert({ key: 'BiletPro_Staff', value: safeStaff }, { onConflict: 'key' });
 
             if (error) {
                 console.error('[BiletPro OnlineStore] pushStaffToOnline error:', error);
@@ -832,27 +843,24 @@
             const onlineStaff = data.value;
             if (!Array.isArray(onlineStaff)) return { ok: false, reason: 'invalid_staff_data', changed: false };
 
-            // Master kullanıcıyı online veriden silme
-            const currentRaw = localStorage.getItem('BiletPro_Staff') || '[]';
-            const localStaff = JSON.parse(currentRaw);
-            const masterLocal = localStaff.find(s => s.username && s.username.toLowerCase() === 'hakan');
-
-            // Online listede hakan varsa local master ile güncelle (şifre koruması)
-            const merged = onlineStaff.map(s => {
-                if (s.username && s.username.toLowerCase() === 'hakan' && masterLocal) {
-                    return { ...s, password: masterLocal.password, role: 'admin', isActive: true };
+            // Eski veritabanı kayıtlarındaki düz metin şifreleri ilk senkronizasyonda temizle.
+            let credentialsMigrated = false;
+            const migratedStaff = await Promise.all(onlineStaff.map(async (staff) => {
+                const copy = { ...(staff || {}) };
+                if (!copy.passwordHash && copy.password && window.BiletProSecurity?.hashPassword) {
+                    copy.passwordHash = await window.BiletProSecurity.hashPassword(copy.password);
+                    delete copy.password;
+                    credentialsMigrated = true;
                 }
-                return s;
-            });
-            // Online'da hakan yoksa local master'ı ekle
-            if (!merged.find(s => s.username && s.username.toLowerCase() === 'hakan') && masterLocal) {
-                merged.push(masterLocal);
-            }
+                return copy;
+            }));
+            if (credentialsMigrated) await this.pushStaffToOnline(migratedStaff);
 
-            const nextRaw = JSON.stringify(merged);
+            const currentRaw = localStorage.getItem('BiletPro_Staff') || '[]';
+            const nextRaw = JSON.stringify(migratedStaff);
             const changed = currentRaw !== nextRaw;
             if (changed) localStorage.setItem('BiletPro_Staff', nextRaw);
-            return { ok: true, changed, count: merged.length };
+            return { ok: true, changed, count: migratedStaff.length };
         },
 
         // Sistem konfigürasyonunu Supabase'e push et

@@ -3,6 +3,15 @@
 
 create extension if not exists pgcrypto;
 
+-- Uygulamanın yapılandırma ve personel senkronizasyonu için kullandığı kayıtlar.
+-- Eski şemada bu tablo tanımlı değildi; online ayar/personel eşitlemesi bu yüzden
+-- yeni projelerde başarısız olabiliyordu.
+create table if not exists app_config (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists users_app (
   id uuid primary key default gen_random_uuid(),
   username text unique not null,
@@ -387,3 +396,31 @@ exception
     return jsonb_build_object('ok', false, 'reason', 'rpc_error', 'message', SQLERRM);
 end;
 $$;
+
+
+-- ─── ROW LEVEL SECURITY ───
+-- Yeni Supabase projelerinde tablolar için RLS varsayılan olarak açık gelir ve
+-- politika yoksa tüm yazma/okuma istekleri reddedilir. Uygulama şu an yalnızca
+-- anon anahtarla (Supabase Auth olmadan) çalıştığı için aşağıdaki politikalar
+-- anon/authenticated rollerine erişim verir. Bu, RLS'yi kapatmakla pratikte aynıdır;
+-- gerçek veri izolasyonu için ileride Supabase Auth veya Edge Function gerekir.
+alter table app_config enable row level security;
+alter table users_app enable row level security;
+alter table events enable row level security;
+alter table tickets enable row level security;
+alter table checkins enable row level security;
+alter table audit_logs enable row level security;
+
+drop policy if exists app_all on app_config;
+drop policy if exists app_all on users_app;
+drop policy if exists app_all on events;
+drop policy if exists app_all on tickets;
+drop policy if exists app_all on checkins;
+drop policy if exists app_all on audit_logs;
+
+create policy app_all on app_config for all to anon, authenticated using (true) with check (true);
+create policy app_all on users_app for all to anon, authenticated using (true) with check (true);
+create policy app_all on events for all to anon, authenticated using (true) with check (true);
+create policy app_all on tickets for all to anon, authenticated using (true) with check (true);
+create policy app_all on checkins for all to anon, authenticated using (true) with check (true);
+create policy app_all on audit_logs for all to anon, authenticated using (true) with check (true);

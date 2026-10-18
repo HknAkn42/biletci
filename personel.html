@@ -61,6 +61,7 @@
         .log-item.sale { border-left-color: #10b981; }
         .log-item.door { border-left-color: #3b82f6; }
     </style>
+    <link rel="stylesheet" href="theme.css">
 </head>
 <body class="bg-[#f4f7fa]">
 
@@ -132,8 +133,8 @@
         </div>
     </main>
 
-    <div id="staffModal" class="fixed inset-0 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
-        <div class="glass-card w-full max-w-3xl p-4 sm:p-8 max-h-[95vh] overflow-y-auto no-scrollbar shadow-2xl">
+    <div id="staffModal" class="fixed inset-0 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xl z-[200000]">
+        <div class="glass-card w-full max-w-3xl p-4 sm:p-8 modal-scroll shadow-2xl">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                 <h2 class="text-xl font-black italic uppercase">YENİ <span class="text-blue-600">PERSONEL</span> MÜHÜRÜ</h2>
                 <button onclick="toggleModal()" class="text-3xl font-bold text-slate-300 hover:text-red-500">&times;</button>
@@ -233,8 +234,8 @@
             </form>
         </div>
     </div>
-    <div id="editStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
-        <div class="glass-card w-full max-w-3xl p-4 sm:p-8 max-h-[95vh] overflow-y-auto no-scrollbar shadow-2xl">
+    <div id="editStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[200000]">
+        <div class="glass-card w-full max-w-3xl p-4 sm:p-8 modal-scroll shadow-2xl">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                 <h2 class="text-xl font-black italic uppercase">PERSONEL <span class="text-blue-600">DÜZENLE</span></h2>
                 <button onclick="closeEditModal()" class="text-3xl font-bold text-slate-300 hover:text-red-500">&times;</button>
@@ -334,7 +335,7 @@
             </form>
         </div>
     </div>
-    <div id="deleteStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[2000]">
+    <div id="deleteStaffModal" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl z-[200000]">
         <div class="glass-card w-full max-w-md p-8 shadow-2xl">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                 <h2 class="text-xl font-black italic uppercase text-red-600">PERSONEL <span class="text-red-600">SİLME</span></h2>
@@ -355,7 +356,7 @@
             </div>
         </div>
     </div>
-    <div id="logModal" class="fixed inset-0 hidden flex items-center justify-center p-6 modal-bg z-[3000]">
+    <div id="logModal" class="fixed inset-0 hidden flex items-center justify-center p-6 modal-bg z-[200000]">
         <div class="glass-card w-full max-w-4xl p-8 max-h-[90vh] flex flex-col shadow-2xl">
             <div class="flex flex-wrap justify-between items-center mb-6 border-b border-slate-200 pb-4 shrink-0 gap-4">
                 <div>
@@ -742,7 +743,7 @@
             `).join('');
         }
 
-        document.getElementById('staffForm').onsubmit = (e) => {
+        document.getElementById('staffForm').onsubmit = async (e) => {
             e.preventDefault();
             const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
             
@@ -763,7 +764,7 @@
             const person = {
                 name: String(document.getElementById('sName').value || '').trim(),
                 username: normalizeUsername(document.getElementById('sUser').value),
-                password: String(document.getElementById('sPass').value || ''),
+                passwordHash: '',
                 role: role,
                 pin: null,
                 isActive: true,
@@ -777,8 +778,15 @@
                 if(typeof showToast === 'function') showToast('Yalnızca sistem yöneticisi admin rolü atayabilir!', 'error');
                 return;
             }
-            if(!person.name || !person.username || !person.password) {
+            if(!person.name || !person.username || !String(document.getElementById('sPass').value || '')) {
                 if(typeof showToast === 'function') showToast("Ad, kullanıcı adı ve şifre zorunludur!", "error");
+                return;
+            }
+
+            try {
+                person.passwordHash = await window.BiletProSecurity.hashPassword(document.getElementById('sPass').value);
+            } catch (_) {
+                if(typeof showToast === 'function') showToast('Güvenli şifreleme bu tarayıcıda kullanılamıyor.', 'error');
                 return;
             }
             
@@ -899,7 +907,7 @@
             }
         }
 
-        document.getElementById('editStaffForm').onsubmit = (e) => {
+        document.getElementById('editStaffForm').onsubmit = async (e) => {
             e.preventDefault();
             const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
             
@@ -947,7 +955,15 @@
             staff.username = nextUser;
             staff.role = role;
             staff.perms = perms;
-            if(newPass) staff.password = newPass;
+            if(newPass) {
+                try {
+                    staff.passwordHash = await window.BiletProSecurity.hashPassword(newPass);
+                    delete staff.password;
+                } catch (_) {
+                    if(typeof showToast === 'function') showToast('Güvenli şifreleme bu tarayıcıda kullanılamıyor.', 'error');
+                    return;
+                }
+            }
             
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
             safeAuditEvent("Personel", "Personel Güncellendi", `${staff.name} bilgileri değiştirildi.`);
