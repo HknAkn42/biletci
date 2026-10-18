@@ -143,6 +143,7 @@
             localStorage.removeItem('BiletPro_Session');
             const u = document.getElementById('username');
             if (u) u.focus();
+            try { const km = sessionStorage.getItem('BiletPro_KickMsg'); if (km) { sessionStorage.removeItem('BiletPro_KickMsg'); showLoginToast(km, 'error'); } } catch (_) {}
         };
 
         async function handleLogin() {
@@ -196,6 +197,16 @@
                     return;
                 }
 
+                // Tek oturum: aynı hesap başka cihazda açıksa uyar
+                let cl = await store.claimSession(deviceLabel(), false);
+                if (cl && cl.ok === false && cl.reason === 'in_use') {
+                    const go = await askTakeover(cl);
+                    if (!go) { await store.signOut(); showLoginToast('Giriş iptal edildi', 'error'); return; }
+                    cl = await store.claimSession(deviceLabel(), true);
+                }
+                if (cl && cl.ok && cl.session_id) localStorage.setItem('BiletPro_SessionId', cl.session_id);
+                else localStorage.removeItem('BiletPro_SessionId');
+
                 loginComplete({ name: rec.name || auth.username, role: auth.role, username: auth.username });
             } catch (err) {
                 console.error('[login]', err);
@@ -204,6 +215,30 @@
                 __busy = false;
                 btn.disabled = false; btn.textContent = 'Giriş Yap';
             }
+        }
+
+        function deviceLabel() {
+            const ua = navigator.userAgent || '';
+            const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Cihaz';
+            const br = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /Firefox\//.test(ua) ? 'Firefox' : 'Tarayıcı';
+            return br + ' · ' + os;
+        }
+
+        function askTakeover(info) {
+            return new Promise((resolve) => {
+                const ago = info.last_seen ? Math.max(0, Math.round((Date.now() - new Date(info.last_seen).getTime()) / 1000)) : null;
+                const when = ago == null ? '' : (ago < 60 ? ago + ' sn önce' : Math.round(ago / 60) + ' dk önce');
+                const ov = document.createElement('div');
+                ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(8,12,24,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px';
+                ov.innerHTML = '<div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:380px;width:100%;box-shadow:var(--shadow-lg);text-align:left">' +
+                    '<div style="font-size:18px;font-weight:700;margin-bottom:8px">Bu hesap başka cihazda açık</div>' +
+                    '<div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px">Hesabınız şu anda <b style="color:var(--text)">' + (info.device || 'başka bir cihazda') + '</b> üzerinde açık' + (when ? ' (son hareket ' + when + ')' : '') + '. Devam ederseniz o cihazın oturumu kapatılır.</div>' +
+                    '<div style="display:flex;gap:10px"><button id="toCancel" style="flex:1;height:46px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-weight:650;cursor:pointer">Vazgeç</button>' +
+                    '<button id="toGo" style="flex:1.6;height:46px;border-radius:12px;border:0;background:var(--primary);color:#fff;font-weight:650;cursor:pointer">Devam et, diğerini kapat</button></div></div>';
+                document.body.appendChild(ov);
+                ov.querySelector('#toCancel').onclick = () => { ov.remove(); resolve(false); };
+                ov.querySelector('#toGo').onclick = () => { ov.remove(); resolve(true); };
+            });
         }
 
         function loginComplete(userData) {

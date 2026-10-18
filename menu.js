@@ -2127,3 +2127,36 @@ window.addEventListener('DOMContentLoaded', () => {
     };
     document.head.appendChild(script);
 })();
+
+
+/* ==========================================
+   TEK OTURUM: aynı hesapla başka cihazdan giriş yapılırsa bu cihaz kapanır
+   ========================================== */
+(function () {
+    const page = (window.location.pathname.split('/').pop() || '').trim() || 'index.html';
+    if (page === 'login.html' || page === 'bilet.html') return;
+    let busy = false;
+    async function beat() {
+        if (busy) return;
+        const sid = localStorage.getItem('BiletPro_SessionId');
+        const st = window.BiletProOnlineStore;
+        if (!sid || !st || typeof st.sessionHeartbeat !== 'function') return;
+        busy = true;
+        try {
+            await st.init();
+            const r = await st.sessionHeartbeat(sid);
+            if (r && r.ok === false && r.reason === 'replaced') {
+                try { sessionStorage.setItem('BiletPro_KickMsg', 'Hesabınıza başka bir cihazdan giriş yapıldı' + (r.device ? ' (' + r.device + ')' : '') + '. Bu cihazdaki oturumunuz kapatıldı.'); } catch (_) {}
+                localStorage.removeItem('BiletPro_Session');
+                localStorage.removeItem('BiletPro_SessionId');
+                try { await st.client.auth.signOut(); } catch (_) {}
+                window.BiletProAuth && window.BiletProAuth.clear();
+                window.location.href = 'login.html';
+            }
+        } catch (_) { /* ağ hatasında kimse atılmaz */ }
+        finally { busy = false; }
+    }
+    setInterval(beat, 25000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) beat(); });
+    setTimeout(beat, 5000);
+})();

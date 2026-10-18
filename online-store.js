@@ -895,7 +895,26 @@
             return { ok: true, role };
         },
 
+        // ───── Tek oturum (aynı hesapla ikinci cihaz) ─────
+        // SQL (supabase_tek_oturum.sql) çalıştırılmadıysa giriş engellenmez (skipped).
+        async _sessionRpc(fn, args) {
+            if (this.mode !== 'online' || !this.client) return { ok: true, skipped: true };
+            const { data, error } = await this.client.rpc(fn, args);
+            if (error) {
+                if (/could not find the function|does not exist|schema cache/i.test(error.message || '')) return { ok: true, skipped: true };
+                return { ok: false, reason: 'rpc_error', message: error.message };
+            }
+            return data || { ok: false, reason: 'no_data' };
+        },
+        claimSession(device, force) { return this._sessionRpc('claim_session', { p_device: device || '', p_force: !!force }); },
+        sessionHeartbeat(sessionId) { return this._sessionRpc('session_heartbeat', { p_session: sessionId }); },
+
         async signOut() {
+            try {
+                const sid = localStorage.getItem('BiletPro_SessionId');
+                if (sid && this.client) await this.client.rpc('release_session', { p_session: sid });
+            } catch (_) {}
+            try { localStorage.removeItem('BiletPro_SessionId'); } catch (_) {}
             try { if (this.client) await this.client.auth.signOut(); } catch (_) {}
             try { localStorage.removeItem('biletpro-auth'); } catch (_) {}
         },
