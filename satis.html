@@ -529,6 +529,13 @@
             <div class="grid grid-cols-2 gap-3 no-print">
                 <button onclick="printTicket()" style="background:linear-gradient(135deg,#1a1c2e,#22253a);border:1px solid rgba(255,215,0,0.25);color:rgba(255,215,0,0.85);" class="py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:border-yellow-400 transition-all tracking-widest">🖨️ YAZDIR</button>
                 
+                <button onclick="sendTicketLink()" id="linkShareBtn" style="background:linear-gradient(135deg,#128c4a,#25D366);border:1px solid rgba(37,211,102,0.5);color:#fff;" class="col-span-2 py-5 rounded-2xl font-black text-[12px] shadow-lg flex items-center justify-center gap-2">
+                    💬 BİLETİ WHATSAPP'TAN GÖNDER (TEK TIK)
+                </button>
+                <button onclick="copyTicketLink()" id="linkCopyBtn" style="background:linear-gradient(135deg,#0d0e14,#141824);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.75);" class="col-span-2 py-3 rounded-2xl font-black text-[10px] uppercase">
+                    🔗 Bilet linkini kopyala
+                </button>
+                
                 <button onclick="copyAndShareWhatsApp()" id="shareBtn" style="background:linear-gradient(135deg,#1a2b1e,#203829);border:1px solid rgba(37,211,102,0.3);color:#25D366;" class="py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg flex items-center justify-center gap-2 hover:border-green-400 transition-all tracking-wider">
                     💬 WHATSAPP
                 </button>
@@ -1560,6 +1567,7 @@
 
             // ecLevel=H: En yüksek hata düzeltme (%30 hasar toleransı) — taramayı kolaylaştırır
             document.getElementById('qrcodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(hash)}&size=600&dark=000000&light=ffffff&margin=3&ecLevel=H`;
+            prepareShareLink(hash);
 
             // Firma logosu ve adı — settings'den çek
             const _cfg = (window.BiletProCore && window.BiletProCore.getConfig()) || {};
@@ -1594,6 +1602,70 @@
             setTimeout(() => window.print(), 400);
         }
         
+        // ───── BİLET LİNKİ (müşteriye tek tıkla WhatsApp) ─────
+        let shareUrl = '';
+        let sharePrep = null;
+
+        function normalizePhoneIntl(raw) {
+            let p = String(raw || '').replace(/\D/g, '');
+            while (p.startsWith('0')) p = p.substring(1);
+            if (p.length === 10) p = '90' + p;
+            return p.length >= 11 ? p : '';
+        }
+
+        function setLinkBtnState(ready) {
+            const b = document.getElementById('linkShareBtn'); if (!b) return;
+            b.style.opacity = ready ? '1' : '.6';
+            b.innerHTML = ready ? "💬 BİLETİ WHATSAPP'TAN GÖNDER (TEK TIK)" : '⏳ BİLET LİNKİ HAZIRLANIYOR…';
+        }
+
+        function prepareShareLink(hash) {
+            shareUrl = ''; setLinkBtnState(false);
+            const run = async () => {
+                const store = window.BiletProOnlineStore;
+                if (!store) return;
+                await store.init();
+                // satış sunucuya yazıldıktan hemen sonra: birkaç kez dene
+                for (let i = 0; i < 6; i++) {
+                    const { data, error } = await store.client.from('tickets').select('share_token').eq('ticket_hash', hash).maybeSingle();
+                    if (!error && data && data.share_token) {
+                        shareUrl = new URL('bilet.html?t=' + data.share_token, location.href).href;
+                        setLinkBtnState(true);
+                        return;
+                    }
+                    if (error) break;                       // sütun yoksa (SQL çalıştırılmadı) boşuna bekleme
+                    await new Promise(r => setTimeout(r, 900));
+                }
+                const b = document.getElementById('linkShareBtn');
+                if (b) b.innerHTML = '⚠️ BİLET LİNKİ OLUŞTURULAMADI — "WHATSAPP" DÜĞMESİNİ KULLANIN';
+            };
+            sharePrep = run().catch(e => console.warn('[bilet linki]', e));
+            return sharePrep;
+        }
+
+        function ticketShareMessage() {
+            const name = (document.getElementById('tkCustName').innerText || '').replace('ALICI: ', '').trim();
+            const dateStr = ev.date ? new Date(ev.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+            const venue = [ev.venue, ev.city].filter(Boolean).join(' - ');
+            return `🎫 *${ev.title}* biletiniz hazır!\n\nMerhaba ${name},\ngiriş biletiniz (QR kodlu) bu bağlantıda:\n${shareUrl}\n\n${dateStr ? '📅 ' + dateStr + '\n' : ''}${venue ? '📍 ' + venue + '\n' : ''}\nGirişte QR kodu görevliye okutmanız yeterlidir.`;
+        }
+
+        function sendTicketLink() {
+            const phone = normalizePhoneIntl(lastPhone);
+            if (!phone) return showToast('Müşteri telefonu girilmemiş ya da geçersiz!', 'error');
+            if (!shareUrl) return showToast('Bilet linki henüz hazır değil, birkaç saniye bekleyip tekrar basın.', 'info');
+            // Tıklama anında, senkron açılır (açılır pencere engelleyicisine takılmaz)
+            const w = window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(ticketShareMessage()), '_blank');
+            if (!w) location.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(ticketShareMessage());
+            if (typeof writeAuditEvent === 'function') writeAuditEvent('Satış', 'Bilet Linki Gönderildi', (document.getElementById('tkCustName').innerText || '') + ' | ' + lastMasaDetails);
+        }
+
+        async function copyTicketLink() {
+            if (!shareUrl) return showToast('Bilet linki henüz hazır değil.', 'info');
+            try { await navigator.clipboard.writeText(shareUrl); showToast('Bilet linki kopyalandı.', 'success'); }
+            catch (_) { prompt('Bilet linki:', shareUrl); }
+        }
+
         async function copyAndShareWhatsApp() {
             if(!lastPhone) return showToast("Müşteri telefonu girilmemiş!", "error");
             

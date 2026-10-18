@@ -183,6 +183,7 @@
         const st = document.createElement('style'); st.id = 'seatmapStyle';
         st.textContent = `
         .sm-wrap{position:relative;width:100%;height:100%;min-height:320px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+        .sm-wrap.sm-full{position:fixed;inset:0;z-index:200000;height:100%;border-radius:0}
         .sm-svg{width:100%;height:100%;display:block;cursor:grab}
         .sm-svg.dragging{cursor:grabbing}
         .sm-grid{stroke:var(--border);stroke-width:1}
@@ -234,7 +235,7 @@
         const wrap = document.createElement('div'); wrap.className = 'sm-wrap' + (edit ? ' sm-edit' : ''); container.appendChild(wrap);
         const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'sm-svg'); svg.setAttribute('preserveAspectRatio', 'xMidYMid meet'); wrap.appendChild(svg);
         const ctl = document.createElement('div'); ctl.className = 'sm-ctl';
-        ctl.innerHTML = '<button data-a="in" title="Yakınlaş">+</button><button data-a="out" title="Uzaklaş">−</button><button data-a="fit" title="Sığdır" style="font-size:13px">⤢</button>';
+        ctl.innerHTML = '<button data-a="in" title="Yakınlaş">+</button><button data-a="out" title="Uzaklaş">−</button><button data-a="fit" title="Sığdır" style="font-size:13px">⤢</button><button data-a="full" title="Tam ekran" style="font-size:15px">⛶</button>';
         wrap.appendChild(ctl);
         if (opts.legend) {
             const lg = document.createElement('div'); lg.className = 'sm-legend';
@@ -398,7 +399,7 @@
         }
         svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
         svg.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
-        ctl.addEventListener('click', (e) => { const a = e.target.getAttribute && e.target.getAttribute('data-a'); if (a === 'in') zoom(1.3); else if (a === 'out') zoom(1 / 1.3); else if (a === 'fit') fit(); });
+        ctl.addEventListener('click', (e) => { const a = e.target.getAttribute && e.target.getAttribute('data-a'); if (a === 'in') zoom(1.3); else if (a === 'out') zoom(1 / 1.3); else if (a === 'fit') fit(); else if (a === 'full') { const on = wrap.classList.toggle('sm-full'); document.body.style.overflow = on ? 'hidden' : ''; setTimeout(fit, 60); } });
         if (edit) {
             window.addEventListener('keydown', onKey);
         }

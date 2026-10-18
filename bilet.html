@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow">
+    <title>BiletPro | Biletiniz</title>
+    <link rel="stylesheet" href="theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <style>
+        html, body { margin: 0; min-height: 100%; }
+        body { background: radial-gradient(900px 420px at 50% -10%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%), var(--bg); color: var(--text); font-family: var(--font); padding: 18px 14px 40px; }
+        .wrap { max-width: 460px; margin: 0 auto; }
+        .brand { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .14em; color: var(--muted); margin: 6px 0 14px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 14px; }
+        .head { padding: 20px 20px 16px; display: flex; gap: 14px; align-items: center; border-bottom: 1px dashed var(--border-strong); }
+        .logo { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; background: var(--surface-3); flex-shrink: 0; }
+        .title { font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; }
+        .company { font-size: 12.5px; color: var(--primary-text); font-weight: 600; margin-bottom: 2px; }
+        .meta { padding: 14px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; font-size: 13.5px; }
+        .meta .l { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+        .meta .v { font-weight: 600; margin-top: 2px; }
+        .meta .full { grid-column: 1 / -1; }
+        .guest { padding: 0 20px 14px; font-size: 14px; color: var(--text-2); }
+        .guest b { color: var(--text); }
+        .tk { padding: 18px 20px 20px; text-align: center; border-top: 1px dashed var(--border-strong); }
+        .tk .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; text-align: left; }
+        .tk .cat { font-size: 13px; color: var(--muted); font-weight: 600; }
+        .tk .tbl { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+        .tk .ppl { font-size: 13px; color: var(--text-2); font-weight: 600; }
+        .qr { background: #fff; border-radius: 16px; padding: 14px; display: inline-block; border: 1px solid var(--border); }
+        .qr svg { display: block; width: min(64vw, 260px); height: auto; }
+        .code { margin-top: 10px; font: 600 11px ui-monospace, Menlo, monospace; color: var(--muted); word-break: break-all; }
+        .debt { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--warning-soft); color: var(--warning-text); border: 1px solid var(--warning-border); font-size: 13.5px; font-weight: 600; }
+        .note { text-align: center; font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 10px 8px 0; }
+        .state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
+    </style>
+</head>
+<body>
+    <script>
+        // Sistem temasına uy (kullanıcı kaydı yok): koyu mod destekli
+        try { document.documentElement.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (_) {}
+    </script>
+    <div class="wrap">
+        <div class="brand">BİLETPRO</div>
+        <div id="out"><div class="state">Biletiniz yükleniyor…</div></div>
+    </div>
+
+    <script>
+        // Herkese açık (anon) anahtar: yalnızca public_ticket fonksiyonunu çağırabilir
+        const SB_URL = 'https://xlwmzalusrhhmxbvrmdx.supabase.co';
+        const SB_KEY = 'sb_publishable_lYENVrZ-QIKlDSyzorUN1g_0qOELxt9';
+        const out = document.getElementById('out');
+        const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const money = (n) => '₺' + Number(n || 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+
+        function qrSvg(text) {
+            const qr = qrcode(0, 'H'); qr.addData(String(text)); qr.make();
+            return qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+        }
+
+        async function main() {
+            const token = new URLSearchParams(location.search).get('t') || '';
+            if (!/^[0-9a-fA-F-]{36}$/.test(token)) { out.innerHTML = '<div class="state">Geçersiz bilet bağlantısı.</div>'; return; }
+            try {
+                const client = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+                const { data, error } = await client.rpc('public_ticket', { p_token: token });
+                if (error || !data || !data.ok) { out.innerHTML = '<div class="state">Bilet bulunamadı. Bağlantıyı kontrol edin ya da satışı yapan kişiyle iletişime geçin.</div>'; return; }
+                render(data);
+            } catch (e) {
+                console.error(e);
+                out.innerHTML = '<div class="state">Bilet yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</div>';
+            }
+        }
+
+        function render(d) {
+            const e = d.event || {};
+            const date = e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }) : '—';
+            const time = [e.door ? 'Kapı ' + e.door : '', e.start ? 'Başlangıç ' + e.start : ''].filter(Boolean).join(' · ') || '—';
+            const venue = [e.venue, e.city].filter(Boolean).join(' · ') || '—';
+            const tickets = d.tickets || [];
+            const totalPeople = tickets.reduce((a, t) => a + (t.people || 0), 0);
+            let h = `<div class="card">
+                <div class="head">${e.logo ? `<img class="logo" src="${esc(e.logo)}" alt="">` : ''}
+                    <div><div class="company">${esc(e.company || '')}</div><div class="title">${esc(e.title || 'Etkinlik')}</div></div></div>
+                <div class="meta">
+                    <div><div class="l">Tarih</div><div class="v">${esc(date)}</div></div>
+                    <div><div class="l">Saat</div><div class="v">${esc(time)}</div></div>
+                    <div class="full"><div class="l">Mekan</div><div class="v">${esc(venue)}${e.address ? '<br><span style="font-weight:500;color:var(--muted)">' + esc(e.address) + '</span>' : ''}</div></div>
+                </div>
+                <div class="guest">Sayın <b>${esc(d.customer || '')}</b>, toplam <b>${totalPeople}</b> kişilik giriş biletiniz aşağıdadır.</div>
+            </div>`;
+            tickets.forEach((t, i) => {
+                h += `<div class="card"><div class="tk">
+                    <div class="row"><div><div class="cat">${esc(t.category || '')}</div><div class="tbl">Masa ${esc(t.table_no)}</div></div><div class="ppl">${esc(t.people)} kişi</div></div>
+                    <div class="qr">${qrSvg(t.hash)}</div>
+                    <div class="code">${esc(t.hash)}</div>
+                    ${Number(t.debt) > 0.5 ? `<div class="debt">Kapıda ödenecek tutar: ${money(t.debt)}</div>` : ''}
+                </div></div>`;
+            });
+            h += `<div class="note">Girişte bu QR kodu görevliye okutun.<br>Ekran parlaklığını artırın ve ekran görüntüsü alıp saklayabilirsiniz.<br>${tickets.length > 1 ? 'Her masa için ayrı QR kod vardır.' : ''}</div>`;
+            out.innerHTML = h;
+            document.title = (e.title || 'Biletiniz') + ' | BiletPro';
+        }
+        main();
+    </script>
+</body>
+</html>
