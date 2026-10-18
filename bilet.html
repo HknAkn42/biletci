@@ -7,6 +7,7 @@
     <title>BiletPro | Biletiniz</title>
     <link rel="stylesheet" href="theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="ticketimg.js?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <style>
         html, body { margin: 0; min-height: 100%; }
@@ -33,6 +34,10 @@
         .qr svg { display: block; width: min(64vw, 260px); height: auto; }
         .code { margin-top: 10px; font: 600 11px ui-monospace, Menlo, monospace; color: var(--muted); word-break: break-all; }
         .debt { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--warning-soft); color: var(--warning-text); border: 1px solid var(--warning-border); font-size: 13.5px; font-weight: 600; }
+        .acts { display: flex; gap: 8px; margin-top: 14px; }
+        .acts button { flex: 1; height: 46px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: 650 14px var(--font); cursor: pointer; }
+        .acts button.pri { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .acts button[disabled] { opacity: .6; }
         .note { text-align: center; font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 10px 8px 0; }
         .state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
     </style>
@@ -74,7 +79,22 @@
             }
         }
 
+        let DATA = null;
+        const imgData = (i) => ({ event: DATA.event, customer: DATA.customer, ticket: DATA.tickets[i] });
+        async function saveImg(i, btn) {
+            const old = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
+            try { const d = imgData(i); const blob = await TicketImage.make(d); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = TicketImage.fileName(d); document.body.appendChild(a); a.click(); a.remove(); }
+            catch (e) { alert('Resim oluşturulamadı: ' + e.message); }
+            btn.disabled = false; btn.textContent = old;
+        }
+        async function shareImg(i, btn) {
+            const old = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
+            try { await TicketImage.shareOrDownload([imgData(i)], 'Biletiniz'); } catch (e) { alert('Paylaşılamadı: ' + e.message); }
+            btn.disabled = false; btn.textContent = old;
+        }
+
         function render(d) {
+            DATA = d;
             const e = d.event || {};
             const date = e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }) : '—';
             const time = [e.door ? 'Kapı ' + e.door : '', e.start ? 'Başlangıç ' + e.start : ''].filter(Boolean).join(' · ') || '—';
@@ -97,6 +117,7 @@
                     <div class="qr">${qrSvg(t.hash)}</div>
                     <div class="code">${esc(t.hash)}</div>
                     ${Number(t.debt) > 0.5 ? `<div class="debt">Kapıda ödenecek tutar: ${money(t.debt)}</div>` : ''}
+                    <div class="acts"><button class="pri" onclick="saveImg(${i}, this)">Resim olarak kaydet</button><button onclick="shareImg(${i}, this)">Paylaş</button></div>
                 </div></div>`;
             });
             h += `<div class="note">Girişte bu QR kodu görevliye okutun.<br>Ekran parlaklığını artırın ve ekran görüntüsü alıp saklayabilirsiniz.<br>${tickets.length > 1 ? 'Her masa için ayrı QR kod vardır.' : ''}</div>`;

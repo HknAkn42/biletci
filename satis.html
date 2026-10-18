@@ -198,6 +198,8 @@
 
     <script src="menu.js?v=20260330"></script>
     <script src="seatmap.js?v=1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="ticketimg.js?v=1"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
@@ -531,6 +533,9 @@
                 
                 <button onclick="sendTicketLink()" id="linkShareBtn" style="background:linear-gradient(135deg,#128c4a,#25D366);border:1px solid rgba(37,211,102,0.5);color:#fff;" class="col-span-2 py-5 rounded-2xl font-black text-[12px] shadow-lg flex items-center justify-center gap-2">
                     💬 BİLETİ WHATSAPP'TAN GÖNDER (TEK TIK)
+                </button>
+                <button onclick="shareTicketImages()" id="imgShareBtn" style="background:linear-gradient(135deg,#1a1c2e,#22253a);border:1px solid rgba(255,215,0,0.3);color:rgba(255,215,0,0.9);" class="col-span-2 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg">
+                    🖼️ Resim (JPEG) olarak paylaş / indir
                 </button>
                 <button onclick="copyTicketLink()" id="linkCopyBtn" style="background:linear-gradient(135deg,#0d0e14,#141824);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.75);" class="col-span-2 py-3 rounded-2xl font-black text-[10px] uppercase">
                     🔗 Bilet linkini kopyala
@@ -1411,6 +1416,12 @@
                 };
             });
             
+            lastSaleItems = basket.map(i => {
+                const tg = ev.categories.find(c => c.id === i.cat.id).masalar.find(m => m.id === i.masa.id);
+                const sd = (tg && tg.saleDetail) || {};
+                return { table_no: i.masa.no, category: i.cat.name, people: i.p, hash: sd.ticketHash || lastTicketHash, debt: sd.debt || 0 };
+            });
+            
             save(); 
             if(typeof window.writeAuditEvent === 'function') writeAuditEvent("Satış", isUpdate ? "Satış Güncellendi" : "Yeni Satış", `${sellerName} -> ${lastMasaDetails} | Tutar: ₺${net.toLocaleString('tr-TR',{minimumFractionDigits:2})}`);
             
@@ -1604,6 +1615,7 @@
         
         // ───── BİLET LİNKİ (müşteriye tek tıkla WhatsApp) ─────
         let shareUrl = '';
+        let lastSaleItems = [];
         let sharePrep = null;
 
         function normalizePhoneIntl(raw) {
@@ -1658,6 +1670,19 @@
             const w = window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(ticketShareMessage()), '_blank');
             if (!w) location.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(ticketShareMessage());
             if (typeof writeAuditEvent === 'function') writeAuditEvent('Satış', 'Bilet Linki Gönderildi', (document.getElementById('tkCustName').innerText || '') + ' | ' + lastMasaDetails);
+        }
+
+        async function shareTicketImages() {
+            if (!lastSaleItems.length) return showToast('Bu bilet için resim üretilemedi (satış bilgisi yok).', 'error');
+            const btn = document.getElementById('imgShareBtn'); const old = btn.innerHTML; btn.innerHTML = '⏳ Resim hazırlanıyor…'; btn.disabled = true;
+            try {
+                const name = (document.getElementById('tkCustName').innerText || '').replace('ALICI: ', '').trim();
+                const datas = lastSaleItems.map(t => ({ event: { title: ev.title, company: ev.company, venue: ev.venue, city: ev.city, date: ev.date, door: ev.doorTime, start: ev.startTime }, customer: name, ticket: t }));
+                const r = await TicketImage.shareOrDownload(datas, '🎫 ' + ev.title + ' biletiniz');
+                if (r === 'downloaded') showToast('Bilet resmi indirildi. WhatsApp\'tan müşteriye ekleyebilirsiniz.', 'success');
+                if (typeof writeAuditEvent === 'function' && r !== 'cancelled') writeAuditEvent('Satış', 'Bilet Resmi Paylaşıldı', name + ' | ' + lastMasaDetails);
+            } catch (e) { console.error(e); showToast('Resim oluşturulamadı: ' + e.message, 'error'); }
+            btn.innerHTML = old; btn.disabled = false;
         }
 
         async function copyTicketLink() {
