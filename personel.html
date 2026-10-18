@@ -244,7 +244,7 @@
             <form id="editStaffForm" class="space-y-6" autocomplete="off">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input type="text" id="eName" class="input-silk" placeholder="AD SOYAD" autocomplete="off" required>
-                    <input type="text" id="eUser" class="input-silk" placeholder="KULLANICI ADI" autocomplete="off" required>
+                    <input type="text" id="eUser" class="input-silk" placeholder="KULLANICI ADI" autocomplete="off" required readonly title="Kullanıcı adı değiştirilemez">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input type="password" id="ePass" class="input-silk" placeholder="YENİ ŞİFRE (Boş bırakılırsa değişmez)" autocomplete="new-password">
@@ -743,6 +743,27 @@
             `).join('');
         }
 
+        const ACCOUNT_ERRORS = {
+            forbidden: 'Bu işlem için yönetici olarak giriş yapmalısınız.',
+            invalid_username: 'Kullanıcı adı 2-32 karakter olmalı; harf, rakam, nokta, alt çizgi ve tire kullanılabilir.',
+            weak_password: 'Şifre en az 8 karakter olmalı.',
+            exists: 'Bu kullanıcı adı zaten mevcut.',
+            not_found: 'Hesap sunucuda bulunamadı.',
+            offline_mode: 'Sunucuya bağlanılamadı. İnternetinizi kontrol edin.'
+        };
+        async function accountCall(promiseFactory) {
+            const store = window.BiletProOnlineStore;
+            if (!store) return { ok: false, reason: 'offline_mode' };
+            try { await store.init(); } catch (_) {}
+            const r = await promiseFactory(store);
+            if (!r || !r.ok) {
+                const msg = ACCOUNT_ERRORS[r && r.reason] || ('İşlem başarısız: ' + ((r && r.reason) || 'bilinmeyen hata'));
+                if (typeof showToast === 'function') showToast(msg, 'error');
+                return { ok: false };
+            }
+            return { ok: true };
+        }
+
         document.getElementById('staffForm').onsubmit = async (e) => {
             e.preventDefault();
             const normalizeUsername = (v) => String(v || '').trim().toLowerCase();
@@ -764,7 +785,6 @@
             const person = {
                 name: String(document.getElementById('sName').value || '').trim(),
                 username: normalizeUsername(document.getElementById('sUser').value),
-                passwordHash: '',
                 role: role,
                 pin: null,
                 isActive: true,
@@ -783,18 +803,15 @@
                 return;
             }
 
-            try {
-                person.passwordHash = await window.BiletProSecurity.hashPassword(document.getElementById('sPass').value);
-            } catch (_) {
-                if(typeof showToast === 'function') showToast('Güvenli şifreleme bu tarayıcıda kullanılamıyor.', 'error');
-                return;
-            }
-            
             if(staffData.some(s => normalizeUsername(s && s.username) === person.username)) {
                 if(typeof showToast === 'function') showToast("Bu kullanıcı adı zaten mevcut!", "error");
                 else alert("Bu kullanıcı adı zaten mevcut!");
                 return;
             }
+
+            // Hesap önce sunucuda (Supabase Auth) açılır; başarısızsa listeye eklenmez.
+            const created = await accountCall(st => st.createStaffAccount(person.username, document.getElementById('sPass').value, role));
+            if (!created.ok) return;
 
             staffData.push(person);
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
@@ -810,7 +827,7 @@
             if(typeof showToast === 'function') showToast("Yeni personel eklendi.", "success");
         }
 
-        function toggleStaffStatus(idx) {
+        async function toggleStaffStatus(idx) {
             const staff = staffData[idx];
             const _ts = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             const _tsIsAdmin = _ts.role === 'admin';
@@ -826,6 +843,8 @@
                 : `${staff.name} adlı personel tekrar aktif edilecek. Onaylıyor musunuz?`;
                 
             if(confirm(msg)) {
+                const acc = await accountCall(st => st.setStaffActive(staff.username, !currentStatus));
+                if (!acc.ok) return;
                 staffData[idx].isActive = !currentStatus;
                 localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
                 if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.pushStaffToOnline === 'function') window.BiletProOnlineStore.pushStaffToOnline(staffData).catch(() => {});
@@ -928,7 +947,7 @@
 
             const staff = staffData[editingStaffIndex];
             const nextName = String(document.getElementById('eName').value || '').trim();
-            const nextUser = normalizeUsername(document.getElementById('eUser').value);
+            const nextUser = normalizeUsername(staff.username); // Kullanıcı adı hesap kimliğidir, değiştirilemez
             // YETKİ YÜKSELTMESİ KORUMASI: Admin rolü ve admin hesap düzenleme sadece admin yapabilir
             const _ces = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             const _cesIsAdmin = _ces.role === 'admin';
@@ -951,19 +970,20 @@
                 return;
             }
 
+            if (newPass) {
+                const pw = await accountCall(st => st.setStaffPassword(nextUser, newPass));
+                if (!pw.ok) return;
+            }
+            if (String(staff.role || '') !== role) {
+                const rl = await accountCall(st => st.setStaffRole(nextUser, role));
+                if (!rl.ok) return;
+            }
             staff.name = nextName;
             staff.username = nextUser;
             staff.role = role;
             staff.perms = perms;
-            if(newPass) {
-                try {
-                    staff.passwordHash = await window.BiletProSecurity.hashPassword(newPass);
-                    delete staff.password;
-                } catch (_) {
-                    if(typeof showToast === 'function') showToast('Güvenli şifreleme bu tarayıcıda kullanılamıyor.', 'error');
-                    return;
-                }
-            }
+            delete staff.password;
+            delete staff.passwordHash;
             
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));
             safeAuditEvent("Personel", "Personel Güncellendi", `${staff.name} bilgileri değiştirildi.`);
@@ -984,7 +1004,7 @@
 
         function closeDeleteModal() { document.getElementById('deleteStaffModal').classList.add('hidden'); }
 
-        function confirmDeleteStaff() {
+        async function confirmDeleteStaff() {
             const staff = staffData[deletingStaffIndex];
             if(!staff) return;
             const _ds = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
@@ -997,6 +1017,10 @@
                 if(typeof showToast === 'function') showToast('Admin hesabını yalnızca sistem yöneticisi silebilir!', 'error');
                 closeDeleteModal(); return;
             }
+
+            // Hesap silinmez, girişe kapatılır (geçmiş kayıtlar korunur).
+            const acc = await accountCall(st => st.setStaffActive(staff.username, false));
+            if (!acc.ok) { closeDeleteModal(); return; }
 
             staffData.splice(deletingStaffIndex, 1);
             localStorage.setItem('BiletPro_Staff', JSON.stringify(staffData));

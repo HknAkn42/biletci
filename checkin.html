@@ -1653,10 +1653,12 @@
             if(!user || user.isActive === false) return null;
             const canRisk = user.role === 'admin' || !!(user.perms && user.perms.pDoorRisk === true);
             if(!canRisk) return null;
-            const verification = window.BiletProSecurity
-                ? await window.BiletProSecurity.verifyPassword(user.passwordHash || user.password, p)
-                : { ok: false };
+            // Şifre sunucuda doğrulanır (ayrı, kalıcı olmayan bir oturumla; mevcut oturum etkilenmez)
+            const store = window.BiletProOnlineStore;
+            if(!store || typeof store.verifyCredentials !== "function") return null;
+            const verification = await store.verifyCredentials(u, p);
             if(!verification.ok) return null;
+            if(verification.role !== "admin" && !(user.perms && user.perms.pDoorRisk === true)) return null;
             return user;
         }
 

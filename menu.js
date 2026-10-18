@@ -1,5 +1,24 @@
 /* Tema: boyamadan önce uygula (kayıtlı seçim yoksa açık tema) */
 (function(){ try { var t = localStorage.getItem("BiletPro_Theme") || (localStorage.getItem("BiletPro_DarkMode") === "1" ? "dark" : "light"); document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light"); } catch (_) { document.documentElement.setAttribute("data-theme", "light"); } })();
+/* Kimlik: Supabase Auth oturumunu (localStorage 'biletpro-auth') eşzamanlı okur.
+   Rol ve kullanıcı adı yalnızca imzalı belirteçten (JWT) türetilir; BiletPro_Session içindeki rol alanına güvenilmez.
+   Gerçek yetki denetimi veritabanında RLS ile yapılır; bu okuyucu arayüzü yönlendirmek içindir. */
+window.BiletProAuth = {
+    STORAGE_KEY: 'biletpro-auth',
+    read() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || 'null');
+            if (!raw || !raw.access_token || !raw.refresh_token) return null;
+            const payload = JSON.parse(decodeURIComponent(escape(atob(raw.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
+            const email = String((payload.email || (raw.user && raw.user.email) || '')).toLowerCase();
+            const username = String((payload.user_metadata && payload.user_metadata.username) || email.split('@')[0] || '').toLowerCase();
+            const role = String((payload.app_metadata && payload.app_metadata.app_role) || 'staff').toLowerCase() === 'admin' ? 'admin' : 'staff';
+            return { username, role, email, exp: payload.exp || 0, expiresAt: raw.expires_at || payload.exp || 0 };
+        } catch (_) { return null; }
+    },
+    clear() { try { localStorage.removeItem(this.STORAGE_KEY); } catch (_) {} }
+};
+
 /**
  * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
  */
@@ -116,9 +135,25 @@
         session = null;
     }
 
+    // Supabase oturumu (JWT) yoksa yerel oturum geçersizdir.
+    const __auth = window.BiletProAuth && window.BiletProAuth.read();
+    if (currentPage !== 'login.html' && !__auth) {
+        localStorage.removeItem('BiletPro_Session');
+        session = null;
+    }
+
     if (!session && currentPage !== 'login.html') {
         window.location.href = 'login.html';
         return;
+    }
+
+    // Rol ve kullanıcı adı belirteçten gelir; yerel oturumu buna eşitle
+    if (session && __auth && currentPage !== 'login.html') {
+        if (normalizeUsername(session.username) !== __auth.username || String(session.role || '').toLowerCase() !== __auth.role) {
+            session.username = __auth.username;
+            session.role = __auth.role;
+            localStorage.setItem('BiletPro_Session', JSON.stringify(session));
+        }
     }
 
     // Aktif sekme işareti (her sayfa yüklemesinde yenile)
@@ -139,7 +174,7 @@
         );
 
         const currentUserRole = String((currentUser && currentUser.role) || '').trim().toLowerCase();
-        const isSessionAdmin = sessionRole === 'admin' || currentUserRole === 'admin';
+        const isSessionAdmin = !!(__auth && __auth.role === 'admin');
 
         if (!isSessionAdmin) {
             const isAllowed = currentUser && currentUser.isActive !== false && hasRequiredPermission(currentUser, currentPage);
@@ -181,6 +216,7 @@
         if (last && (Date.now() - last > IDLE_TIMEOUT)) {
             localStorage.removeItem('BiletPro_Session');
             localStorage.removeItem(STORAGE_KEY);
+            window.BiletProAuth && window.BiletProAuth.clear();
             alert('⏱️ 30 dakika hareketsizlik nedeniyle oturumunuz sonlandırıldı. Lütfen tekrar giriş yapın.');
             window.location.href = 'login.html';
         }
@@ -1603,7 +1639,16 @@ window.logout = function(ev) {
 
     showConfirm("ÇIKIŞ YAPILIYOR", "Güvenli çıkış yapılsın mı?", () => {
         localStorage.removeItem('BiletPro_Session');
-        window.location.href = 'login.html';
+        const done = () => { window.location.href = 'login.html'; };
+        try {
+            if (window.BiletProOnlineStore && typeof window.BiletProOnlineStore.signOut === 'function') {
+                window.BiletProOnlineStore.signOut().then(done, done);
+                setTimeout(done, 1500);
+                return;
+            }
+        } catch (_) {}
+        window.BiletProAuth && window.BiletProAuth.clear();
+        done();
     });
 }
 

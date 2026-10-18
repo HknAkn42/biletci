@@ -123,9 +123,11 @@
                 } else {
                     this.client = window.supabase.createClient(onlineCfg.supabaseUrl, onlineCfg.supabaseAnonKey, {
                         auth: {
-                            persistSession: false,
-                            autoRefreshToken: false,
-                            detectSessionInUrl: false
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: false,
+                            storageKey: 'biletpro-auth',
+                            storage: window.localStorage
                         }
                     });
                     window.__BiletProSupabaseClient = this.client;
@@ -801,21 +803,70 @@
             return { ok: true };
         },
 
+        // ───── Kimlik doğrulama (Supabase Auth) ─────
+        staffEmail(username) {
+            return String(username || '').trim().toLowerCase() + '@biletpro.app';
+        },
+
+        async signIn(username, password) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const { data, error } = await this.client.auth.signInWithPassword({
+                email: this.staffEmail(username),
+                password: String(password || '')
+            });
+            if (error || !data || !data.session) {
+                return { ok: false, reason: (error && error.message) || 'invalid_credentials' };
+            }
+            return { ok: true, session: data.session, user: data.user };
+        },
+
+        // Başka bir kullanıcının şifresini doğrular (örn. kapıda riskli geçiş onayı).
+        // Mevcut oturuma dokunmaz: kalıcı olmayan ayrı bir istemci kullanır.
+        async verifyCredentials(username, password) {
+            if (this.mode !== "online" || !window.supabase || !window.supabase.createClient) return { ok: false, reason: "offline_mode" };
+            const cfg = getOnlineConfig();
+            const temp = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+                auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "biletpro-verify" }
+            });
+            const { data, error } = await temp.auth.signInWithPassword({ email: this.staffEmail(username), password: String(password || "") });
+            if (error || !data || !data.session) return { ok: false, reason: "invalid_credentials" };
+            let role = "staff";
+            try {
+                const p = JSON.parse(decodeURIComponent(escape(atob(data.session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")))));
+                role = (p.app_metadata && p.app_metadata.app_role) === "admin" ? "admin" : "staff";
+            } catch (_) {}
+            return { ok: true, role };
+        },
+
+        async signOut() {
+            try { if (this.client) await this.client.auth.signOut(); } catch (_) {}
+            try { localStorage.removeItem('biletpro-auth'); } catch (_) {}
+        },
+
+        // Yönetici işlemleri (veritabanı fonksiyonları, sadece admin JWT ile çalışır)
+        async adminRpc(fn, args) {
+            if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            const { data, error } = await this.client.rpc(fn, args);
+            if (error) return { ok: false, reason: error.message };
+            return data && typeof data === 'object' ? data : { ok: false, reason: 'unexpected_response' };
+        },
+        createStaffAccount(username, password, role) { return this.adminRpc('admin_create_staff', { p_username: username, p_password: password, p_app_role: role === 'admin' ? 'admin' : 'staff' }); },
+        setStaffPassword(username, password) { return this.adminRpc('admin_set_password', { p_username: username, p_password: password }); },
+        setStaffActive(username, active) { return this.adminRpc('admin_set_active', { p_username: username, p_active: !!active }); },
+        setStaffRole(username, role) { return this.adminRpc('admin_set_role', { p_username: username, p_app_role: role === 'admin' ? 'admin' : 'staff' }); },
+
         // Personel verisini Supabase'e push et
         async pushStaffToOnline(staffArray) {
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
             if (!Array.isArray(staffArray)) return { ok: false, reason: 'invalid_data' };
 
-            // Düz metin şifreleri asla online yapılandırma kaydına göndermeyin.
-            // Eski hesaplar ilk başarılı girişte passwordHash alanına taşınır.
-            const safeStaff = await Promise.all(staffArray.map(async (staff) => {
+            // Şifreler artık Supabase Auth'ta tutulur; personel listesinde parola alanı bulunmaz.
+            const safeStaff = staffArray.map((staff) => {
                 const copy = { ...(staff || {}) };
-                if (!copy.passwordHash && copy.password && window.BiletProSecurity?.hashPassword) {
-                    copy.passwordHash = await window.BiletProSecurity.hashPassword(copy.password);
-                }
                 delete copy.password;
+                delete copy.passwordHash;
                 return copy;
-            }));
+            });
 
             const { error } = await this.client
                 .from('app_config')
@@ -843,18 +894,13 @@
             const onlineStaff = data.value;
             if (!Array.isArray(onlineStaff)) return { ok: false, reason: 'invalid_staff_data', changed: false };
 
-            // Eski veritabanı kayıtlarındaki düz metin şifreleri ilk senkronizasyonda temizle.
-            let credentialsMigrated = false;
-            const migratedStaff = await Promise.all(onlineStaff.map(async (staff) => {
+            // Eski kayıtlardaki parola alanlarını yerelde asla tutma.
+            const migratedStaff = onlineStaff.map((staff) => {
                 const copy = { ...(staff || {}) };
-                if (!copy.passwordHash && copy.password && window.BiletProSecurity?.hashPassword) {
-                    copy.passwordHash = await window.BiletProSecurity.hashPassword(copy.password);
-                    delete copy.password;
-                    credentialsMigrated = true;
-                }
+                delete copy.password;
+                delete copy.passwordHash;
                 return copy;
-            }));
-            if (credentialsMigrated) await this.pushStaffToOnline(migratedStaff);
+            });
 
             const currentRaw = localStorage.getItem('BiletPro_Staff') || '[]';
             const nextRaw = JSON.stringify(migratedStaff);
