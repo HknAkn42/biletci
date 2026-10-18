@@ -707,6 +707,10 @@ html body :is(.masa-silk, .unit-silk).reserved .m-alt { color: var(--warning-tex
 html body .btn-reserve { width: 100%; margin-top: 10px; padding: 12px; border-radius: var(--r-md); background: var(--warning-soft); color: var(--warning-text); border: 1px solid var(--warning-border); font-size: 13px; font-weight: 650; cursor: pointer; transition: filter .15s; }
 html body .btn-reserve:hover { filter: brightness(.97); }
 
+/* Doğrudan body altındaki ana içerik (müşteriler, personel vb.) kaydırılabilir olsun:
+   menu.js'teki "body > * { overflow: hidden }" kuralı bunları kilitliyordu. */
+html body > main { overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
 /* ===== MOBİL DOKUNMATİK VE ERİŞİLEBİLİRLİK ===== */
 /* === MOBİL DOKUNMATİK VE ERİŞİLEBİLİRLİK İYİLEŞTİRMELERİ === */
 @media (max-width: 640px) {
