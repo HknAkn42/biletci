@@ -601,6 +601,15 @@
             return { ok: true, changed, count: normalized.length };
         },
 
+        // Satış / rezervasyon sırasında etkinliğin aktiflik durumu sunucudaki değerden alınır; yerel (bayat olabilecek) değer onu değiştirmez
+        async _serverActive(legacyEvent) {
+            try {
+                const { data } = await this.client.from('events').select('is_active').eq('legacy_event_id', String(legacyEvent.id)).maybeSingle();
+                if (data) return data.is_active !== false;
+            } catch (_) {}
+            return legacyEvent.isActive !== false;
+        },
+
         // satis.html için: mevcut legacy event yapısını online tabloya senkronlar
         async syncLegacyEventBundle(ev) {
             if (!ev || !ev.id) return { ok: false, reason: 'invalid_event' };
@@ -840,6 +849,7 @@
             }
 
             // Event kaydı yoksa oluştur / güncelle (RPC event_id üzerinden çalışır)
+            const _act = await this._serverActive(legacyEvent);
             const eventRow = {
                 legacy_event_id: String(legacyEvent.id),
                 title: legacyEvent.title || 'Etkinlik',
@@ -850,8 +860,8 @@
                 event_date: this.normalizeEventDate(legacyEvent.date),
                 door_time: legacyEvent.doorTime || null,
                 start_time: legacyEvent.startTime || null,
-                is_active: legacyEvent.isActive !== false,
-                payload_json: legacyEvent
+                is_active: _act,
+                payload_json: Object.assign({}, legacyEvent, { isActive: _act })
             };
 
             const { error: evErr } = await this.client
@@ -893,6 +903,7 @@
         async reserveTable(legacyEvent, r) {
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
             if (!legacyEvent || !legacyEvent.id) return { ok: false, reason: 'invalid_event' };
+            const _actR = await this._serverActive(legacyEvent);
             // Etkinlik satırı yoksa oluştur (RPC event satırı üzerinden çalışır)
             const { error: evErr } = await this.client.from('events').upsert({
                 legacy_event_id: String(legacyEvent.id),
@@ -904,8 +915,8 @@
                 event_date: this.normalizeEventDate(legacyEvent.date),
                 door_time: legacyEvent.doorTime || null,
                 start_time: legacyEvent.startTime || null,
-                is_active: legacyEvent.isActive !== false,
-                payload_json: legacyEvent
+                is_active: _actR,
+                payload_json: Object.assign({}, legacyEvent, { isActive: _actR })
             }, { onConflict: 'legacy_event_id' });
             if (evErr) return { ok: false, reason: 'event_upsert_failed' };
             const { data, error } = await this.client.rpc('ticket_reserve_atomic', {
