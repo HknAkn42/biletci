@@ -158,7 +158,7 @@
                     <img id="headLogo" class="w-full h-full object-cover">
                 </div>
                 <div class="flex flex-col min-w-0">
-                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Security & Access</p>
+                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-[4px]">Kapı Kontrol</p>
                     <h1 id="headTitle" class="text-sm sm:text-xl font-black text-slate-800 tracking-tighter uppercase truncate">KAPI KONTROL</h1>
                 </div>
             </div>
@@ -396,7 +396,7 @@
             updateCounters();
             const ev=events.find(e=>String(e.id)===String(eventId));
             if(ev) {
-                if(document.getElementById('headLogo')) document.getElementById('headLogo').src = ev.logo || 'https://via.placeholder.com/150';
+                if(document.getElementById('headLogo')) document.getElementById('headLogo').src = ev.logo || 'assets/go-event-logo.png';
                 if(document.getElementById('headTitle')) document.getElementById('headTitle').innerText = ev.title + " | KAPI";
             }
 
