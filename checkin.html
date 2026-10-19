@@ -1096,7 +1096,7 @@
            Çok masalı satışta her masanın ayrı bilet kodu vardır (<taban>-M<masa>) ama müşteri tek QR gösterebilir.
            Okutulan biletin kardeş masaları listelenir; görevli tek dokunuşla sıradaki masayı açar. */
         function groupBaseOf(hash) {
-            const m = String(hash || '').match(/^(.*-T\d+)-M[0-9A-Za-z.]+$/);
+            const m = String(hash || '').match(/^(.*-T[0-9A-Za-z]+)-M[0-9A-Za-z.]+$/);
             return m ? m[1] : null;
         }
         let _groupReq = 0;

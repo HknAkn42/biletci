@@ -1500,6 +1500,12 @@
         }
 
         // Kategori fiyatı 0 ise (ör. VIP) kişi başı fiyat satış anında satıcı tarafından girilir.
+        // Bilet kodu için kriptografik rastgele 128 bit (32 hane). Tahmin edilemez; zaman damgası içermez.
+        function secureToken() {
+            const a = new Uint8Array(16);
+            (window.crypto || window.msCrypto).getRandomValues(a);
+            return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+        }
         function isCustomPrice(i) { return !(Number(i.cat.pricePerPerson) > 0); }
         function unitPrice(i) {
             const base = Number(i.cat.pricePerPerson) || 0;
@@ -1588,7 +1594,7 @@
                     const dueIso = dueDate.toISOString();
 
                     const masaNosOnlyPreview = basket.map(b => b.masa.no).join('');
-                    const baseHash = `EV${ev.id.toString().slice(-4)}-M${masaNosOnlyPreview}-T${Date.now()}${Math.floor(Math.random()*9000+1000)}`;
+                    const baseHash = `EV${ev.id.toString().slice(-4)}-M${masaNosOnlyPreview}-T${secureToken()}`;
 
                     _atomicRows = basket.map((b, idx) => {
                         const perTableHash = basket.length > 1 ? `${baseHash}-M${b.masa.no}` : baseHash;
@@ -1705,7 +1711,7 @@
                 ? Object.fromEntries(_atomicRows.map(r => [String(r.masa_id), r]))
                 : null;
 
-            lastTicketHash = oldHash || _atomicRows?.[0]?.ticket_hash || `EV${ev.id.toString().slice(-4)}-M${masaNosOnly}-T${Date.now()}${Math.floor(Math.random()*9000+1000)}`;
+            lastTicketHash = oldHash || _atomicRows?.[0]?.ticket_hash || `EV${ev.id.toString().slice(-4)}-M${masaNosOnly}-T${secureToken()}`;
             lastPhone = ph;
 
             const pr = parseFloat(document.getElementById('prDisc').value) || 0;

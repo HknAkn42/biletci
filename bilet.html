@@ -34,6 +34,10 @@
         .tk .cat { font-size: 13px; color: var(--muted); font-weight: 600; }
         .tk .tbl { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
         .tk .ppl { font-size: 13px; color: var(--text-2); font-weight: 600; }
+        .used-box { margin: 10px 0 4px; padding: 22px 14px; border-radius: 16px; background: var(--surface-3); border: 2px dashed var(--border-strong); color: var(--text-2); font-weight: 800; }
+        .used-box .big { font-size: 20px; letter-spacing: .04em; color: #dc2626; }
+        .used-box .sm { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+        .used-tag { display: inline-block; margin: 0 0 10px; padding: 7px 12px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 12.5px; font-weight: 700; }
         .qr { background: #fff; border-radius: 16px; padding: 14px; display: inline-block; border: 1px solid var(--border); }
         .qr svg { display: block; width: min(64vw, 260px); height: auto; }
         .code { margin-top: 10px; font: 600 11px ui-monospace, Menlo, monospace; color: var(--muted); word-break: break-all; }
@@ -118,8 +122,12 @@
                 const tc = /^#[0-9a-fA-F]{6}$/.test(t.color || '') ? t.color : '#d4a017';
                 h += `<div class="card"><div style="height:8px;background:${tc}"></div><div class="tk" style="border-top:0">
                     <div class="row"><div><div class="cat">${esc(t.category || '')}</div><div class="tbl">Masa ${esc(t.table_no)}</div></div><div class="ppl">${esc(t.people)} kişi</div></div>
-                    <div class="qr">${qrSvg(t.hash)}</div>
-                    <div class="code">${esc(t.hash)}</div>
+                    ${(() => {
+                        const inn = Number(t.inside) || 0, ppl = Number(t.people) || 0;
+                        const used = String(t.status || '').toUpperCase() === 'INSIDE' || String(t.status || '').toUpperCase() === 'OUTSIDE' || inn > 0;
+                        if (used && ppl > 0 && inn >= ppl) return '<div class="used-box"><div class="big">✓ BU BİLET KULLANILDI</div><div class="sm">' + inn + ' kişi giriş yaptı. Aynı bilet ikinci kez kullanılamaz.</div></div>';
+                        return (used ? '<div class="used-tag">' + inn + ' / ' + ppl + ' kişi giriş yaptı · kalan ' + Math.max(0, ppl - inn) + ' kişi</div><br>' : '') + '<div class="qr">' + qrSvg(t.hash) + '</div><div class="code">' + esc(t.hash) + '</div>';
+                    })()}
                     ${Number(t.debt) > 0.5 ? `<div class="debt">Kapıda ödenecek tutar: ${money(t.debt)}</div>` : ''}
                     <div class="acts"><button class="pri" onclick="saveImg(${i}, this)">Resim olarak kaydet</button><button onclick="shareImg(${i}, this)">Paylaş</button></div>
                 </div></div>`;
