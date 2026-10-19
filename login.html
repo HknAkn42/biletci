@@ -270,8 +270,14 @@
             if (window.LoginFX) {
                 let __went = false;
                 const __go = () => { if (__went) return; __went = true; window.location.href = 'index.html'; };
-                window.LoginFX.success(userData.name || userData.username, __go);
-                setTimeout(__go, 9000);   // güvenlik: animasyon takılırsa yine de geç
+                // Etkinlikler yüklenene kadar gösteri sürer (en fazla 20 sn); veriler yerelde hazır olunca panele geçilir
+                const __st = window.BiletProOnlineStore;
+                const __ready = Promise.race([
+                    (__st && typeof __st.pullOnlineToLocal === 'function' ? __st.pullOnlineToLocal() : Promise.resolve()).catch(() => {}),
+                    new Promise(r => setTimeout(r, 20000))
+                ]);
+                window.LoginFX.success(userData.name || userData.username, __go, __ready);
+                setTimeout(__go, 30000);   // güvenlik: her durumda en geç 30 sn
             } else {
                 showLoginToast(`Hoş geldin, ${userData.name || userData.username}`, 'success');
                 setTimeout(() => {
