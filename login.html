@@ -113,13 +113,13 @@
 <body class="fx-login">
 
     <canvas id="fxCanvas" aria-hidden="true"></canvas>
+    <canvas id="fxSceneCv" aria-hidden="true"></canvas>
     <div id="fxWelcomeOverlay" class="fx-ov" aria-live="polite">
-        <div class="fx-ring"></div><div class="fx-ring r2"></div>
         <div class="fx-ov-inner">
-            <div class="fx-ov-ticket">🎟️</div>
             <div class="fx-ov-hi">Hoş geldin</div>
             <div class="fx-ov-name" id="fxName"></div>
-            <div class="fx-ov-sub">Bugün de satışlar bol olsun!</div>
+            <div class="fx-ov-line"></div>
+            <div class="fx-ov-sub">Sisteme yönlendiriliyorsunuz…</div>
         </div>
     </div>
 
@@ -140,6 +140,7 @@
             <input type="text" id="username" class="input-premium" placeholder="Kullanıcı Adı" autocomplete="username" autocapitalize="none" spellcheck="false">
             <input type="password" id="password" class="input-premium" placeholder="Şifre" autocomplete="current-password" style="text-transform: none;">
             <button type="submit" id="loginBtn" class="btn-main">Giriş Yap</button>
+            <div id="fxScene" class="fx-scene" aria-hidden="true"></div>
             <p class="text-xs text-slate-500 mt-6 leading-relaxed">Hesabınız yok ya da şifrenizi unuttuysanız yöneticinizle iletişime geçin.</p>
         </form>
 
@@ -267,12 +268,10 @@
                 window.writeAuditEvent('Güvenlik', 'Oturum Açıldı', `${userData.name || userData.username} sisteme giriş yaptı.`);
             }
             if (window.LoginFX) {
-                window.LoginFX.success(userData.name || userData.username);
-                setTimeout(() => {
-                    const t = document.getElementById('terminal');
-                    if (t) { t.style.opacity = '0'; t.style.transform = 'scale(0.97)'; t.style.transition = '0.4s'; }
-                }, 300);
-                setTimeout(() => { window.location.href = 'index.html'; }, 2600);
+                let __went = false;
+                const __go = () => { if (__went) return; __went = true; window.location.href = 'index.html'; };
+                window.LoginFX.success(userData.name || userData.username, __go);
+                setTimeout(__go, 9000);   // güvenlik: animasyon takılırsa yine de geç
             } else {
                 showLoginToast(`Hoş geldin, ${userData.name || userData.username}`, 'success');
                 setTimeout(() => {
