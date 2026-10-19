@@ -97,7 +97,7 @@
 
     /* ---------------- sahne durumu ---------------- */
     var SPEED = 1.9;
-    var scene = { mode: 'idle', tt: 0, round: null, roundN: 0, phase: 'round', pt: 0, armed: 0, shake: 0, flashes: [], doneCb: null, finished: false, no: 0, ready: false, slow: 0, bullets: [] };
+    var scene = { mode: 'idle', tt: 0, round: null, roundN: 0, phase: 'round', pt: 0, armed: 0, shake: 0, flashes: [], doneCb: null, finished: false, no: 0, ready: false, slow: 0, bullets: [], stuck: [] };
     var ENEMY_COL = '#94a3b8', HERO_COL = '#f1f5f9';
     var WEAPON_ORDERS = [['knife', 'sword', 'gun'], ['sword', 'gun', 'knife'], ['gun', 'knife', 'sword'], ['knife', 'gun', 'sword']];
 
@@ -149,7 +149,13 @@
         sctx.restore();
     }
 
-    function flash(x, y) { scene.flashes.push({ x: x, y: y, age: 0 }); scene.shake = .16; }
+    function flash(x, y, k) { scene.flashes.push({ x: x, y: y, age: 0, k: k || 1 }); scene.shake = k > 1 ? .3 : .16; }
+    // Fırlatılan adam ekrana "yapışır": önce çarpar, sonra yavaş yavaş aşağı kayarak düşer ve solar
+    function spawnStuck(en, idx, g) {
+        var x = W * (.5 + en.side * .2), y = H * .38;
+        scene.stuck.push({ x: x, y: y, s: en.maxS * .7, rot: (en.side * 5.5 * (idx % 2 ? -1 : 1)) % 6.283, w: en.w, age: 0 });
+        flash(x, y, 4.2);
+    }
     function startRound() {
         var order = WEAPON_ORDERS[scene.roundN % WEAPON_ORDERS.length]; scene.roundN++;
         scene.round = buildRound(order); scene.tt = 0; scene.phase = 'round'; scene.bullets = [];
@@ -186,7 +192,7 @@
                 open = tt < .35 ? ease(tt / .35) : (tt > R.end - .15 && !scene.ready ? 1 - ease(clamp((tt - (R.end - .15)) / .15, 0, 1)) : 1); glow = .3 + .7 * open;
                 heroPose = keyPose(R.heroKeys, tt); ghosts = scene.slow > .5 ? 3 : 0;
                 R.enemies.forEach(function (en, idx) {
-                    if (tt < en.ts || tt > en.te) return;
+                    if (tt > en.te) { if (!en.stuckDone) { en.stuckDone = true; spawnStuck(en, idx, g); } return; } if (tt < en.ts) return;
                     var standX = g.heroX + 52, startX = g.doorX - 4, ex = standX, ep, ea = 1, ey = 0, es = 1, er = 0;
                     if (tt < en.ta) { var au = (tt - en.ts) / (en.ta - en.ts); ex = startX + (standX - startX) * au; ep = walkPose(tt * 10 + idx, -.05); ea = clamp((tt - en.ts) / .12, 0, 1); }
                     else if (tt < en.th) { ep = keyPose(en.ek, tt); if (en.w === 'sword' && tt > en.sm + .1 && tt < en.sm + .3) ex = standX - 6; }
@@ -196,7 +202,7 @@
                         if (!en.thr) { en.thr = true; flash(standX, g.ground - 30); }
                         var tx = W * (.5 + en.side * .2), ty = H * .38;
                         ex = x0 + (tx - x0) * k; ey = (ty - y0) * k; es = 1 + (en.maxS - 1) * Math.pow(tu, 2.2); er = en.side * tu * 5.5 * (idx % 2 ? -1 : 1);
-                        ea = tu > .78 ? 1 - (tu - .78) / .22 : 1;
+                        ea = 1;
                         enemies.push({ x: ex, y: g.ground - 38 + ey, s: es, rot: er, a: ea, pose: P.FLAIL, front: true, tu: tu, w: en.w });
                         return;
                     }
@@ -229,9 +235,9 @@
         sctx.restore();
         for (var f = scene.flashes.length - 1; f >= 0; f--) {
             var fx = scene.flashes[f]; fx.age += dt; if (fx.age > .3) { scene.flashes.splice(f, 1); continue; }
-            var fu = fx.age / .3; sctx.save(); sctx.globalAlpha = 1 - fu; sctx.strokeStyle = '#fff'; sctx.lineWidth = 2;
-            sctx.beginPath(); sctx.arc(fx.x, fx.y, 6 + fu * 26, 0, 6.283); sctx.stroke();
-            for (var r = 0; r < 7; r++) { var an = r * .9 + 1.1, r1 = 8 + fu * 14, r2 = 14 + fu * 30; sctx.beginPath(); sctx.moveTo(fx.x + Math.cos(an) * r1, fx.y + Math.sin(an) * r1); sctx.lineTo(fx.x + Math.cos(an) * r2, fx.y + Math.sin(an) * r2); sctx.stroke(); }
+            var fu = fx.age / .3, kk = fx.k || 1; sctx.save(); sctx.globalAlpha = 1 - fu; sctx.strokeStyle = '#fff'; sctx.lineWidth = 2 * Math.min(kk, 2.5);
+            sctx.beginPath(); sctx.arc(fx.x, fx.y, (6 + fu * 26) * kk, 0, 6.283); sctx.stroke();
+            for (var r = 0; r < 7; r++) { var an = r * .9 + 1.1, r1 = (8 + fu * 14) * kk, r2 = (14 + fu * 30) * kk; sctx.beginPath(); sctx.moveTo(fx.x + Math.cos(an) * r1, fx.y + Math.sin(an) * r1); sctx.lineTo(fx.x + Math.cos(an) * r2, fx.y + Math.sin(an) * r2); sctx.stroke(); }
             sctx.restore();
         }
         enemies.forEach(function (en) {
@@ -244,6 +250,18 @@
                 figure(sctx, en.pose, -1, ENEMY_COL, 2.6, ghostA, en.w); sctx.restore();
             }
         });
+        for (var si = scene.stuck.length - 1; si >= 0; si--) {
+            var sk = scene.stuck[si]; sk.age += dt;
+            var life = 3.8; if (sk.age > life) { scene.stuck.splice(si, 1); continue; }
+            var imp = clamp(sk.age / .2, 0, 1), sq = 1 + (1 - imp) * .28;                         // çarpma anında ezilme
+            if (sk.age > .35) sk.y += Math.min(80, 12 + (sk.age - .35) * 22) * dt;                  // yavaş yavaş kayıp düşer
+            var sal = (sk.age > life - 1.1 ? (life - sk.age) / 1.1 : 1) * .55;
+            for (var sg = 3; sg >= 0; sg--) {
+                sctx.save(); sctx.translate(sk.x, sk.y - sg * 16 * Math.min(1, Math.max(0, (sk.age - .35) / .8))); sctx.rotate(sk.rot);
+                sctx.scale(sk.s * sq * 1.08, sk.s * (2 - sq) * .94); sctx.translate(0, 38);
+                figure(sctx, P.FLAIL, -1, ENEMY_COL, 2.6, sg === 0 ? sal : sal * .13 / sg, sk.w); sctx.restore();
+            }
+        }
         if (scene.slow > .02) {
             var vg = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .25, W / 2, H / 2, Math.max(W, H) * .75);
             vg.addColorStop(0, 'rgba(0,12,20,0)'); vg.addColorStop(1, 'rgba(0,20,18,' + (.45 * scene.slow) + ')');
