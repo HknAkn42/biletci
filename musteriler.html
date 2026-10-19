@@ -70,6 +70,7 @@
 </head>
 <body class="no-scrollbar bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="menu.js?v=20261018"></script>
     <script>injectMenu('musteriler');</script>
 
@@ -131,6 +132,7 @@
             
             <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
                 <button onclick="copySelectedPhones()" class="bg-slate-900 text-white font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl shadow-xl hover:bg-slate-800 transition-all">📋 Numaraları Kopyala</button>
+                <button onclick="exportAllSalesXlsx()" class="bg-emerald-600 text-white font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl shadow-lg hover:bg-emerald-700 transition-all">📊 Tüm Satışlar (Excel)</button>
                 <button onclick="openExcelModal()" class="bg-white text-slate-800 font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50">📥 Excel Raporu</button>
                 <button onclick="openPromoModal()" class="bg-[#25D366] text-white font-black text-[10px] uppercase px-4 sm:px-8 py-3 sm:py-5 rounded-2xl shadow-lg hover:bg-[#1DA851] flex items-center gap-3">
                     <span class="text-base">📢</span> KAMPANYA BAŞLAT
@@ -598,6 +600,78 @@
         }
 
         function closePayModal() { document.getElementById('paymentModal').classList.add('hidden'); }
+
+        // --- TÜM SATIŞLAR: gerçek .xlsx (müşteri + telefon + masa + ödeme + giriş durumu) ---
+        function buildSalesRows() {
+            const stTxt = { READY: 'Henüz girmedi', INSIDE: 'İçeride', OUTSIDE: 'Dışarıda' };
+            const rows = [];
+            const evs = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+            evs.forEach(ev => (ev.categories || []).forEach(cat => (cat.masalar || []).forEach(m => {
+                if (!m || m.isDeleted || !m.isSold || !m.saleDetail) return;
+                const sd = m.saleDetail;
+                const paid = Number(sd.paid) || 0, debt = Number(sd.debt) || 0;
+                const people = Number(sd.people) || 0, cap = Number(m.kapasite) || 0;
+                let when = '';
+                try { if (sd.saleDate) when = new Date(sd.saleDate).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }); } catch (_) {}
+                rows.push({
+                    'Etkinlik': ev.title || '',
+                    'Masa No': m.no,
+                    'Kategori': cat.name || sd.categoryName || '',
+                    'Ad Soyad': m.soldTo || '',
+                    'Telefon': String(sd.phone || ''),
+                    'Kişi Sayısı': people,
+                    'Masa Kapasitesi': cap,
+                    'Boş Koltuk': cap > people ? cap - people : 0,
+                    'Toplam Tutar (₺)': paid + debt,
+                    'Ödenen (₺)': paid,
+                    'Kalan Borç (₺)': debt,
+                    'Giriş Durumu': stTxt[String(sd.status || 'READY').toUpperCase()] || String(sd.status || ''),
+                    'İçerideki Kişi': Number(sd.insideCount) || 0,
+                    'Satışı Yapan': sd.soldBy || '',
+                    'Satış Tarihi': when,
+                    'Kapı / VIP Notu': sd.gateNote || '',
+                    'Bilet Kodu': sd.ticketHash || ''
+                });
+            })));
+            const num = (v) => parseFloat(String(v).replace(/[^0-9.]/g, '')) || 0;
+            rows.sort((a, b) => String(a['Etkinlik']).localeCompare(String(b['Etkinlik']), 'tr') || (num(a['Masa No']) - num(b['Masa No'])) || String(a['Masa No']).localeCompare(String(b['Masa No']), 'tr', { numeric: true }));
+            return rows;
+        }
+
+        async function exportAllSalesXlsx() {
+            if (typeof XLSX === 'undefined') { notify('EXCEL KÜTÜPHANESİ YÜKLENEMEDİ (İNTERNET?)', '#ef4444'); return; }
+            const rows = buildSalesRows();
+            if (!rows.length) { notify('DIŞA AKTARILACAK SATIŞ YOK', '#ef4444'); return; }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            // telefon metin kalsın (baştaki 0 silinmesin)
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            const phoneCol = Object.keys(rows[0]).indexOf('Telefon');
+            for (let r = range.s.r + 1; r <= range.e.r; r++) { const c = ws[XLSX.utils.encode_cell({ r, c: phoneCol })]; if (c) { c.t = 's'; c.z = '@'; } }
+            ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.min(34, Math.max(k.length + 2, ...rows.map(r => String(r[k] == null ? '' : r[k]).length + 2))) }));
+            ws['!autofilter'] = { ref: ws['!ref'] };
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Satışlar');
+            // rezervasyonlar (çevrimiçiyse)
+            let rsvCount = 0;
+            try {
+                const st = window.BiletProOnlineStore;
+                if (st && typeof st.listReservations === 'function') {
+                    const evs = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]');
+                    const rr = [];
+                    for (const ev of evs) {
+                        const res = await st.listReservations(ev.id);
+                        (res && res.rows || []).forEach(x => {
+                            const info = (x.payload_json && x.payload_json.reservation) || {};
+                            rr.push({ 'Etkinlik': ev.title || '', 'Masa No': x.table_no, 'Kategori': x.category_name || '', 'Ad Soyad': x.customer_name || '', 'Telefon': String(x.customer_phone || ''), 'Kişi Sayısı': x.people_count || 0, 'Rezerve Eden': info.reservedBy || x.sold_by_username || '', 'Tutma Süresi': info.holdUntil ? new Date(info.holdUntil).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : 'Süresiz', 'Not': info.note || '' });
+                        });
+                    }
+                    if (rr.length) { const w2 = XLSX.utils.json_to_sheet(rr); XLSX.utils.book_append_sheet(wb, w2, 'Rezervasyonlar'); rsvCount = rr.length; }
+                }
+            } catch (_) {}
+            const d = new Date(); const pad = (n) => String(n).padStart(2, '0');
+            XLSX.writeFile(wb, 'BiletPro_Satislar_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()) + '.xlsx');
+            notify(rows.length + ' SATIŞ' + (rsvCount ? ' + ' + rsvCount + ' REZERVASYON' : '') + ' EXCEL OLARAK İNDİRİLDİ', '#10b981');
+        }
 
         // --- EXCEL MOTORU ---
         function openExcelModal() { document.getElementById('excelModal').classList.remove('hidden'); }
