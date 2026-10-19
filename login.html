@@ -108,8 +108,20 @@
         .login-toast.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
     </style>
     <link rel="stylesheet" href="theme.css?v=20261018">
+    <link rel="stylesheet" href="login-fx.css?v=1">
 </head>
-<body>
+<body class="fx-login">
+
+    <canvas id="fxCanvas" aria-hidden="true"></canvas>
+    <div id="fxWelcomeOverlay" class="fx-ov" aria-live="polite">
+        <div class="fx-ring"></div><div class="fx-ring r2"></div>
+        <div class="fx-ov-inner">
+            <div class="fx-ov-ticket">🎟️</div>
+            <div class="fx-ov-hi">Hoş geldin</div>
+            <div class="fx-ov-name" id="fxName"></div>
+            <div class="fx-ov-sub">Bugün de satışlar bol olsun!</div>
+        </div>
+    </div>
 
     <div id="loginToast" class="login-toast"></div>
     <div class="glass-terminal" id="terminal">
@@ -117,8 +129,9 @@
         <div class="mb-10">
             <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-xl overflow-hidden">
                 <img id="loginBrandLogo" class="w-full h-full object-cover hidden" alt="Marka Logosu">
-                <svg id="loginBrandIcon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <svg id="loginBrandIcon" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v2M13 11v2M13 16v2" stroke-dasharray="1 0"/></svg>
             </div>
+            <div id="fxWelcome" class="fx-welcome" aria-label="Hoş geldiniz">Hoş geldiniz</div>
             <h1 class="text-2xl font-black italic tracking-tighter uppercase"><span data-brand-short>BILETPRO</span></h1>
             <p id="terminalSubtitle" data-brand-subtitle class="text-slate-500 font-bold text-[9px] uppercase tracking-[3px] mt-2">GÜVENLİ ERİŞİM SİSTEMİ</p>
         </div>
@@ -253,15 +266,25 @@
             if (typeof window.writeAuditEvent === 'function') {
                 window.writeAuditEvent('Güvenlik', 'Oturum Açıldı', `${userData.name || userData.username} sisteme giriş yaptı.`);
             }
-            showLoginToast(`Hoş geldin, ${userData.name || userData.username}`, 'success');
-            setTimeout(() => {
-                const t = document.getElementById('terminal');
-                t.style.opacity = '0'; t.style.transform = 'scale(0.97)'; t.style.transition = '0.4s';
-            }, 500);
-            setTimeout(() => { window.location.href = 'index.html'; }, 900);
+            if (window.LoginFX) {
+                window.LoginFX.success(userData.name || userData.username);
+                setTimeout(() => {
+                    const t = document.getElementById('terminal');
+                    if (t) { t.style.opacity = '0'; t.style.transform = 'scale(0.97)'; t.style.transition = '0.4s'; }
+                }, 300);
+                setTimeout(() => { window.location.href = 'index.html'; }, 2600);
+            } else {
+                showLoginToast(`Hoş geldin, ${userData.name || userData.username}`, 'success');
+                setTimeout(() => {
+                    const t = document.getElementById('terminal');
+                    t.style.opacity = '0'; t.style.transform = 'scale(0.97)'; t.style.transition = '0.4s';
+                }, 500);
+                setTimeout(() => { window.location.href = 'index.html'; }, 900);
+            }
         }
 
         function shakeTerminal() {
+            if (window.LoginFX) { window.LoginFX.fail(); return; }
             const t = document.getElementById('terminal');
             t.classList.add('shake');
             setTimeout(() => t.classList.remove('shake'), 400);
@@ -277,5 +300,6 @@
             __toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 3200);
         }
     </script>
+    <script src="login-fx.js?v=1"></script>
 </body>
 </html>
