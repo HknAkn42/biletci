@@ -1,6 +1,6 @@
-/* BiletPro giriş ekranı: sade sahne ışıkları + çubuk adam gösterisi.
-   Kapıdan çıkan bıçaklı, kılıçlı ve silahlı adamlar; kahramanımız Matrix gibi savuşturur. Veriler yüklenirken (ready gelene kadar) gösteri turlar halinde sürer.
-   Dış kütüphane yok. Tıklama/tuş ile atlanır. */
+/* BiletPro giriş ekranı: sade sahne ışıkları + gişe sahnesi.
+   Kapıda QR okutan görevli, ellerinde bilet tutan misafirler: onaylı giriş, ödeme bekleyen (tahsilat), zaten içeride olan (geri çevrilir).
+   Doğru şifreden sonra veriler yüklenene kadar sahne sürer; son misafir (sen) içeri girince panel açılır. Tıklama/tuş ile atlanır. Dış kütüphane yok. */
 (function () {
     'use strict';
     var reduce = false;
@@ -32,35 +32,21 @@
     // poz: [kalçaYüksekliği, gövdeEğimi, önKolÜst, önKolAlt, arkaKolÜst, arkaKolAlt, önBacakÜst, önBacakAlt, arkaBacakÜst, arkaBacakAlt]
     var P = {
         STAND: [33, 0, .15, .2, -.1, .2, .1, 0, -.1, 0],
-        GUARD: [31, .12, 1.25, 1.25, .9, 1.7, .55, -.55, -.45, .35],
-        JAB: [30, .3, 1.57, 0, .9, 1.7, .75, -.7, -.6, .3],
-        KICK: [28, -.3, .7, 1.4, 1.1, 1.6, 1.55, 0, -.35, .15],
-        HIGH: [27, -.48, .5, 1.2, 1.3, 1.2, 2.05, -.1, -.3, .1],
-        UPPER: [28, .22, 2.55, .3, .9, 1.6, .8, -.7, -.5, .3],
-        FLAIL: [30, -.3, 2.6, .4, 2.2, -.4, 1.0, .6, -.8, .5],
-        HIT: [32, -.5, 1.0, .6, 1.6, .5, .3, -.3, -.3, .4],
+        HOLD: [32, .08, 1.45, .15, .3, .4, .15, 0, -.15, 0],      // bileti öne uzatır
+        SCAN: [32, .05, 1.5, 0, .5, .8, .15, 0, -.15, 0],         // okuyucuyu uzatır
         NO: [33, 0, .3, .3, -.2, .2, .1, 0, -.1, 0],
-        MATRIX: [24, -1.0, 1.1, .4, -1.0, -.4, 1.1, -1.0, .7, -.5],      // geriye yatış (kurşun kaçırma)
-        LEAN: [29, -.5, .9, .8, .7, 1.4, .7, -.7, -.5, .3],                 // hafif geri çekilme
-        SW_UP: [31, -.1, 2.9, .2, .8, 1.6, .3, -.3, -.3, .3],              // kılıç havada
-        SW_DN: [29, .35, 1.1, .2, .8, 1.6, .8, -.6, -.5, .2],               // kılıç iniyor
-        AIM: [31, .05, 1.57, 0, 1.3, .6, .4, -.4, -.4, .3],                 // silah doğrultulmuş
-        BOW: [30, .55, .4, .5, .2, .5, .2, -.1, -.2, .1]                    // selam
+        SHRUG: [33, 0, 2.0, 1.0, 1.8, 1.1, .1, 0, -.1, 0],        // omuz silker
+        CHEER: [33, -.05, 2.8, .2, 2.6, .2, .12, 0, -.12, 0],     // el sallar / sevinir
+        BOW: [30, .55, .4, .5, .2, .5, .2, -.1, -.2, .1],
+        CROSS: [33, 0, 1.0, 1.9, 1.0, 1.9, .1, 0, -.1, 0]         // kollar kavuşuk (hayır)
     };
     function mix(a, b, u) { var o = []; for (var i = 0; i < a.length; i++) o.push(a[i] + (b[i] - a[i]) * u); return o; }
-    function keyPose(keys, tt) {
-        if (tt <= keys[0][0]) return keys[0][1];
-        for (var i = 1; i < keys.length; i++) {
-            if (tt <= keys[i][0]) { var a = keys[i - 1], b = keys[i]; return mix(a[1], b[1], ease(clamp((tt - a[0]) / Math.max(1e-4, b[0] - a[0]), 0, 1))); }
-        }
-        return keys[keys.length - 1][1];
-    }
     function walkPose(ph, lean) {
         var s = Math.sin(ph), c = Math.cos(ph);
         return [32 + Math.abs(c) * 1.2, lean || .08, .1 + s * .7, .35, .1 - s * .7, .35, s * .65, -Math.max(0, -c) * .8 - .05, -s * .65, -Math.max(0, c) * .8 - .05];
     }
-    // dir: +1 sağa, -1 sola bakar. Orijinde (0, zemin) ayakta durur. Silah (knife/sword/gun) ön elde taşınır. Geri dönüş: ön el ve silah ucu.
-    function figure(ctx, pose, dir, col, lw, a, weapon) {
+    // dir: +1 sağa, -1 sola bakar. weapon: 'ticket' | 'ticketgold' | 'scanner' | 'coin' (ön elde). Dönüş: elin konumu.
+    function figure(ctx, pose, dir, col, lw, a, weapon, wcol) {
         var hh = pose[0], tor = pose[1], d = dir, hx = 0, hy = -hh;
         var lim = function (x, y, len, ang) { return [x + Math.sin(ang) * len * d, y + Math.cos(ang) * len]; };
         var shx = hx + Math.sin(tor) * 24 * d, shy = hy - Math.cos(tor) * 24;
@@ -69,7 +55,7 @@
         function limb(x0, y0, l1, a1, l2, a2, alpha, wp) {
             var m = lim(x0, y0, l1, a1), e = lim(m[0], m[1], l2, a1 + a2);
             ctx.globalAlpha = a * alpha; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(m[0], m[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
-            if (wp) { var fa = a1 + a2, vx = Math.sin(fa) * d, vy = Math.cos(fa); out = { hx: e[0], hy: e[1], vx: vx, vy: vy }; }
+            if (wp) { var fa = a1 + a2; out = { hx: e[0], hy: e[1], vx: Math.sin(fa) * d, vy: Math.cos(fa) }; }
         }
         ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         limb(hx, hy, 17, pose[8], 17, pose[9], .7);
@@ -79,54 +65,79 @@
         limb(hx, hy, 17, pose[6], 17, pose[7], 1);
         limb(shx, shy, 13, pose[2], 12, pose[3], 1, true);
         if (weapon && out) {
-            ctx.globalAlpha = a; ctx.strokeStyle = '#e2e8f0'; var x0 = out.hx, y0 = out.hy;
-            if (weapon === 'knife') { ctx.lineWidth = lw * .9; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + out.vx * 14, y0 + out.vy * 14); ctx.stroke(); out.tx = x0 + out.vx * 14; out.ty = y0 + out.vy * 14; }
-            else if (weapon === 'sword') {
-                ctx.lineWidth = lw * 1.0; ctx.beginPath(); ctx.moveTo(x0 - out.vx * 3, y0 - out.vy * 3); ctx.lineTo(x0 + out.vx * 38, y0 + out.vy * 38); ctx.stroke();
-                ctx.lineWidth = lw * .9; ctx.beginPath(); ctx.moveTo(x0 + out.vx * 3 - out.vy * 5, y0 + out.vy * 3 + out.vx * 5); ctx.lineTo(x0 + out.vx * 3 + out.vy * 5, y0 + out.vy * 3 - out.vx * 5); ctx.stroke();
-                out.tx = x0 + out.vx * 38; out.ty = y0 + out.vy * 38;
-            } else if (weapon === 'gun') {
-                ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = lw * 1.25; ctx.beginPath(); ctx.moveTo(x0 + out.vx * 1, y0 + out.vy * 1); ctx.lineTo(x0 + out.vx * 12, y0 + out.vy * 12); ctx.stroke();
-                ctx.lineWidth = lw * 1.0; ctx.beginPath(); ctx.moveTo(x0 + out.vx * 3, y0 + out.vy * 3); ctx.lineTo(x0 + out.vx * 2.4, y0 + out.vy * 2.4 + 7); ctx.stroke();
-                out.tx = x0 + out.vx * 12; out.ty = y0 + out.vy * 12;
+            ctx.save(); ctx.globalAlpha = a; ctx.translate(out.hx, out.hy); ctx.rotate(Math.atan2(out.vy, out.vx));
+            if (weapon === 'ticket' || weapon === 'ticketgold') {
+                ctx.fillStyle = weapon === 'ticketgold' ? '#fcd34d' : '#f8fafc'; ctx.fillRect(0, -5, 14, 10);
+                ctx.fillStyle = '#0f172a'; [[2, -3], [5, -3], [8, -3], [2, 0], [8, 0], [5, 2], [11, 2], [11, -3]].forEach(function (q) { ctx.fillRect(q[0], q[1], 2, 2); });
+            } else if (weapon === 'scanner') {
+                ctx.fillStyle = '#0b1220'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.2; ctx.fillRect(0, -4.5, 11, 9); ctx.strokeRect(0, -4.5, 11, 9);
+                ctx.fillStyle = wcol || '#38bdf8'; ctx.fillRect(7.5, -2.5, 2.6, 2.6);
+            } else if (weapon === 'coin') {
+                ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(5, 0, 4, 0, 6.283); ctx.fill();
             }
+            ctx.restore();
         }
         ctx.globalAlpha = 1;
         return out;
     }
 
-    /* ---------------- sahne durumu ---------------- */
-    var SPEED = 1.9;
-    var scene = { mode: 'idle', tt: 0, round: null, roundN: 0, phase: 'round', pt: 0, armed: 0, shake: 0, flashes: [], doneCb: null, finished: false, no: 0, ready: false, slow: 0, bullets: [], stuck: [] };
-    var ENEMY_COL = '#94a3b8', HERO_COL = '#f1f5f9';
-    var WEAPON_ORDERS = [['knife', 'sword', 'gun'], ['sword', 'gun', 'knife'], ['gun', 'knife', 'sword'], ['knife', 'gun', 'sword']];
-
-    // Bir tur: 3 düşman (bıçak / kılıç / silah). Zamanlar "hikâye saniyesi"dir; silah anında hikâye yavaşlar (bullet time).
-    function buildRound(order) {
-        var enemies = [], heroKeys = [[0, P.GUARD]], prevTf = -.2, slow = null;
-        order.forEach(function (w, i) {
-            var ta = (i === 0 ? .75 : prevTf + .12), ts = ta - .7, sm, th;
-            var ek = [];                                  // düşman hareket anahtarları
-            if (w === 'knife') { sm = ta + .2; th = ta + .5; ek = [[ta, P.GUARD], [sm - .12, P.GUARD], [sm, P.JAB], [sm + .16, P.JAB], [th, P.GUARD]]; }
-            else if (w === 'sword') { sm = ta + .42; th = ta + .82; ek = [[ta, P.GUARD], [ta + .1, P.SW_UP], [sm - .02, P.SW_UP], [sm + .1, P.SW_DN], [sm + .25, P.SW_DN], [th, P.GUARD]]; }
-            else { sm = ta + .3; th = sm + .5 + .32; ek = [[ta, P.GUARD], [ta + .12, P.AIM], [sm, P.AIM], [sm + .05, P.HIT], [sm + .2, P.AIM], [th, P.AIM]]; slow = [sm, sm + .5]; }
-            var tf = th + .12, te = tf + .62;
-            if (w === 'knife') heroKeys.push([sm - .15, P.GUARD], [sm + .05, P.LEAN], [sm + .22, P.LEAN], [th - .08, P.GUARD], [th, P.JAB], [th + .12, P.JAB], [th + .26, P.KICK], [tf + .05, P.KICK], [tf + .2, P.GUARD]);
-            else if (w === 'sword') heroKeys.push([sm - .2, P.GUARD], [sm + .02, P.MATRIX], [sm + .3, P.MATRIX], [th - .1, P.LEAN], [th, P.HIGH], [th + .14, P.HIGH], [tf + .2, P.GUARD]);
-            else heroKeys.push([sm - .15, P.GUARD], [sm + .12, P.MATRIX], [sm + .5, P.MATRIX], [th - .12, P.LEAN], [th, P.UPPER], [th + .15, P.UPPER], [tf + .2, P.GUARD]);
-            enemies.push({ w: w, ts: ts, ta: ta, sm: sm, th: th, tf: tf, te: te, ek: ek, side: [-1, 1, -.25][i], maxS: [7, 8.5, 11][i], hit: false, thr: false, fired: false, i: i });
-            prevTf = tf;
-        });
-        var end = enemies[enemies.length - 1].te + .2;
-        heroKeys.push([end, P.GUARD]);
-        heroKeys.sort(function (a, b) { return a[0] - b[0]; });
-        return { enemies: enemies, heroKeys: heroKeys, end: end, slow: slow };
-    }
+    /* ---------------- gişe sahnesi ---------------- */
+    var SP = 1.35;                                   // sahne hız çarpanı
+    var scene = { clock: 0, guests: [], frontFree: 0, nextSpawn: .6, count: 7, finalSpawned: false, wantFinal: false, ready: false, doneCb: null, finished: false, armed: 0, deny: 0, flashes: [], coins: [], open: 0, simple: false, fin: 0 };
+    var TINTS = ['#94a3b8', '#a5b4fc', '#93c5fd', '#cbd5e1', '#c4b5fd'];
 
     function geom() {
         var el = document.getElementById('fxScene'); if (!el) return null;
         var r = el.getBoundingClientRect(); if (r.width < 40) return null;
-        return { x: r.left, y: r.top, w: r.width, h: r.height, ground: r.top + r.height - 12, heroX: r.left + r.width * .2, doorX: r.left + r.width * .86 };
+        var doorX = r.left + r.width * .88;
+        return { x: r.left, y: r.top, w: r.width, h: r.height, ground: r.top + r.height - 12, doorX: doorX, attX: doorX - 56, frontX: doorX - 56 - 46, startX: r.left + 10 };
+    }
+
+    // Bir misafirin zaman çizelgesini kurar. type: ok | debt | used | final
+    function spawnGuest(type, g) {
+        var now = scene.clock, arrive = now + (type === 'final' ? 1.2 : 1.7);
+        var ahead = 0; scene.guests.forEach(function (o) { if (o.lf > arrive) ahead++; });
+        var spot = Math.min(ahead, 3), spotX = g.frontX - 36 * spot;
+        var c = Math.max(arrive + (spot ? .2 : .3), scene.frontFree);
+        var gu = { type: type, c: c, ts: now, color: type === 'final' ? '#fcd34d' : TINTS[(Math.random() * TINTS.length) | 0], gold: type === 'final', path: [], res: null, admitted: false, left: false };
+        var p = gu.path; p.push([now, g.startX], [arrive, spotX], [c, spotX], [c + .45, g.frontX]);
+        if (type === 'ok' || type === 'final') {
+            gu.res = [{ t: c + 1.2, ok: true, text: 'GİRİŞ ONAYLI' }]; gu.hold = [c + .45, c + 1.5]; gu.scan = [[c + .7, c + 1.2]];
+            gu.lf = c + 1.7; gu.passAt = c + 1.5; p.push([c + 1.5, g.frontX], [c + 2.6, g.doorX - 4]); gu.admitAt = c + 2.5; gu.end = c + 2.7;
+        } else if (type === 'debt') {
+            gu.res = [{ t: c + 1.2, ok: false, text: 'ÖDEME BEKLİYOR' }, { t: c + 2.4, ok: true, text: 'GİRİŞ ONAYLI' }]; gu.hold = [c + .45, c + 2.5]; gu.scan = [[c + .7, c + 1.2], [c + 2.1, c + 2.4]];
+            gu.coin = [c + 1.5, c + 1.95]; gu.lf = c + 2.9; gu.passAt = c + 2.7; p.push([c + 2.7, g.frontX], [c + 3.8, g.doorX - 4]); gu.admitAt = c + 3.7; gu.end = c + 3.9;
+        } else {   // used: zaten içeride, geri çevrilir
+            gu.res = [{ t: c + 1.2, ok: false, text: 'ZATEN İÇERİDE' }]; gu.hold = [c + .45, c + 1.5]; gu.scan = [[c + .7, c + 1.2]];
+            gu.shrug = [c + 1.5, c + 2.0]; gu.lf = c + 2.2; gu.leaveAt = c + 2.0; p.push([c + 2.0, g.frontX], [c + 3.6, g.startX]); gu.admitAt = null; gu.end = c + 3.7;
+        }
+        scene.frontFree = gu.lf; scene.guests.push(gu); return gu;
+    }
+    // Son misafir (sen): giriş yapınca hemen kuyruğa girip bekler; veriler hazır olunca okutup içeri girer
+    function spawnFinalWaiting(g) {
+        var now = scene.clock, ahead = 0; scene.guests.forEach(function (o) { if (!o.fade && o.lf > now + 1.2) ahead++; });
+        var spotX = g.frontX - 36 * Math.max(1, Math.min(ahead, 2));
+        var gu = { type: 'final', c: 1e9, lf: 1e9, end: 1e9, ts: now, color: '#fcd34d', gold: true, path: [[now, g.startX], [now + 1.2, spotX]], spotX: spotX, res: [], hold: null, scan: [], waiting: true, admitted: false, admitAt: null };
+        scene.guests.push(gu); return gu;
+    }
+    function startFinal(gu, g) {
+        var c = Math.max(scene.clock + .1, scene.frontFree), p = gu.path;
+        gu.waiting = false; gu.c = c; p.push([c, gu.spotX], [c + .4, g.frontX]);
+        gu.res = [{ t: c + .95, ok: true, text: 'GİRİŞ ONAYLI' }]; gu.hold = [c + .4, c + 1.2]; gu.scan = [[c + .55, c + .95]];
+        gu.lf = c + 1.35; gu.passAt = c + 1.2; p.push([c + 1.2, g.frontX], [c + 2.0, g.doorX - 4]); gu.admitAt = c + 1.95; gu.end = c + 2.2;
+        scene.frontFree = gu.lf;
+    }
+    function pathX(path, tt) {
+        if (tt <= path[0][0]) return path[0][1];
+        for (var i = 1; i < path.length; i++) if (tt <= path[i][0]) { var a = path[i - 1], b = path[i]; return a[1] + (b[1] - a[1]) * ease(clamp((tt - a[0]) / Math.max(1e-4, b[0] - a[0]), 0, 1)); }
+        return path[path.length - 1][1];
+    }
+    function pill(x, y, text, color, al, sc2) {
+        sctx.save(); sctx.translate(x, y); sctx.scale(sc2, sc2); sctx.globalAlpha = al;
+        sctx.font = '800 10.5px Inter, Arial, sans-serif'; var tw = sctx.measureText(text).width + 22;
+        sctx.fillStyle = 'rgba(8,12,28,.92)'; sctx.strokeStyle = color; sctx.lineWidth = 1.4;
+        sctx.beginPath(); if (sctx.roundRect) sctx.roundRect(-tw / 2, -10, tw, 20, 10); else sctx.rect(-tw / 2, -10, tw, 20); sctx.fill(); sctx.stroke();
+        sctx.fillStyle = color; sctx.textAlign = 'center'; sctx.textBaseline = 'middle'; sctx.fillText(text, 0, .5); sctx.restore();
     }
 
     function drawDoor(g, open, glow) {
@@ -134,139 +145,120 @@
         sctx.save();
         if (glow > .02) {
             var lg = sctx.createLinearGradient(x - w / 2, 0, x - w / 2 - 150, 0);
-            lg.addColorStop(0, 'rgba(255,240,205,' + (.34 * glow) + ')'); lg.addColorStop(1, 'rgba(255,240,205,0)');
+            lg.addColorStop(0, 'rgba(255,240,205,' + (.3 * glow) + ')'); lg.addColorStop(1, 'rgba(255,240,205,0)');
             sctx.fillStyle = lg; sctx.beginPath(); sctx.moveTo(x - w / 2, gy - h * .35 * open); sctx.lineTo(x - w / 2 - 150, gy - 6); sctx.lineTo(x - w / 2 - 150, gy + 2); sctx.lineTo(x - w / 2, gy + 2); sctx.closePath(); sctx.fill();
         }
         sctx.fillStyle = 'rgba(10,14,30,.92)'; sctx.strokeStyle = 'rgba(148,163,184,.75)'; sctx.lineWidth = 2.2;
         sctx.beginPath(); sctx.rect(x - w / 2, gy - h, w, h); sctx.fill(); sctx.stroke();
         var ig = sctx.createLinearGradient(0, gy - h, 0, gy);
-        ig.addColorStop(0, 'rgba(255,244,214,' + (.15 + .8 * glow) + ')'); ig.addColorStop(1, 'rgba(255,225,170,' + (.2 + .75 * glow) + ')');
+        ig.addColorStop(0, 'rgba(255,244,214,' + (.12 + .8 * glow) + ')'); ig.addColorStop(1, 'rgba(255,225,170,' + (.16 + .75 * glow) + ')');
         sctx.fillStyle = ig; sctx.fillRect(x - w / 2 + 2, gy - h + 2, w - 4, h - 3);
         var lw2 = (w - 4) * (1 - open * .88);
         sctx.fillStyle = 'rgba(51,65,85,.98)'; sctx.strokeStyle = 'rgba(148,163,184,.8)'; sctx.lineWidth = 1.4;
         sctx.beginPath(); sctx.moveTo(x + w / 2 - 2, gy - h + 2); sctx.lineTo(x + w / 2 - 2 - lw2, gy - h + 2 + open * 4); sctx.lineTo(x + w / 2 - 2 - lw2, gy - 2 - open * 4); sctx.lineTo(x + w / 2 - 2, gy - 2); sctx.closePath(); sctx.fill(); sctx.stroke();
-        if (open < .3) { sctx.fillStyle = 'rgba(203,213,225,.9)'; sctx.beginPath(); sctx.arc(x - w / 2 + 8, gy - h * .45, 1.6, 0, 6.283); sctx.fill(); }
+        // üstteki tabela: içerideki kişi sayısı
+        sctx.fillStyle = 'rgba(8,12,28,.9)'; sctx.strokeStyle = 'rgba(148,163,184,.6)'; sctx.lineWidth = 1;
+        sctx.fillRect(x - 22, gy - h - 17, 44, 13); sctx.strokeRect(x - 22, gy - h - 17, 44, 13);
+        sctx.fillStyle = '#86efac'; sctx.font = '700 8.5px Inter, Arial, sans-serif'; sctx.textAlign = 'center'; sctx.textBaseline = 'middle'; sctx.fillText('İÇERİDE ' + scene.count, x, gy - h - 10.5);
         sctx.restore();
-    }
-
-    function flash(x, y, k) { scene.flashes.push({ x: x, y: y, age: 0, k: k || 1 }); scene.shake = k > 1 ? .3 : .16; }
-    // Fırlatılan adam ekrana "yapışır": önce çarpar, sonra yavaş yavaş aşağı kayarak düşer ve solar
-    function spawnStuck(en, idx, g) {
-        var x = W * (.5 + en.side * .2), y = H * .38;
-        scene.stuck.push({ x: x, y: y, s: en.maxS * .7, rot: (en.side * 5.5 * (idx % 2 ? -1 : 1)) % 6.283, w: en.w, age: 0 });
-        flash(x, y, 4.2);
-    }
-    function startRound() {
-        var order = WEAPON_ORDERS[scene.roundN % WEAPON_ORDERS.length]; scene.roundN++;
-        scene.round = buildRound(order); scene.tt = 0; scene.phase = 'round'; scene.bullets = [];
     }
 
     function drawScene(dt) {
         if (!sctx) return;
         sctx.clearRect(0, 0, W, H);
         var g = geom(); if (!g) return;
-        var mode = scene.mode;
-        var sh = scene.shake > 0 ? (Math.random() - .5) * 5 : 0; if (scene.shake > 0) scene.shake -= dt;
-        sctx.save(); sctx.translate(sh, sh * .6);
+        scene.clock += dt * SP; var clk = scene.clock;
+        // zemin
         var fl = sctx.createLinearGradient(g.x, 0, g.x + g.w, 0);
         fl.addColorStop(0, 'rgba(148,163,184,0)'); fl.addColorStop(.2, 'rgba(148,163,184,.35)'); fl.addColorStop(.8, 'rgba(148,163,184,.35)'); fl.addColorStop(1, 'rgba(148,163,184,0)');
         sctx.strokeStyle = fl; sctx.lineWidth = 1.5; sctx.beginPath(); sctx.moveTo(g.x, g.ground + 1); sctx.lineTo(g.x + g.w, g.ground + 1); sctx.stroke();
 
-        var heroX = g.heroX, heroPose = P.STAND, heroA = 1, open = 0, glow = .08 + (scene.armed ? .22 : 0), heroScale = 1, ghosts = 0;
-        var enemies = [], slowAmt = 0;
-        if (mode === 'idle') {
-            var b = Math.sin(t * 2.2) * .8;
-            heroPose = mix(P.GUARD, P.STAND, .35).slice(); heroPose[0] += b * .3;
-            var cyc = t % 7; if (cyc > 6.2 && cyc < 6.6) heroPose = mix(P.GUARD, P.JAB, Math.sin((cyc - 6.2) / .4 * Math.PI));
-            if (scene.armed) { var u = clamp((t - scene.armed) / .5, 0, 1); heroPose = mix(heroPose, P.GUARD, ease(u)); }
-            if (scene.no) { var nu = (t - scene.no); if (nu < .9) { heroX += Math.sin(nu * 28) * 3 * (1 - nu / .9); heroPose = P.NO; glow = .02; } else scene.no = 0; }
-        } else {
-            if (!scene.round) startRound();
-            var R = scene.round;
-            var rate = 1;
-            if (scene.phase === 'round' && R.slow && scene.tt > R.slow[0] - .06 && scene.tt < R.slow[1] + .08) rate = .26;
-            slowAmt = rate < 1 ? 1 : 0; scene.slow += (slowAmt - scene.slow) * Math.min(1, dt * 10);
-            scene.tt += dt * SPEED * rate; scene.pt += dt * SPEED;
-            if (scene.phase === 'round') {
-                var tt = scene.tt;
-                open = tt < .35 ? ease(tt / .35) : (tt > R.end - .15 && !scene.ready ? 1 - ease(clamp((tt - (R.end - .15)) / .15, 0, 1)) : 1); glow = .3 + .7 * open;
-                heroPose = keyPose(R.heroKeys, tt); ghosts = scene.slow > .5 ? 3 : 0;
-                R.enemies.forEach(function (en, idx) {
-                    if (tt > en.te) { if (!en.stuckDone) { en.stuckDone = true; spawnStuck(en, idx, g); } return; } if (tt < en.ts) return;
-                    var standX = g.heroX + 52, startX = g.doorX - 4, ex = standX, ep, ea = 1, ey = 0, es = 1, er = 0;
-                    if (tt < en.ta) { var au = (tt - en.ts) / (en.ta - en.ts); ex = startX + (standX - startX) * au; ep = walkPose(tt * 10 + idx, -.05); ea = clamp((tt - en.ts) / .12, 0, 1); }
-                    else if (tt < en.th) { ep = keyPose(en.ek, tt); if (en.w === 'sword' && tt > en.sm + .1 && tt < en.sm + .3) ex = standX - 6; }
-                    else if (tt < en.tf) { var ru = (tt - en.th) / (en.tf - en.th); ex = standX + 14 * ease(ru); ep = P.HIT; if (!en.hit) { en.hit = true; flash(standX - 6, g.ground - 42); } }
-                    else {
-                        var tu = clamp((tt - en.tf) / (en.te - en.tf), 0, 1), k = Math.pow(tu, 1.5), x0 = standX + 14, y0 = g.ground - 38;
-                        if (!en.thr) { en.thr = true; flash(standX, g.ground - 30); }
-                        var tx = W * (.5 + en.side * .2), ty = H * .38;
-                        ex = x0 + (tx - x0) * k; ey = (ty - y0) * k; es = 1 + (en.maxS - 1) * Math.pow(tu, 2.2); er = en.side * tu * 5.5 * (idx % 2 ? -1 : 1);
-                        ea = 1;
-                        enemies.push({ x: ex, y: g.ground - 38 + ey, s: es, rot: er, a: ea, pose: P.FLAIL, front: true, tu: tu, w: en.w });
-                        return;
-                    }
-                    if (en.w === 'gun' && !en.fired && tt >= en.sm) { en.fired = true; for (var bi = 0; bi < 3; bi++) scene.bullets.push({ t0: en.sm + bi * .07, x0: ex - 16, y0: g.ground - 50 - bi * 3, ty: g.ground - 56 + (bi - 1) * 5 }); flash(ex - 20, g.ground - 50); }
-                    enemies.push({ x: ex, y: g.ground, s: es, rot: er, a: ea, pose: ep, front: false, w: en.w });
-                });
-                if (tt > R.end) { scene.phase = scene.ready ? 'exit' : 'gap'; scene.pt = 0; }
-            } else if (scene.phase === 'gap') {
-                heroPose = mix(P.GUARD, P.BOW, Math.sin(clamp(scene.pt / .8, 0, 1) * Math.PI)); open = 1 - ease(clamp(scene.pt / .3, 0, 1)); glow = open * .8 + .1;
-                if (scene.ready) { scene.phase = 'exit'; scene.pt = 0; } else if (scene.pt > .85) startRound();
-            }
-            if (scene.phase === 'exit') {
-                var pt = scene.pt;
-                if (pt < .75) { heroX = g.heroX + (g.doorX - 26 - g.heroX) * ease(pt / .75); heroPose = walkPose(pt * 11, .1); open = 1; glow = 1; }
-                else if (pt < 1.25) { var eu = (pt - .75) / .5; heroX = g.doorX - 26 + 22 * ease(eu); heroPose = walkPose(pt * 11, .1); heroA = 1 - ease(eu); heroScale = 1 - .12 * eu; open = 1; glow = 1; }
-                else { heroA = 0; open = 1 - ease(clamp((pt - 1.25) / .3, 0, 1)); glow = open; if (pt > 1.65 && !scene.finished) { scene.finished = true; if (scene.doneCb) scene.doneCb(); } }
+        // yeni misafirler
+        if (scene.wantFinal && !scene.finalSpawned) {
+            scene.guests.forEach(function (o) { if (o.c > clk + .2 && !o.waiting) { o.fade = clk; o.end = clk + .45; } });
+            scene.frontFree = 0; scene.guests.forEach(function (o) { if (!o.fade && o.lf < 1e8 && o.lf > scene.frontFree) scene.frontFree = o.lf; });
+            scene.fin = spawnFinalWaiting(g); scene.finalSpawned = true;
+        }
+        if (scene.fin && scene.fin.waiting && scene.ready && clk >= scene.fin.path[1][0]) startFinal(scene.fin, g);
+        if (!scene.finalSpawned) {
+            if (false) {
+                // sıradakiler silinir (solar); son misafir (sen) hemen yaklaşır
+                scene.guests.forEach(function (o) { if (o.c > clk + .2) { o.fade = clk; o.end = clk + .45; } });
+                scene.frontFree = 0; scene.guests.forEach(function (o) { if (!o.fade && o.lf > scene.frontFree) scene.frontFree = o.lf; });
+                var fg = spawnGuest('final', g); scene.finalSpawned = true; scene.fin = fg; }
+            else if (clk >= scene.nextSpawn && scene.guests.filter(function (o) { return o.end > clk; }).length < 3) {
+                var r = Math.random(), tp = r < .5 ? 'ok' : r < .75 ? 'debt' : 'used';
+                spawnGuest(tp, g); scene.nextSpawn = clk + rnd(1.0, 1.8);
             }
         }
-        drawDoor(g, open, glow);
-        enemies.forEach(function (en) { if (en.front) return; sctx.save(); sctx.translate(en.x, en.y); figure(sctx, en.pose, -1, ENEMY_COL, 2.4, en.a, en.w); sctx.restore(); });
-        if (ghosts && heroA > .01) { for (var gi = 3; gi >= 1; gi--) { sctx.save(); sctx.translate(heroX - gi * 9, g.ground); figure(sctx, heroPose, 1, '#93c5fd', 2.4, .2 / gi); sctx.restore(); } }
-        if (heroA > .01) { sctx.save(); sctx.translate(heroX, g.ground); sctx.scale(heroScale, heroScale); figure(sctx, heroPose, 1, HERO_COL, 2.6, heroA); sctx.restore(); }
-        for (var bI = scene.bullets.length - 1; bI >= 0; bI--) {
-            var bl = scene.bullets[bI], bu = (scene.tt - bl.t0) / .62;
-            if (bu < 0) continue; if (bu > 1.2) { scene.bullets.splice(bI, 1); continue; }
-            var bx = bl.x0 + ((heroX - 80) - bl.x0) * bu, by = bl.y0 + (bl.ty - bl.y0) * bu;
-            sctx.save(); sctx.strokeStyle = '#fde68a'; sctx.lineWidth = 2; sctx.globalAlpha = .9; sctx.beginPath(); sctx.moveTo(bx + 22, by - (bl.ty - bl.y0) * .035); sctx.lineTo(bx, by); sctx.stroke();
-            sctx.globalAlpha = .25; sctx.lineWidth = 6; sctx.beginPath(); sctx.moveTo(bx + 46, by - (bl.ty - bl.y0) * .07); sctx.lineTo(bx, by); sctx.stroke(); sctx.restore();
+        // misafirleri çiz
+        var openT = 0, front = null, guestOuts = [];
+        for (var i = scene.guests.length - 1; i >= 0; i--) {
+            var gu = scene.guests[i];
+            if (clk > gu.end + .3) { scene.guests.splice(i, 1); continue; }
+            var x = pathX(gu.path, clk), x2 = pathX(gu.path, clk + .08), moving = Math.abs(x2 - x) > .12, dir = (x2 - x) >= 0 || !moving ? 1 : -1;
+            if (gu.type === 'used' && clk > gu.leaveAt) dir = -1;
+            var al = clamp((clk - gu.ts) / .3, 0, 1); if (gu.fade) al = Math.min(al, clamp(1 - (clk - gu.fade) / .4, 0, 1));
+            if (gu.admitAt && x > g.doorX - 30) al = Math.min(al, clamp((g.doorX - 2 - x) / 28, 0, 1));
+            if (gu.type === 'used' && clk > gu.leaveAt + .9) al = Math.min(al, clamp(1 - (clk - gu.leaveAt - .9) / .7, 0, 1));
+            if (x > g.doorX - 90 && al > .05 && gu.admitAt) openT = 1;
+            if (gu.admitAt && clk >= gu.admitAt && !gu.admitted) { gu.admitted = true; scene.count++; if (gu.type === 'final') { scene.fin = gu; scene.finDone = clk; } }
+            var pose, weapon = null, hold = gu.hold && clk >= gu.hold[0] && clk <= gu.hold[1] && Math.abs(x - g.frontX) < 2 && !(gu.coin && clk >= gu.coin[0] && clk <= gu.coin[1]);
+            if (gu.coin && clk >= gu.coin[0] && clk <= gu.coin[1]) { pose = P.HOLD; weapon = 'coin'; }
+            else if (hold) { pose = P.HOLD; weapon = gu.gold ? 'ticketgold' : 'ticket'; }
+            else if (gu.shrug && clk >= gu.shrug[0] && clk <= gu.shrug[1]) pose = P.SHRUG;
+            else if (moving) pose = walkPose(clk * 9 + i * 1.7, .08);
+            else pose = mix(P.STAND, P.STAND, 0);
+            if (gu.type === 'final' && gu.admitted) { pose = P.CHEER; }
+            if (Math.abs(x - g.frontX) < 2 && clk >= gu.c && clk <= gu.lf + .3) front = gu;
+            sctx.save(); sctx.translate(x, g.ground);
+            var o2 = figure(sctx, pose, dir, gu.gold ? '#fde68a' : gu.color, 2.4, al, weapon); sctx.restore();
+            if (o2) guestOuts.push({ gu: gu, x: x + o2.hx, y: g.ground + o2.hy });
         }
-        sctx.restore();
-        for (var f = scene.flashes.length - 1; f >= 0; f--) {
-            var fx = scene.flashes[f]; fx.age += dt; if (fx.age > .3) { scene.flashes.splice(f, 1); continue; }
-            var fu = fx.age / .3, kk = fx.k || 1; sctx.save(); sctx.globalAlpha = 1 - fu; sctx.strokeStyle = '#fff'; sctx.lineWidth = 2 * Math.min(kk, 2.5);
-            sctx.beginPath(); sctx.arc(fx.x, fx.y, (6 + fu * 26) * kk, 0, 6.283); sctx.stroke();
-            for (var r = 0; r < 7; r++) { var an = r * .9 + 1.1, r1 = (8 + fu * 14) * kk, r2 = (14 + fu * 30) * kk; sctx.beginPath(); sctx.moveTo(fx.x + Math.cos(an) * r1, fx.y + Math.sin(an) * r1); sctx.lineTo(fx.x + Math.cos(an) * r2, fx.y + Math.sin(an) * r2); sctx.stroke(); }
-            sctx.restore();
-        }
-        enemies.forEach(function (en) {
-            if (!en.front) return;
-            for (var gI = 3; gI >= 0; gI--) {
-                var back = gI * .05, ghostA = gI === 0 ? en.a : en.a * .16 / gI;
-                sctx.save();
-                var gx = en.x - (en.x - (g.heroX + 64)) * (back * 4), gy = en.y + (gI * 6);
-                sctx.translate(gI === 0 ? en.x : gx, gI === 0 ? en.y : gy); sctx.rotate(en.rot); sctx.scale(en.s * (1 - gI * .04), en.s * (1 - gI * .04)); sctx.translate(0, 38);
-                figure(sctx, en.pose, -1, ENEMY_COL, 2.6, ghostA, en.w); sctx.restore();
+        scene.open += ((openT) - scene.open) * Math.min(1, dt * 8);
+        drawDoor(g, scene.open, .1 + .6 * scene.open + (scene.finDone ? clamp((clk - scene.finDone) / .8, 0, 1) * .5 : 0));
+
+        // görevli: okuyucu uzatır, sonuca göre tepki verir
+        var aPose = mix(P.STAND, P.STAND, 0), aDir = -1, aWeap = null, scanCol = '#38bdf8', badge = null, scanning = false;
+        aPose = P.STAND.slice(); aPose[0] += Math.sin(clk * 2.4) * .25;
+        if (scene.armed && clk - scene.armed < 1.2) { aPose = P.SCAN; aWeap = 'scanner'; }
+        if (front) {
+            var rel = clk - front.c;
+            if (rel > .45) { aPose = P.SCAN; aWeap = 'scanner'; }
+            front.scan.forEach(function (s) { if (clk >= s[0] && clk <= s[1]) scanning = true; });
+            front.res.forEach(function (rs) { if (clk >= rs.t && clk <= rs.t + .9) badge = { text: rs.text, ok: rs.ok, age: clk - rs.t }; if (clk >= rs.t) scanCol = rs.ok ? '#22c55e' : '#ef4444'; });
+            if (front.type === 'used' && clk > front.c + 1.3 && clk < front.c + 2.2) { aPose = P.CROSS; aWeap = null; }
+            else if ((front.type === 'ok' || front.type === 'final') && clk > front.c + 1.3 && clk < front.c + 2.0) { aDir = 1; aPose = P.SCAN; aWeap = null; }   // kapıyı gösterir
+            else if (front.type === 'debt' && clk > front.c + 1.35 && clk < front.c + 2.0) { aPose = P.HOLD; aWeap = null; }
+            else if (front.type === 'debt' && clk > front.c + 2.45 && clk < front.c + 3.0) { aDir = 1; aPose = P.SCAN; aWeap = null; }
+            if (front.coin && clk >= front.coin[0] && clk <= front.coin[1]) { var cu = (clk - front.coin[0]) / (front.coin[1] - front.coin[0]); scene.coin = { x: g.frontX + 26 + ((g.attX - 22) - (g.frontX + 26)) * cu, y: g.ground - 62 - Math.sin(cu * Math.PI) * 14 }; } else scene.coin = null;
+        } else scene.coin = null;
+        if (scene.deny && clk - scene.deny < 1.5) { aPose = P.CROSS; aWeap = null; badge = { text: 'GİRİŞ REDDEDİLDİ', ok: false, age: clk - scene.deny }; scanCol = '#ef4444'; }
+        else if (scene.deny) scene.deny = 0;
+        sctx.save(); sctx.translate(g.attX, g.ground);
+        var aOut = figure(sctx, aPose, aDir, '#f8fafc', 3, 1, aWeap, scanCol); sctx.restore();
+        // yaka kartı / şapka (görevli olduğu belli olsun)
+        sctx.save(); sctx.translate(g.attX, g.ground); sctx.strokeStyle = '#38bdf8'; sctx.lineWidth = 2.6; sctx.lineCap = 'round';
+        var hy2 = -aPose[0] - Math.cos(aPose[1]) * 34.5; var hx2 = Math.sin(aPose[1]) * 34.5 * aDir;
+        sctx.beginPath(); sctx.moveTo(hx2 - 7, hy2 - 5); sctx.lineTo(hx2 + 7, hy2 - 5); sctx.stroke(); sctx.restore();   // kep siperi
+        // okuma ışını
+        if (scanning && aOut) {
+            var tgt = guestOuts.filter(function (q) { return q.gu === front; })[0];
+            if (tgt) {
+                var ax = g.attX + aOut.hx, ay = g.ground + aOut.hy; sctx.save(); sctx.strokeStyle = '#f87171'; sctx.lineWidth = 1.4; sctx.globalAlpha = .55 + Math.random() * .4;
+                sctx.beginPath(); sctx.moveTo(ax, ay); sctx.lineTo(tgt.x + 4, tgt.y + (Math.random() - .5) * 5); sctx.stroke();
+                sctx.globalAlpha = .2; sctx.lineWidth = 5; sctx.stroke(); sctx.restore();
             }
-        });
-        for (var si = scene.stuck.length - 1; si >= 0; si--) {
-            var sk = scene.stuck[si]; sk.age += dt;
-            var life = 3.8; if (sk.age > life) { scene.stuck.splice(si, 1); continue; }
-            var imp = clamp(sk.age / .2, 0, 1), sq = 1 + (1 - imp) * .28;                         // çarpma anında ezilme
-            if (sk.age > .35) sk.y += Math.min(80, 12 + (sk.age - .35) * 22) * dt;                  // yavaş yavaş kayıp düşer
-            var sal = (sk.age > life - 1.1 ? (life - sk.age) / 1.1 : 1) * .55;
-            for (var sg = 3; sg >= 0; sg--) {
-                sctx.save(); sctx.translate(sk.x, sk.y - sg * 16 * Math.min(1, Math.max(0, (sk.age - .35) / .8))); sctx.rotate(sk.rot);
-                sctx.scale(sk.s * sq * 1.08, sk.s * (2 - sq) * .94); sctx.translate(0, 38);
-                figure(sctx, P.FLAIL, -1, ENEMY_COL, 2.6, sg === 0 ? sal : sal * .13 / sg, sk.w); sctx.restore();
-            }
         }
-        if (scene.slow > .02) {
-            var vg = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .25, W / 2, H / 2, Math.max(W, H) * .75);
-            vg.addColorStop(0, 'rgba(0,12,20,0)'); vg.addColorStop(1, 'rgba(0,20,18,' + (.45 * scene.slow) + ')');
-            sctx.fillStyle = vg; sctx.fillRect(0, 0, W, H);
+        // para
+        if (scene.coin) { sctx.fillStyle = '#fbbf24'; sctx.beginPath(); sctx.arc(scene.coin.x, scene.coin.y, 3.6, 0, 6.283); sctx.fill(); sctx.fillStyle = '#92400e'; sctx.font = '700 5px Arial'; sctx.textAlign = 'center'; sctx.textBaseline = 'middle'; sctx.fillText('₺', scene.coin.x, scene.coin.y + .3); }
+        // sonuç rozeti
+        if (badge) {
+            var bs = clamp(badge.age / .18, 0, 1), pp = ease(bs), col = badge.ok ? '#4ade80' : (badge.text === 'ÖDEME BEKLİYOR' ? '#fbbf24' : '#f87171');
+            pill(g.attX - 8, g.ground - 88 - 6 * (1 - pp), (badge.ok ? '✓ ' : '✕ ') + badge.text, col, clamp(1 - Math.max(0, badge.age - .65) / .25, 0, 1) * pp, .6 + .4 * pp);
         }
+        // bitiş: son misafir girdikten sonra
+        if (scene.finDone && !scene.finished && clk - scene.finDone > .7) { scene.finished = true; if (scene.doneCb) scene.doneCb(); }
     }
 
     /* ---------------- arka plan ---------------- */
@@ -323,13 +315,13 @@
 
     var api = {
         pulse: function () { energy = Math.min(1, energy + .4); },
-        arm: function () { scene.armed = t; energy = Math.min(1, energy + .6); },
+        arm: function () { scene.armed = scene.clock; energy = Math.min(1, energy + .6); },
         fail: function () {
-            energy = .8; scene.armed = 0; scene.no = t;
+            energy = .8; scene.armed = 0; scene.deny = scene.clock;
             var card = document.getElementById('terminal');
             if (card) { card.classList.remove('fx-fail'); void card.offsetWidth; card.classList.add('fx-fail'); setTimeout(function () { card.classList.remove('fx-fail'); }, 520); }
         },
-        // readyPromise: veriler hazır olana kadar gösteri turlar halinde sürer. Atlamak için tıkla / tuşa bas.
+        // readyPromise: veriler hazır olana kadar gişe sahnesi sürer; sonra son misafir (sen) okutup içeri girer.
         success: function (name, done, readyPromise) {
             var ov = document.getElementById('fxWelcomeOverlay'), finished = false;
             var nm = String(name || '').trim();
@@ -345,10 +337,10 @@
             var markReady = function () { scene.ready = true; if (simple) go(); };
             if (readyPromise && readyPromise.then) readyPromise.then(markReady, markReady); else markReady();
             if (simple) return;
-            scene.mode = 'fight'; scene.round = null; scene.roundN = 0; scene.armed = 0; scene.finished = false; scene.doneCb = go; scene.phase = 'round'; scene.pt = 0;
+            scene.armed = 0; scene.finished = false; scene.doneCb = go; scene.wantFinal = true;
             setTimeout(function () { document.addEventListener('keydown', skip); document.addEventListener('pointerdown', skip); }, 350);
         },
-        _debug: { P: P, figure: function (pose, dir, col, lw, a, weapon) { return figure(sctx, pose, dir, col, lw, a, weapon); }, ctx: function () { return sctx; } }
+        _debug: { scene: scene, P: P, figure: function (pose, dir, col, lw, a, weapon, wcol) { return figure(sctx, pose, dir, col, lw, a, weapon, wcol); }, ctx: function () { return sctx; } }
     };
     window.LoginFX = api;
 
