@@ -167,6 +167,7 @@
             if (!username || !password) { showLoginToast('Kullanıcı adı ve şifre girin', 'error'); shakeTerminal(); return; }
 
             __busy = true;
+            let succeeded = false;
             const btn = document.getElementById('loginBtn');
             btn.disabled = true; btn.textContent = 'Giriş yapılıyor…';
             try {
@@ -221,13 +222,17 @@
                 if (cl && cl.ok && cl.session_id) localStorage.setItem('BiletPro_SessionId', cl.session_id);
                 else localStorage.removeItem('BiletPro_SessionId');
 
+                // Başarılı: sayfa yönlenene kadar buton "Giriş yapılıyor…" kalır, tekrar tıklanamaz
+                succeeded = true;
                 loginComplete({ name: rec.name || auth.username, role: auth.role, username: auth.username });
             } catch (err) {
                 console.error('[login]', err);
                 showLoginToast('Beklenmeyen bir hata oluştu', 'error');
             } finally {
-                __busy = false;
-                btn.disabled = false; btn.textContent = 'Giriş Yap';
+                if (!succeeded) {
+                    __busy = false;
+                    btn.disabled = false; btn.textContent = 'Giriş Yap';
+                }
             }
         }
 
