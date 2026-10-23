@@ -749,6 +749,8 @@ html body > main { overflow-y: auto !important; overflow-x: hidden !important; -
     max-width: 100vw !important;
     overflow-x: hidden !important;
   }
+  /* Yatay kaydırılması istenen tablo kutuları (overflow-x-auto) telefonda kilitlenmesin */
+  .overflow-x-auto.no-scrollbar { overflow-x: auto !important; max-width: 100% !important; }
   .modal-bg {
     padding: 0 !important;
   }

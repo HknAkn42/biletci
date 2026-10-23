@@ -66,6 +66,24 @@
             .table-silk td:last-child > div { gap: 8px !important; }
             #historyPanel { width: 100vw; right: -100vw; padding: 14px; }
         }
+
+        /* MOBİL: müşteri KART görünümü (tablo telefonda yana taşıyordu, yalnızca ad görünüyordu) */
+        #selectAllBar { display: none; }
+        @media (max-width: 768px) {
+            #selectAllBar { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px; min-height: 44px; }
+            #selectAllBar input { width: 22px; height: 22px; }
+            .table-silk, .table-silk tbody { display: block; width: 100%; }
+            .table-silk thead { display: none; }
+            .table-silk tr { display: block; position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 12px 14px 14px 52px; margin-bottom: 12px; }
+            .table-silk td, .table-silk td:first-child, .table-silk td:last-child { display: block; background: transparent !important; border: none !important; border-radius: 0 !important; padding: 4px 0 !important; }
+            .table-silk td.c-sel { position: absolute; left: 14px; top: 14px; padding: 0 !important; }
+            .table-silk td.c-sel input { width: 22px; height: 22px; }
+            .table-silk td.c-phone::before { content: 'Telefon'; display: block; font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+            .table-silk td.c-last::before { content: 'Son Katılım'; display: block; font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+            .table-silk td.c-act { padding-top: 10px !important; }
+            .table-silk td.c-act > div { justify-content: flex-start !important; gap: 8px !important; }
+            .table-silk td.c-act button { min-width: 44px; min-height: 44px; }
+        }
     </style>
 </head>
 <body class="no-scrollbar bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
@@ -140,6 +158,7 @@
             </div>
         </div>
 
+        <label id="selectAllBar"><input type="checkbox" onclick="toggleSelectAll(this)"> Tümünü seç</label>
         <div class="overflow-x-auto no-scrollbar">
             <table class="table-silk">
                 <thead>
@@ -434,7 +453,7 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="px-6 text-center"><input type="checkbox" class="cust-check" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}"></td>
+                    <td class="px-6 text-center c-sel"><input type="checkbox" class="cust-check" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}"></td>
                     <td class="px-6">
                         <div class="flex items-center gap-5">
                             <div class="w-12 h-12 rounded-[18px] bg-slate-900 flex items-center justify-center font-black text-white text-xs">${esc(c.name.substring(0,2).toUpperCase())}</div>
@@ -451,8 +470,8 @@
                             </div>
                         </div>
                     </td>
-                    <td class="px-6"><p class="font-extrabold text-sm text-slate-500 tracking-tight">${esc(c.phone)}</p></td>
-                    <td class="px-6">
+                    <td class="px-6 c-phone"><p class="font-extrabold text-sm text-slate-500 tracking-tight">${esc(c.phone)}</p></td>
+                    <td class="px-6 c-last">
                         <p class="font-bold text-xs text-slate-800 uppercase italic tracking-tighter">${esc(lastEv.eventTitle)}</p>
                         <p class="text-[9px] text-slate-400 font-black uppercase mt-1">MASA ${esc(lastEv.masa)}</p>
                         ${_lev_badge}
@@ -461,7 +480,7 @@
                         <span class="text-[9px] font-black text-slate-300 uppercase mb-1 block">NET HARCAMA / BAKİYE</span>
                         <p class="font-black text-sm text-slate-800 italic">₺${c.totalPaid.toLocaleString()} / <span class="${c.totalDebt > 0 ? 'text-red-500' : 'text-green-600'}">₺${c.totalDebt.toLocaleString()}</span></p>
                     </td>
-                    <td class="px-6 text-right">
+                    <td class="px-6 text-right c-act">
                         <div class="flex justify-end gap-3">
                             <button onclick="openHistory('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
                             <button onclick="editCustomer('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
