@@ -3,7 +3,7 @@
    (window.stop) ve herkese (yönetici dahil) bakım ekranı gösterilir.
    AÇMAK / KAPATMAK için yalnızca aşağıdaki satırı değiştirin: true = bakımda, false = normal. */
 (function () {
-    var BAKIM_AKTIF = true;
+    var BAKIM_AKTIF = false;
     if (!BAKIM_AKTIF) return;
 
     try { window.stop(); } catch (_) {}
