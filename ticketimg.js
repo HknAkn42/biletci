@@ -83,6 +83,15 @@
         // ── Logo ──
         if (A.logo) { const lw = 260, lh = lw * A.logo.height / A.logo.width; ctx.drawImage(A.logo, (W - lw) / 2, 56, lw, lh); }
         else { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '800 36px ' + FONT; ctx.fillText('GO EVENT', W / 2, 110); }
+        if (d.resend) {
+            ctx.save();
+            const txt = 'TEKRAR GÖNDERİM'; ctx.font = '800 24px ' + FONT;
+            const tw = ctx.measureText(txt).width + 44, tx = W - 48 - tw;
+            rr(ctx, tx, 56, tw, 52, 26); ctx.fillStyle = 'rgba(255,200,60,0.18)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(255,200,60,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.fillStyle = '#ffd36a'; ctx.textAlign = 'center'; ctx.fillText(txt, tx + tw / 2, 91);
+            ctx.restore();
+        }
 
         // ── Başlık bloğu ──
         const dateTxt = e.date ? new Date(String(e.date).slice(0, 10) + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' }) : '';

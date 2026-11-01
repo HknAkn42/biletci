@@ -57,6 +57,7 @@
         .tl-pick button { flex-shrink: 0; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
         .tl-pick button.on { background: #fff; color: #3730a3; }
         .tl-card { background: #fff; border-radius: 26px; overflow: hidden; color: #0f172a; box-shadow: 0 30px 60px -20px rgba(5,3,40,.7); }
+        .tl-resend { padding: 9px 16px; background: #fff7e0; color: #8a5a00; border-bottom: 1px solid #f3dca0; font-size: 12px; font-weight: 800; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
         .tl-band { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
         .tl-band .cat { font-weight: 800; font-size: 17px; }
         .tl-band .ppl { font-size: 13px; font-weight: 700; opacity: .95; }
@@ -377,7 +378,7 @@
             <div class="tl-top"><b id="tlWho">Bilet</b><button class="tl-x" onclick="closeTicketLayer()" aria-label="Kapat">&times;</button></div>
             <div id="tlPick" class="tl-pick"></div>
             <div id="tlCard" class="tl-card"></div>
-            <div class="tl-note">Bu pencere yalnızca gösterir; hiçbir kayıt değiştirmez. QR, satış sırasında oluşan aynı bilet koduyla çizilir.</div>
+            <div class="tl-note">Bu pencere yalnızca gösterir; hiçbir kayıt değiştirmez. QR, satış sırasında oluşan aynı bilet koduyla çizilir. Gönderilen mesaj ve resimde "Tekrar gönderim" yazar.</div>
         </div>
     </div>
 
@@ -831,6 +832,7 @@
             else if (t.status === 'USED' || t.status === 'CHECKED') state = `<span class="tl-state" style="background:#f1f5f9;color:#475569">✔️ Giriş yapıldı</span>`;
             const card = document.getElementById('tlCard');
             card.innerHTML = `
+                <div class="tl-resend">🔁 TEKRAR GÖNDERİM · satışta oluşan aynı bilet, yeni bilet değil</div>
                 <div class="tl-band" style="background:${escAttr(color)}"><span class="cat">${esc(t.category || 'Bilet')}</span><span class="ppl">${esc(t.people)} kişilik</span></div>
                 <div class="tl-info">
                     <div><div class="tl-l">Masa</div><div class="tl-no">${esc(t.masa)}</div></div>
@@ -880,7 +882,7 @@
             const t = _tlCust.events[_tlIdx], ev = _tlEvent(t);
             const dateStr = ev.date ? new Date(String(ev.date).slice(0, 10) + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
             const venue = [ev.venue, ev.city].filter(Boolean).join(' - ');
-            return `🎫 *${ev.title || t.eventTitle}* biletiniz hazır!\n\nMerhaba ${_tlCust.name},\ngiriş biletiniz (QR kodlu) bu bağlantıda:\n${_tlUrl}\n\n${dateStr ? '📅 ' + dateStr + '\n' : ''}${venue ? '📍 ' + venue + '\n' : ''}\nGirişte QR kodu görevliye okutmanız yeterlidir.`;
+            return `🔁 *${ev.title || t.eventTitle}* biletiniz tekrar gönderildi!\n(Daha önce aldığınız aynı bilettir, yeni bir bilet değildir.)\n\nMerhaba ${_tlCust.name},\ngiriş biletiniz (QR kodlu) bu bağlantıda:\n${_tlUrl}\n\n${dateStr ? '📅 ' + dateStr + '\n' : ''}${venue ? '📍 ' + venue + '\n' : ''}\nGirişte QR kodu görevliye okutmanız yeterlidir.`;
         }
         function tlSendWhatsapp() {
             const phone = _tlPhoneIntl(_tlCust.phone);
@@ -900,6 +902,7 @@
             const old = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
             try {
                 await TicketImage.shareOrDownload([{
+                    resend: true,
                     event: { title: ev.title || t.eventTitle, company: ev.company, venue: ev.venue, city: ev.city, date: ev.date, door: ev.doorTime, start: ev.startTime },
                     customer: _tlCust.name,
                     ticket: { table_no: t.masa, category: t.category, color: t.color, people: t.people, hash: t.hash, debt: t.debt }
