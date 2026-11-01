@@ -1931,6 +1931,8 @@
         function closeTicketModal() { 
             document.getElementById('ticketModal').classList.add('hidden'); 
             reset(); 
+            // Müşteriler sayfasından "Bileti Gör" ile geldiyse kapatınca oraya dön
+            if (urlParams.get('bilet')) location.href = 'musteriler.html';
         }
         
         function printTicket() {
@@ -2367,6 +2369,25 @@
         // Başlangıçta personelleri listeye ekle
         loadStaff();
         render();
+
+        // Müşteriler sayfasından gelen "Bileti Gör": satışta oluşan MEVCUT bileti aynı pencerede göster (salt okunur)
+        (function openTicketFromLink() {
+            const h = urlParams.get('bilet');
+            if (!h || !ev) return;
+            for (const cat of (ev.categories || [])) {
+                for (const m of (cat.masalar || [])) {
+                    if (m.isSold && m.saleDetail && m.saleDetail.ticketHash === h) {
+                        const sd = m.saleDetail;
+                        lastTicketHash = h; lastPhone = sd.phone; lastDebt = sd.debt;
+                        lastMasaDetails = `${cat.name} (MASA ${m.no})`;
+                        lastSaleItems = [{ table_no: m.no, category: cat.name, color: cat.color, people: sd.people, hash: h, debt: sd.debt || 0 }];
+                        showTicketModal(m.soldTo, lastMasaDetails, sd.paid, h);
+                        return;
+                    }
+                }
+            }
+            if (typeof showToast === 'function') showToast('Bilet bulunamadı. Satış silinmiş olabilir.', 'error');
+        })();
         applySalesView();
         setTimeout(loadReservations, 600);
         setInterval(() => { if (!document.hidden) loadReservations(); }, 4000);
