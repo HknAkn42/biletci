@@ -40,6 +40,45 @@
         #historyPanel { position: fixed; right: -500px; top: 0; width: 450px; height: 100vh; background: #fff; box-shadow: -20px 0 60px rgba(0,0,0,0.05); z-index: 9500; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px; overflow-y: auto; }
         #historyPanel.open { right: 0; }
 
+        /* Eylem düğmeleri: ikon + ad (hover'a gerek kalmadan ne işe yaradığı görünsün) */
+        #customerTableBody td.c-act > div { flex-wrap: wrap; gap: 8px !important; }
+        #customerTableBody td.c-act button[data-lbl] { width: auto !important; height: 44px !important; padding: 0 14px; gap: 6px; white-space: nowrap; border-radius: 14px; }
+        #customerTableBody td.c-act button[data-lbl]::after { content: attr(data-lbl); font-size: 11.5px; font-weight: 800; letter-spacing: 0; }
+        #customerTableBody td.c-act button:not([data-lbl]) { height: 44px; padding: 0 14px; border-radius: 14px; white-space: nowrap; }
+
+        /* Bilet katmanı: salt okunur, bilet bilgisi kayıtlı satıştan her açılışta yeniden çizilir */
+        #ticketLayer { position: fixed; inset: 0; z-index: 200000; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 16px; background: rgba(15,23,42,.62); backdrop-filter: blur(10px); }
+        #ticketLayer.open { display: flex; }
+        .tl-box { width: 100%; max-width: 420px; margin: auto; }
+        .tl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #fff; margin-bottom: 10px; }
+        .tl-top b { font-size: 15px; font-weight: 800; }
+        .tl-x { width: 44px; height: 44px; border-radius: 14px; border: 0; background: rgba(255,255,255,.16); color: #fff; font-size: 22px; font-weight: 800; cursor: pointer; }
+        .tl-pick { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; }
+        .tl-pick button { flex-shrink: 0; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .tl-pick button.on { background: #fff; color: #3730a3; }
+        .tl-card { background: #fff; border-radius: 26px; overflow: hidden; color: #0f172a; box-shadow: 0 30px 60px -20px rgba(5,3,40,.7); }
+        .tl-band { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+        .tl-band .cat { font-weight: 800; font-size: 17px; }
+        .tl-band .ppl { font-size: 13px; font-weight: 700; opacity: .95; }
+        .tl-info { padding: 16px 20px 14px; display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; align-items: end; }
+        .tl-l { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
+        .tl-no { font-size: 60px; line-height: .95; font-weight: 800; letter-spacing: -.04em; }
+        .tl-v { font-size: 13.5px; font-weight: 700; line-height: 1.3; margin-top: 2px; }
+        .tl-venue { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid #eef0f6; }
+        .tl-perf { margin: 0 22px; border-top: 2.5px dashed #d5d9ea; }
+        .tl-stub { padding: 20px 20px 18px; text-align: center; }
+        .tl-qr { display: inline-block; padding: 12px; border-radius: 20px; background: #f5f6fd; border: 3px solid var(--tlc, #4f46e5); }
+        .tl-qr svg { display: block; width: min(56vw, 220px); height: auto; background: #fff; border-radius: 6px; }
+        .tl-code { margin-top: 10px; font: 600 11px ui-monospace, Menlo, monospace; color: #8a91a8; word-break: break-all; }
+        .tl-state { display: inline-block; margin-top: 10px; padding: 6px 12px; border-radius: 99px; font-size: 11.5px; font-weight: 800; }
+        .tl-debt { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff7e6; color: #a85d00; border: 1px solid #fbdc9b; font-size: 13px; font-weight: 700; }
+        .tl-acts { display: grid; gap: 8px; padding: 0 16px 16px; }
+        .tl-acts button { min-height: 48px; border-radius: 14px; border: 1.5px solid #d5d9ea; background: #fff; color: #0f172a; font-weight: 800; font-size: 14px; cursor: pointer; }
+        .tl-acts button.wa { background: #25D366; border-color: #25D366; color: #fff; }
+        .tl-acts button[disabled] { opacity: .55; cursor: not-allowed; }
+        .tl-acts .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .tl-note { margin-top: 10px; text-align: center; color: rgba(255,255,255,.8); font-size: 12px; line-height: 1.5; }
+
         .check-pill { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; transition: 0.2s; user-select: none; }
         .check-pill.active { background: #0f172a; color: #fff; border-color: #0f172a; }
 
@@ -84,12 +123,16 @@
             .table-silk td.c-act { padding-top: 10px !important; }
             .table-silk td.c-act > div { justify-content: flex-start !important; gap: 8px !important; }
             .table-silk td.c-act button { min-width: 44px; min-height: 44px; }
+            .table-silk td.c-act button[data-lbl] { width: auto !important; padding: 0 12px; gap: 6px; }
+            .table-silk td.c-act button[data-lbl]::after { content: attr(data-lbl); font-size: 11px; font-weight: 800; letter-spacing: 0; }
         }
     </style>
 </head>
 <body class="no-scrollbar bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="ticketimg.js?v=1"></script>
     <script src="menu.js?v=20261018"></script>
     <script>injectMenu('musteriler');</script>
 
@@ -329,6 +372,15 @@
         </div>
     </div>
 
+    <div id="ticketLayer" onclick="if(event.target===this)closeTicketLayer()" role="dialog" aria-modal="true" aria-label="Bilet">
+        <div class="tl-box">
+            <div class="tl-top"><b id="tlWho">Bilet</b><button class="tl-x" onclick="closeTicketLayer()" aria-label="Kapat">&times;</button></div>
+            <div id="tlPick" class="tl-pick"></div>
+            <div id="tlCard" class="tl-card"></div>
+            <div class="tl-note">Bu pencere yalnızca gösterir; hiçbir kayıt değiştirmez. QR, satış sırasında oluşan aynı bilet koduyla çizilir.</div>
+        </div>
+    </div>
+
     <aside id="historyPanel" class="no-scrollbar">
         <div class="flex items-center justify-between mb-10 pb-5 border-b border-slate-100">
             <div>
@@ -398,7 +450,8 @@
                                 insideCount: sd.insideCount || 0,
                                 remainingCount: sd.remainingCount != null ? sd.remainingCount : (sd.people || 1),
                                 checkinTime: sd.checkinTime || null,
-                                checkinBy: sd.checkinBy || null
+                                checkinBy: sd.checkinBy || null,
+                                hash: sd.ticketHash || '', evId: ev.id, color: cat.color || ''
                             });
                             customerMap[key].totalPaid += paid; customerMap[key].totalDebt += debt; customerMap[key].visitCount++;
                         }
@@ -483,11 +536,12 @@
                     </td>
                     <td class="px-6 text-right c-act">
                         <div class="flex justify-end gap-3">
-                            <button onclick="openHistory('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
-                            <button onclick="editCustomer('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
-                            ${_canDelete    ? `<button onclick="deleteCustomer('${escAttr(c.key)}')" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>` : ''}
-                            ${_canBlacklist ? `<button onclick="toggleBlacklist('${escAttr(c.phone)}')" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>` : ''}
-                            ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${escAttr(c.key)}')" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
+                            <button onclick="openHistory('${escAttr(c.key)}')" title="Geçmiş: bu müşterinin tüm satın alımları ve giriş durumu" aria-label="Geçmiş" data-lbl="Geçmiş" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">📋</button>
+                            <button onclick="openTicketLayer('${escAttr(c.key)}')" title="Bileti göster ve tekrar gönder (aynı QR, hiçbir kayıt değişmez)" aria-label="Bileti göster / tekrar gönder" data-lbl="Bileti Gör" class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🎫</button>
+                            <button onclick="editCustomer('${escAttr(c.key)}')" title="Düzenle: müşterinin adını ve telefonunu değiştir" aria-label="Düzenle" data-lbl="Düzenle" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm">✏️</button>
+                            ${_canDelete    ? `<button onclick="deleteCustomer('${escAttr(c.key)}')" title="Sil: müşteriyi ve satış kayıtlarını kaldır" aria-label="Sil" data-lbl="Sil" class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm">🗑️</button>` : ''}
+                            ${_canBlacklist ? `<button onclick="toggleBlacklist('${escAttr(c.phone)}')" title="${isBlacklisted ? 'Kara listeden çıkar' : 'Kara listeye al: bu müşteriye satış yapılmasın'}" aria-label="${isBlacklisted ? 'Kara listeden çıkar' : 'Kara listeye al'}" data-lbl="${isBlacklisted ? 'Listeden Çıkar' : 'Kara Liste'}" class="w-12 h-12 rounded-2xl ${isBlacklisted ? 'bg-black text-white' : 'bg-gray-50 text-gray-500'} hover:bg-black hover:text-white transition-all flex items-center justify-center shadow-sm">🚫</button>` : ''}
+                            ${c.totalDebt > 0 ? `<button onclick="openPaymentModal('${escAttr(c.key)}')" title="Tahsilat: müşterinin kalan borcunu tahsil et" aria-label="Tahsilat" class="bg-red-50 text-red-500 font-black text-[10px] px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">TAHSİLAT</button>` : ''}
                         </div>
                     </td>
                 `;
@@ -734,12 +788,134 @@
             notify("TÜM NUMARALAR PANOMA KAYDEDİLDİ", "#0f172a");
         }
 
+        /* ===== BİLET KATMANI (salt okunur) ===== */
+        let _tlCust = null, _tlIdx = 0, _tlUrl = '', _tlSeq = 0;
+
+        function _tlPhoneIntl(raw) {
+            let p = String(raw || '').replace(/\D/g, '');
+            while (p.startsWith('0')) p = p.substring(1);
+            if (p.length === 10) p = '90' + p;
+            return p.length >= 11 ? p : '';
+        }
+        function _tlEvent(t) { return events.find(e => String(e.id) === String(t.evId)) || {}; }
+        function _tlQr(text) {
+            try { const q = qrcode(0, 'H'); q.addData(String(text)); q.make(); return q.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); }
+            catch (_) { return '<div style="padding:30px;font-weight:700">QR çizilemedi</div>'; }
+        }
+
+        function openTicketLayer(key, idx) {
+            const c = customers.find(x => x.key === key);
+            if (!c) return;
+            const withHash = c.events.map((e, i) => ({ e, i })).filter(x => x.e.hash);
+            if (!withHash.length) return notify('Bu müşterinin bilet kodu bulunamadı.', '#dc2626');
+            _tlCust = c;
+            _tlIdx = (typeof idx === 'number' && c.events[idx] && c.events[idx].hash) ? idx : withHash[withHash.length - 1].i;
+            document.getElementById('tlWho').innerText = c.name;
+            document.getElementById('ticketLayer').classList.add('open');
+            renderTicketLayer();
+        }
+        function closeTicketLayer() { document.getElementById('ticketLayer').classList.remove('open'); _tlSeq++; }
+
+        function renderTicketLayer() {
+            const c = _tlCust, t = c.events[_tlIdx], ev = _tlEvent(t);
+            const pick = document.getElementById('tlPick');
+            const list = c.events.map((e, i) => ({ e, i })).filter(x => x.e.hash);
+            pick.innerHTML = list.length > 1 ? list.map(x => `<button class="${x.i === _tlIdx ? 'on' : ''}" onclick="_tlIdx=${x.i};renderTicketLayer()">${esc(x.e.eventTitle)} · Masa ${esc(x.e.masa)}</button>`).join('') : '';
+            const color = /^#[0-9a-fA-F]{6}$/.test(t.color || '') ? t.color : '#4f46e5';
+            const date = ev.date ? new Date(String(ev.date).slice(0, 10) + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' }) : '—';
+            const time = [ev.doorTime ? 'Kapı ' + ev.doorTime : '', ev.startTime ? 'Başlangıç ' + ev.startTime : ''].filter(Boolean).join(' · ') || '—';
+            const venue = [ev.venue, ev.city].filter(Boolean).join(' · ') || '—';
+            let state = '';
+            if (t.status === 'INSIDE') state = `<span class="tl-state" style="background:#dcfce7;color:#166534">✅ ${esc(t.insideCount)} / ${esc(t.people)} kişi içeride</span>`;
+            else if (t.status === 'OUTSIDE') state = `<span class="tl-state" style="background:#fef9c3;color:#854d0e">🚶 Geçici çıkışta</span>`;
+            else if (t.status === 'USED' || t.status === 'CHECKED') state = `<span class="tl-state" style="background:#f1f5f9;color:#475569">✔️ Giriş yapıldı</span>`;
+            const card = document.getElementById('tlCard');
+            card.innerHTML = `
+                <div class="tl-band" style="background:${escAttr(color)}"><span class="cat">${esc(t.category || 'Bilet')}</span><span class="ppl">${esc(t.people)} kişilik</span></div>
+                <div class="tl-info">
+                    <div><div class="tl-l">Masa</div><div class="tl-no">${esc(t.masa)}</div></div>
+                    <div><div class="tl-l">Tarih</div><div class="tl-v">${esc(date)}</div><div class="tl-l" style="margin-top:8px">Saat</div><div class="tl-v">${esc(time)}</div></div>
+                    <div class="tl-venue"><div class="tl-l">Mekan</div><div class="tl-v">${esc(venue)}</div></div>
+                </div>
+                <div class="tl-perf"></div>
+                <div class="tl-stub" style="--tlc:${escAttr(color)}">
+                    <div class="tl-qr">${_tlQr(t.hash)}</div>
+                    <div class="tl-code">${esc(t.hash)}</div>
+                    ${state ? `<div>${state}</div>` : ''}
+                    ${t.debt > 0 ? `<div class="tl-debt">Kapıda ödenecek tutar: ₺${Number(t.debt).toLocaleString('tr-TR')}</div>` : ''}
+                </div>
+                <div class="tl-acts">
+                    <button class="wa" id="tlWa" onclick="tlSendWhatsapp()" disabled>WhatsApp ile gönder</button>
+                    <div class="row2">
+                        <button id="tlCopy" onclick="tlCopyLink()" disabled>Linki kopyala</button>
+                        <button id="tlImg" onclick="tlShareImage(this)">Resmi paylaş</button>
+                    </div>
+                </div>`;
+            tlPrepareLink(t.hash);
+        }
+
+        // Yalnızca MEVCUT bilet bağlantısını okur; yeni bağlantı/kod üretmez ve hiçbir şey yazmaz.
+        async function tlPrepareLink(hash) {
+            const seq = ++_tlSeq; _tlUrl = '';
+            const setBtns = (txt) => {
+                if (seq !== _tlSeq) return;
+                const wa = document.getElementById('tlWa'), cp = document.getElementById('tlCopy');
+                if (!wa || !cp) return;
+                wa.disabled = !_tlUrl; cp.disabled = !_tlUrl;
+                wa.textContent = txt;
+            };
+            setBtns('Bilet linki hazırlanıyor…');
+            try {
+                const store = window.BiletProOnlineStore;
+                if (!store) throw new Error('store yok');
+                await store.init();
+                if (!store.client) throw new Error('çevrimdışı');
+                const { data, error } = await store.client.from('tickets').select('share_token').eq('ticket_hash', hash).maybeSingle();
+                if (!error && data && data.share_token) _tlUrl = new URL('bilet.html?t=' + data.share_token, location.href).href;
+            } catch (_) {}
+            setBtns(_tlUrl ? 'WhatsApp ile gönder' : 'Bağlantı yok · resmi paylaşın');
+        }
+
+        function _tlMessage() {
+            const t = _tlCust.events[_tlIdx], ev = _tlEvent(t);
+            const dateStr = ev.date ? new Date(String(ev.date).slice(0, 10) + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+            const venue = [ev.venue, ev.city].filter(Boolean).join(' - ');
+            return `🎫 *${ev.title || t.eventTitle}* biletiniz hazır!\n\nMerhaba ${_tlCust.name},\ngiriş biletiniz (QR kodlu) bu bağlantıda:\n${_tlUrl}\n\n${dateStr ? '📅 ' + dateStr + '\n' : ''}${venue ? '📍 ' + venue + '\n' : ''}\nGirişte QR kodu görevliye okutmanız yeterlidir.`;
+        }
+        function tlSendWhatsapp() {
+            const phone = _tlPhoneIntl(_tlCust.phone);
+            if (!phone) return notify('Müşteri telefonu girilmemiş ya da geçersiz!', '#dc2626');
+            if (!_tlUrl) return notify('Bilet linki hazır değil.', '#dc2626');
+            const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(_tlMessage());
+            const w = window.open(url, '_blank');
+            if (!w) location.href = url;
+        }
+        async function tlCopyLink() {
+            if (!_tlUrl) return;
+            try { await navigator.clipboard.writeText(_tlUrl); notify('Bilet linki kopyalandı.', '#16a34a'); }
+            catch (_) { prompt('Bilet linki:', _tlUrl); }
+        }
+        async function tlShareImage(btn) {
+            const t = _tlCust.events[_tlIdx], ev = _tlEvent(t);
+            const old = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
+            try {
+                await TicketImage.shareOrDownload([{
+                    event: { title: ev.title || t.eventTitle, company: ev.company, venue: ev.venue, city: ev.city, date: ev.date, door: ev.doorTime, start: ev.startTime },
+                    customer: _tlCust.name,
+                    ticket: { table_no: t.masa, category: t.category, color: t.color, people: t.people, hash: t.hash, debt: t.debt }
+                }], 'Biletiniz');
+            } catch (e) { notify('Resim oluşturulamadı: ' + e.message, '#dc2626'); }
+            btn.disabled = false; btn.textContent = old;
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTicketLayer(); });
+
         function openHistory(key) {
             const c = customers.find(x => x.key === key);
             if(!c) return;
             document.getElementById('histName').innerText = c.name;
             const container = document.getElementById('histContent'); container.innerHTML = "";
-            [...c.events].reverse().forEach(e => {
+            [...c.events].reverse().forEach((e, _ri) => {
+                const _idx = c.events.length - 1 - _ri;
                 const div = document.createElement('div'); div.className = "bg-slate-50 p-6 rounded-3xl border border-slate-100";
                 const _ci_status = e.status;
                 let _ci_badge = '';
@@ -770,7 +946,8 @@
                     <div class="flex justify-between border-t border-slate-200 pt-3 mt-3">
                         <p class="text-[9px] font-black text-slate-400 uppercase">Ödenen: ₺${e.paid}</p>
                         <p class="text-[9px] font-black ${e.debt > 0 ? 'text-red-500' : 'text-green-600'} uppercase">Kalan: ₺${e.debt}</p>
-                    </div>`;
+                    </div>
+                    ${e.hash ? `<button onclick="openTicketLayer('${escAttr(c.key)}', ${_idx})" class="w-full mt-3 py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">🎫 Bileti göster / tekrar gönder</button>` : ''}`;
                 container.appendChild(div);
             });
             document.getElementById('historyPanel').classList.add('open');
