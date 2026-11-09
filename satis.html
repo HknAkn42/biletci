@@ -2424,7 +2424,7 @@
             closePartialChoice();
             const free = MasaBol.freeSeats(m);
             const el = document.createElement('div'); el.id = 'partialChoice';
-            el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+            el.style.cssText = 'position:fixed;inset:0;z-index:260000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
             el.onclick = (e) => { if (e.target === el) closePartialChoice(); };
             el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:400px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
                 + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">Masa ' + esc(m.no) + ' · ' + MasaBol.soldPeople(m) + '/' + m.kapasite + ' satılmış</h3>'
@@ -2467,7 +2467,7 @@
             closePartialChoice();
             const cap = Number(m.kapasite) || 0;
             const el = document.createElement('div'); el.id = 'partialChoice';
-            el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+            el.style.cssText = 'position:fixed;inset:0;z-index:260000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
             el.onclick = (e) => { if (e.target === el) closePartialChoice(); };
             el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:400px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
                 + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">Masa ' + esc(m.no) + ' · ' + cap + ' kişilik</h3>'
@@ -2527,7 +2527,7 @@
             const sfx = chk.ok ? chk.suffixes : null;
             const rn = MasaBol.rootNo(m);
             let el = document.getElementById('splitModal');
-            if (!el) { el = document.createElement('div'); el.id = 'splitModal'; el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto'; document.body.appendChild(el); }
+            if (!el) { el = document.createElement('div'); el.id = 'splitModal'; el.style.cssText = 'position:fixed;inset:0;z-index:260000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto'; document.body.appendChild(el); }
             const rows = c.parts.map((n, i) => '<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="min-width:84px">' + esc(rn) + '-' + (sfx ? sfx[i] : '?') + '</b>'
                 + '<button type="button" class="mb-chip" onclick="splitSetPart(' + i + ',-1)">−</button><span style="min-width:54px;text-align:center;font-weight:800">' + (Number(n) || 0) + ' kişi</span><button type="button" class="mb-chip" onclick="splitSetPart(' + i + ',1)">+</button>'
                 + (c.parts.length > 1 ? '<button type="button" class="mb-chip" style="margin-left:auto" onclick="splitRemovePart(' + i + ')">Kaldır</button>' : '') + '</div>').join('');
