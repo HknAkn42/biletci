@@ -112,7 +112,9 @@
         ctx.textAlign = 'center';
 
         // masa
-        ctx.fillStyle = '#10142a'; ctx.font = '900 156px ' + FONT; ctx.fillText('MASA ' + (t.table_no == null ? '' : t.table_no), W / 2, cy + 265);
+        ctx.fillStyle = '#10142a'; var _mTxt = 'MASA ' + (t.table_no == null ? '' : t.table_no), _mPx = 156; ctx.font = '900 ' + _mPx + 'px ' + FONT;
+        while (_mPx > 70 && ctx.measureText(_mTxt).width > cw - 80) { _mPx -= 6; ctx.font = '900 ' + _mPx + 'px ' + FONT; }
+        ctx.fillText(_mTxt, W / 2, cy + 265);
         // kupon çizgisi
         const perfY = cy + 318;
         ctx.fillStyle = BG; ctx.beginPath(); ctx.arc(cx, perfY, 32, 0, Math.PI * 2); ctx.arc(cx + cw, perfY, 32, 0, Math.PI * 2); ctx.fill();

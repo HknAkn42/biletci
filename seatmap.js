@@ -164,10 +164,23 @@
         const L = ensureLayout(ev);
         const missing = tablesOf(ev).filter(t => !L.tables[t.key]);
         if (!missing.length) return 0;
+        // Bölünmüş parçalar (125-A) ana masanın yanına yerleşir (masa-bol.js yüklüyse)
+        if (typeof window !== 'undefined' && window.MasaBol) {
+            const byId = new Map(tablesOf(ev).map(t => [t.m.id, t]));
+            for (let pass = 0; pass < 6; pass++) {
+                missing.forEach(t => {
+                    if (L.tables[t.key] || t.m.parentNo === undefined || t.m.parentNo === null) return;
+                    const from = byId.get(t.m.splitFrom);
+                    const fromKey = from ? from.key : String(t.m.parentNo);
+                    if (L.tables[fromKey]) window.MasaBol.placeNear(ev, fromKey, t.key);
+                });
+            }
+            if (!missing.some(t => !L.tables[t.key])) { fitHeight(L); return missing.length; }
+        }
         const taken = Object.values(L.tables);
         const free = (x, y) => !taken.some(p => Math.abs(p.x - x) < 70 && Math.abs(p.y - y) < 70) && !(x > L.stage.x - 30 && x < L.stage.x + L.stage.w + 30 && y > L.stage.y - 30 && y < L.stage.y + L.stage.h + 60);
         let x = 70, y = 190;
-        missing.forEach(t => {
+        missing.filter(t => !L.tables[t.key]).forEach(t => {
             let guard = 0;
             while (!free(x, y) && guard++ < 4000) { x += 80; if (x > L.w - 60) { x = 70; y += 80; } }
             L.tables[t.key] = { x, y, shape: 'round' };

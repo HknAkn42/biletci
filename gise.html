@@ -292,7 +292,7 @@
             
             let maxNo = 0;
             ev.categories.forEach(c => c.masalar.forEach(m => { 
-                if(m.no > maxNo) maxNo = m.no; 
+                const _n = parseInt(m.no, 10); if(_n > maxNo) maxNo = _n; 
             }));
             
             const newNo = maxNo + 1;
@@ -315,7 +315,7 @@
         function addMasalar(catId) { 
             currentAddCatId = catId; 
             let max = 0; 
-            ev.categories.forEach(c => c.masalar.forEach(m => { if(m.no > max) max = m.no; })); 
+            ev.categories.forEach(c => c.masalar.forEach(m => { const _n = parseInt(m.no, 10); if(_n > max) max = _n; })); 
             document.getElementById('startNoInput').value = max + 1; 
             document.getElementById('addMasaModal').classList.remove('hidden'); 
         }
@@ -351,6 +351,7 @@
             const cat = ev.categories.find(c => c.id === catId);
             const masa = cat.masalar.find(m => m.id === masaId);
             
+            if(masa.mergedInto) { showToast('Bu parça ana masa ile birleştirilmişti; tekrar açılamaz. Satış ekranından yeniden bölebilirsiniz.', 'error'); return; }
             if(masa.isDeleted) { 
                 // YENİ: showConfirm kullanımı
                 showConfirm("BİRİMİ AKTİFLEŞTİR", "Bu masayı tekrar aktif etmek istiyor musunuz?", () => {
@@ -386,7 +387,10 @@
         function saveMasaEdit() {
             const cat = ev.categories.find(c => c.id === editingMasaRef.catId);
             const masa = cat.masalar.find(m => m.id === editingMasaRef.masaId);
-            const newNo = parseInt(document.getElementById('editMasaNo').value);
+            const _hasParts = cat.masalar.some(x => x.parentNo !== undefined && x.parentNo !== null && String(x.parentNo) === String(masa.no));
+            const _isPart = masa.parentNo !== undefined && masa.parentNo !== null;
+            const newNo = (_isPart) ? masa.no : parseInt(document.getElementById('editMasaNo').value);
+            if (_hasParts && newNo !== masa.no) return showToast("Bu masanın bölünmüş parçaları var; numarası değiştirilemez.", "error");
             
             // YENİ: showToast kullanımı
             if(newNo !== masa.no && ev.categories.some(c => c.masalar.some(m => m.no === newNo))) {
@@ -452,7 +456,7 @@
                             <button onclick="deleteCategory(${catIdNum})" class="btn-elite danger">SİL</button>
                         </div>
                     </div>
-                    <div class="masalar-grid">${cat.masalar.sort((a,b)=>a.no-b.no).map(m => {
+                    <div class="masalar-grid">${cat.masalar.sort((a,b)=>String(a.no).localeCompare(String(b.no),'tr',{numeric:true})).map(m => {
                         const masaIdNum = Number(m.id) || 0;
                         if(!m.isDeleted) tK += m.kapasite;
                         const _giseSess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');

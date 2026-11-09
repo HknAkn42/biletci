@@ -48,6 +48,15 @@
         .masa-silk { background: #fff; border: 1px solid #edf2f7; border-radius: 26px; padding: 25px 10px; text-align: center; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; position: relative; overflow: hidden; }
         .masa-silk:hover { border-color: #2563eb; transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 40px rgba(37,99,235,0.14); }
         .masa-silk.sold { background: #f8fafc; border-style: dashed; opacity: 0.7; }
+        .masa-silk.partial { border-color: #f59e0b; border-style: dashed; opacity: 1; background: #fffbeb; }
+        .mb-chips { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 8px; position: relative; z-index: 2; }
+        .mb-chip { font: 800 10px Inter, system-ui, sans-serif; padding: 5px 9px; min-height: 30px; border-radius: 10px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; cursor: pointer; }
+        .mb-chip:hover { background: #e0e7ff; }
+        .mb-chip.merge { border-color: #a7f3d0; background: #ecfdf5; color: #065f46; }
+        .mb-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 40px 6px; padding: 10px 14px; border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; font-size: 12px; font-weight: 700; color: #92400e; }
+        .mb-bar button { font: 800 11px Inter, system-ui, sans-serif; padding: 6px 12px; min-height: 32px; border-radius: 10px; border: 1px solid #f59e0b; background: #fff; color: #92400e; cursor: pointer; }
+        .mb-bar button.on { background: #f59e0b; color: #fff; }
+        @media (max-width: 640px) { .mb-bar { margin: 0 14px 6px; } }
         .masa-silk.selected { border-color: #2563eb; background: #eff6ff; border-width: 2px; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15); }
         .masa-silk.locked-shake { animation: lockedShakeDesktop 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
         @keyframes lockedShakeDesktop {
@@ -199,6 +208,7 @@
 
     <script src="menu.js?v=20261018"></script>
     <script src="seatmap.js?v=1"></script>
+    <script src="masa-bol.js?v=1"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="ticketimg.js?v=1"></script>
     <script>
@@ -620,6 +630,7 @@
         let editId = null; 
         let searchTerm = ""; 
         let personFilterCount = 0;
+        let partialOnly = false;
         let lastTicketHash = ""; 
         let lastPhone = ""; 
         let lastDebt = 0; 
@@ -2317,12 +2328,21 @@
             }
             // ============================
 
+            const _isAdm = isAdminUser();
+            const _ps = MasaBol.partialStats(ev);
+            if (_ps.tables > 0) {
+                const bar = document.createElement('div');
+                bar.className = 'mb-bar';
+                bar.innerHTML = '<span>🪑 Eksik satılan: <b>' + _ps.tables + ' masa</b> · <b>' + _ps.seats + ' boş koltuk</b></span><button type="button" class="' + (partialOnly ? 'on' : '') + '" onclick="togglePartialOnly()">' + (partialOnly ? 'Tümünü göster' : 'Yalnız bunları göster') + '</button>';
+                container.appendChild(bar);
+            }
             ev.categories.forEach(cat => {
                 const filteredMasalar = cat.masalar.filter(m => !m.isDeleted
-                    && (searchTerm === '' || m.no.toString().includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm)))
+                    && (searchTerm === '' || m.no.toString().toLowerCase().includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm)))
                     && (personFilterCount === 0 || relevantCapacities.has(m.kapasite))
+                    && (!partialOnly || (m.isSold && MasaBol.freeSeats(m) > 0))
                 );
-                if ((isSearchActive || personFilterCount > 0) && filteredMasalar.length === 0) return;
+                if ((isSearchActive || personFilterCount > 0 || partialOnly) && filteredMasalar.length === 0) return;
 
                 const isCollapsed = isSearchActive ? false : (cat.isOpen === false);
                 const section = document.createElement('div'); 
@@ -2338,7 +2358,7 @@
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">${cat.pricePerPerson > 0 ? '₺' + cat.pricePerPerson.toLocaleString() + ' / KİŞİ' : 'FİYAT SATIŞTA BELİRLENİR'}</span>
                     </div>
                     <div class="masalar-grid">
-                        ${filteredMasalar.sort((a,b)=>a.no-b.no).map(m => {
+                        ${filteredMasalar.sort((a,b)=>MasaBol.cmpNo(a.no,b.no)).map(m => {
                             const sel = basket.find(bi => bi.masa.id === m.id);
                             const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
                             const _slUser = _slSession.name || _slSession.username || '';
@@ -2346,13 +2366,22 @@
                             const _conflictBadge = _softConflict
                                 ? `<div class="absolute inset-0 rounded-[22px] bg-amber-400/20 border-2 border-amber-400 pointer-events-none"></div><div class="absolute top-2 left-2 right-2 text-center text-[8px] font-black text-amber-700 bg-amber-100 rounded-lg px-1 py-0.5 uppercase">\u23f3 ${esc(_softConflict.lockedBy)}</div>`
                                 : '';
+                            const _partial = m.isSold && MasaBol.freeSeats(m) > 0;
+                            const _noBusy = !_se && !reservedMap[String(m.no)];
+                            const _canSplit = _isAdm && _noBusy && (m.isSold ? MasaBol.freeSeats(m) > 0 : (Number(m.kapasite) || 0) >= 2);
+                            const _canMerge = _isAdm && _noBusy && MasaBol.isPart(m) && !m.isSold;
+                            const _chips = (_canSplit || _canMerge) ? '<div class="mb-chips">'
+                                + (_canSplit ? '<button type="button" class="mb-chip" title="Masayı böl" onclick="event.stopPropagation();openSplitModal(' + cat.id + ',' + m.id + ')">✂ Böl</button>' : '')
+                                + (_canMerge ? '<button type="button" class="mb-chip merge" title="Ana masaya birleştir" onclick="event.stopPropagation();mergeMasa(' + cat.id + ',' + m.id + ')">⇄ Birleştir</button>' : '')
+                                + '</div>' : '';
                             return `
-                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${_isSold ? 'sold' : ''} ${(!_isSold && reservedMap[String(m.no)]) ? 'reserved' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
+                                <div id="masa-card-${cat.id}-${m.id}" data-masa-no="${m.no}" onclick="selectMasa(${cat.id}, ${m.id})" class="masa-silk ${_isSold ? 'sold' : ''} ${_partial ? 'partial' : ''} ${(!_isSold && reservedMap[String(m.no)]) ? 'reserved' : ''} ${sel ? 'selected' : ''} ${_softConflict ? 'opacity-70' : ''}">
                                     ${_conflictBadge}
-                                    <p class="m-no">MASA</p>
-                                    <p class="m-kap">${_isSold ? 'DOLU' : m.no}</p>
-                                    <p class="m-alt">${_isSold ? esc(m.isSold ? m.soldTo : (_se && _se.customer_name)) + (m.saleDetail && m.saleDetail.people && m.saleDetail.people < m.kapasite ? ' · <span style="color:var(--warning-text)">' + m.saleDetail.people + '/' + m.kapasite + '</span>' : '') : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
+                                    <p class="m-no">${_partial ? 'MASA ' + esc(m.no) : 'MASA'}</p>
+                                    <p class="m-kap">${_partial ? 'KISMİ' : (_isSold ? 'DOLU' : esc(m.no))}</p>
+                                    <p class="m-alt">${_isSold ? esc(m.isSold ? m.soldTo : (_se && _se.customer_name)) + (m.saleDetail && m.saleDetail.people && m.saleDetail.people < m.kapasite ? ' · <span style="color:var(--warning-text)">' + m.saleDetail.people + '/' + m.kapasite + ' · ' + (m.kapasite - m.saleDetail.people) + ' boş</span>' : '') : (reservedMap[String(m.no)] ? '🔖 ' + esc(reservedMap[String(m.no)].customer_name || 'Rezerve') : esc(m.kapasite + ' KİŞİLİK'))}</p>
                                     ${m.isSold && m.saleDetail?.debt > 0.1 ? '<div class="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white shadow-md"></div>' : ''}
+                                    ${_chips}
                                     <div class="absolute bottom-0 left-0 w-full h-1.5" style="background:${cat.color}; opacity: ${_isSold ? '0.2' : '0.6'}"></div>
                                 </div>
                             `;
@@ -2366,6 +2395,84 @@
             if (typeof refreshPlan === "function") refreshPlan();
         }
         
+        // ===== MASA BÖLME / BİRLEŞTİRME (yalnızca yönetici) =====
+        function isAdminUser() {
+            const s = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            if (s.role === 'admin') return true;
+            const u = (typeof staffData !== 'undefined' ? staffData : []).find(x => (x.username || '').toLowerCase() === (s.username || '').toLowerCase());
+            return !!(u && u.role === 'admin');
+        }
+        function togglePartialOnly() { partialOnly = !partialOnly; render(); }
+
+        let splitCtx = null;
+        function masaBusyNow(m) { return !!(reservedMap[String(m.no)] || soldElsewhere(m)); }
+        function openSplitModal(catId, masaId) {
+            if (!isAdminUser()) return showToast('Masa bölme yalnızca yönetici içindir.', 'error');
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (!m) return;
+            if (masaBusyNow(m)) return showToast('Bu masa rezerve ya da başka kasada satılmış; bölünemez.', 'error');
+            if (basket.some(b => b.masa.id === masaId) || editId === masaId) return showToast('Önce masayı sepetten çıkarın / düzenlemeyi kapatın.', 'error');
+            const free = m.isSold ? MasaBol.freeSeats(m) : (Number(m.kapasite) || 0) - 1;
+            if (free < 1) return showToast(m.isSold ? 'Bu masa tam dolu satılmış. Önce satışı düzenleyip kişi sayısını düşürün.' : 'Bu masa bölünemez (1 kişilik).', 'error');
+            splitCtx = { catId, masaId, parts: [m.isSold ? free : Math.floor((Number(m.kapasite) || 0) / 2) || 1] };
+            drawSplitModal();
+        }
+        function drawSplitModal() {
+            const c = splitCtx; if (!c) return;
+            const cat = ev.categories.find(x => x.id === c.catId);
+            const m = cat.masalar.find(x => x.id === c.masaId);
+            const cap = Number(m.kapasite) || 0, sold = MasaBol.soldPeople(m);
+            const chk = MasaBol.checkSplit(ev, c.masaId, c.parts);
+            const keep = cap - c.parts.reduce((a, b) => a + (Number(b) || 0), 0);
+            const sfx = chk.ok ? chk.suffixes : null;
+            const rn = MasaBol.rootNo(m);
+            let el = document.getElementById('splitModal');
+            if (!el) { el = document.createElement('div'); el.id = 'splitModal'; el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto'; document.body.appendChild(el); }
+            const rows = c.parts.map((n, i) => '<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="min-width:84px">' + esc(rn) + '-' + (sfx ? sfx[i] : '?') + '</b>'
+                + '<button type="button" class="mb-chip" onclick="splitSetPart(' + i + ',-1)">−</button><span style="min-width:54px;text-align:center;font-weight:800">' + (Number(n) || 0) + ' kişi</span><button type="button" class="mb-chip" onclick="splitSetPart(' + i + ',1)">+</button>'
+                + (c.parts.length > 1 ? '<button type="button" class="mb-chip" style="margin-left:auto" onclick="splitRemovePart(' + i + ')">Kaldır</button>' : '') + '</div>').join('');
+            el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:440px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
+                + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">✂ Masa ' + esc(m.no) + ' · Böl</h3>'
+                + '<p style="font-size:12px;color:#64748b;margin-bottom:12px">' + esc(cat.name) + ' · ' + cap + ' kişilik' + (m.isSold ? ' · satılan ' + sold + ' kişi (' + esc(m.soldTo || '') + ')' : '') + ' · fiyat kategoriden gelir</p>'
+                + '<div style="padding:10px 12px;border-radius:14px;background:#f1f5f9;font-weight:800;margin-bottom:8px">Masa ' + esc(m.no) + ' kalır: <span style="color:' + (keep >= Math.max(1, sold) ? '#065f46' : '#b91c1c') + '">' + keep + ' kişi</span></div>'
+                + '<div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-top:10px">Yeni masalar</div>' + rows
+                + '<button type="button" class="mb-chip" style="margin-top:6px" onclick="splitAddPart()">+ Bir parça daha</button>'
+                + (chk.ok ? '' : '<p style="margin-top:10px;font-size:12px;font-weight:700;color:#b91c1c">' + esc(chk.error) + '</p>')
+                + '<div style="display:flex;gap:8px;margin-top:16px"><button type="button" onclick="closeSplitModal()" style="flex:1;min-height:46px;border-radius:14px;border:1px solid #e2e8f0;font-weight:800">Vazgeç</button>'
+                + '<button type="button" ' + (chk.ok ? '' : 'disabled') + ' onclick="confirmSplit()" style="flex:1;min-height:46px;border-radius:14px;background:' + (chk.ok ? '#4f46e5' : '#cbd5e1') + ';color:#fff;font-weight:800">Böl</button></div></div>';
+        }
+        function splitSetPart(i, d) { splitCtx.parts[i] = Math.max(1, (Number(splitCtx.parts[i]) || 1) + d); drawSplitModal(); }
+        function splitAddPart() { splitCtx.parts.push(1); drawSplitModal(); }
+        function splitRemovePart(i) { splitCtx.parts.splice(i, 1); drawSplitModal(); }
+        function closeSplitModal() { splitCtx = null; const el = document.getElementById('splitModal'); if (el) el.remove(); }
+        function confirmSplit() {
+            const c = splitCtx; if (!c) return;
+            const cat = ev.categories.find(x => x.id === c.catId);
+            const m = cat.masalar.find(x => x.id === c.masaId);
+            const label = m.no, oldCap = m.kapasite;
+            const r = MasaBol.split(ev, c.masaId, c.parts);
+            if (!r.ok) return showToast(r.error, 'error');
+            if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Masa Bölündü', 'Masa ' + label + ' (' + oldCap + ' → ' + r.parent.kapasite + ' kişi) | Yeni: ' + r.created.map(p => p.no + ' (' + p.kapasite + ' kişi)').join(', ') + ' | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
+            closeSplitModal();
+            saveAndRender(); refreshPlan(true);
+            showToast('Masa ' + label + ' bölündü: ' + r.created.map(p => p.no).join(', ') + ' açıldı.', 'success');
+        }
+        function mergeMasa(catId, masaId) {
+            if (!isAdminUser()) return showToast('Birleştirme yalnızca yönetici içindir.', 'error');
+            const chk = MasaBol.checkMerge(ev, masaId, masaBusyNow);
+            if (!chk.ok) return showToast(chk.error, 'error');
+            showConfirm('MASAYI BİRLEŞTİR', 'Masa ' + chk.part.no + ' (' + chk.part.kapasite + ' kişi) ana masa ' + chk.target.no + ' ile birleştirilsin mi? Masa ' + chk.target.no + ' toplam ' + ((Number(chk.target.kapasite) || 0) + (Number(chk.part.kapasite) || 0)) + ' kişilik olur.', () => {
+                const pNo = chk.part.no, pCap = chk.part.kapasite, tNo = chk.target.no;
+                const r = MasaBol.merge(ev, masaId, masaBusyNow);
+                if (!r.ok) return showToast(r.error, 'error');
+                if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Masa Birleştirildi', 'Masa ' + pNo + ' (' + pCap + ' kişi) → Masa ' + tNo + ' (şimdi ' + r.target.kapasite + ' kişi) | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
+                saveAndRender(); refreshPlan(true);
+                showToast('Masa ' + pNo + ', ' + tNo + ' ile birleştirildi.', 'success');
+            });
+            const _cb = document.getElementById('confirmBtnAction'); if (_cb) _cb.textContent = 'BİRLEŞTİR';
+        }
+
         // Başlangıçta personelleri listeye ekle
         loadStaff();
         render();

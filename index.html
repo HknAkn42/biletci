@@ -147,7 +147,7 @@
 
         <main class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-[40px] lg:px-[60px] pb-24 lg:pb-[150px] no-scrollbar">
             <!-- ÖZET STAT KARTLARI -->
-            <div id="dashStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-[1850px]">
+            <div id="dashStats" class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-[1850px]">
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-[3px] mb-1">🎤 Aktif Etkinlik</span>
                     <span id="statActiveEvents" class="text-3xl font-black text-slate-800">0</span>
@@ -160,7 +160,11 @@
                     <span class="text-[9px] font-black text-green-600 uppercase tracking-[3px] mb-1">✅ Satılan Masa</span>
                     <span id="statSoldTables" class="text-3xl font-black text-green-700">0</span>
                 </div>
-                <div class="bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                <div class="bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
+                    <span class="text-[9px] font-black text-emerald-600 uppercase tracking-[3px] mb-1">👥 Satılan Kişi</span>
+                    <span id="statSoldPeople" class="text-3xl font-black text-emerald-700">0</span>
+                </div>
+                <div class="bg-blue-50 rounded-2xl border border-blue-100 col-span-2 sm:col-span-1 shadow-sm p-4 flex flex-col hover:shadow-md transition-all">
                     <span class="text-[9px] font-black text-blue-600 uppercase tracking-[3px] mb-1">💰 Toplam Ciro</span>
                     <span id="statRevenue" class="text-3xl font-black text-blue-700">₺0</span>
                 </div>
@@ -614,7 +618,7 @@
 
         // DASHBOARD ÖZET İSTATİSTİKLER
         function renderStats() {
-            let activeEvents = 0, totalTables = 0, soldTables = 0, totalRevenue = 0;
+            let activeEvents = 0, totalTables = 0, soldTables = 0, soldPeople = 0, totalRevenue = 0;
             events.forEach(ev => {
                 if (ev.isActive !== false) activeEvents++;
                 (ev.categories || []).forEach(cat => {
@@ -623,6 +627,7 @@
                         totalTables++;
                         if (m.isSold && m.saleDetail) {
                             soldTables++;
+                            soldPeople += Number(m.saleDetail.people) || 0;
                             totalRevenue += parseFloat(m.saleDetail.paid) || 0;
                         }
                     });
@@ -633,6 +638,7 @@
             el('statActiveEvents', activeEvents);
             el('statTotalTables', totalTables);
             el('statSoldTables', soldTables);
+            el('statSoldPeople', soldPeople.toLocaleString('tr-TR'));
             el('statRevenue', fmt(totalRevenue));
         }
 

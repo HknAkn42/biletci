@@ -911,7 +911,7 @@ window.BiletProActionAudit = {
                     }
 
                     if (
-                        Number(pm.no || 0) !== Number(nm.no || 0) ||
+                        String(pm.no || '') !== String(nm.no || '') ||
                         Number(pm.kapasite || 0) !== Number(nm.kapasite || 0)
                     ) {
                         this.push(entries, seen, 'Gişe', 'Masa Güncellendi', `${label} / ${catName} -> Masa ${pm.no || '-'} bilgileri ${nm.no || '-'} olarak güncellendi.`);

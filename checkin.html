@@ -1122,7 +1122,7 @@
                 })));
             }
             if (myReq !== _groupReq) return;                      // daha yeni bir okutma geldi
-            const others = sibs.filter(x => x.ticket_hash !== hash).sort((a, b) => Number(a.table_no) - Number(b.table_no));
+            const others = sibs.filter(x => x.ticket_hash !== hash).sort((a, b) => String(a.table_no).localeCompare(String(b.table_no), 'tr', { numeric: true }));
             if (!others.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
             const pending = others.filter(x => String(x.status).toUpperCase() !== 'INSIDE').length;
             const rows = others.map(x => {
