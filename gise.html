@@ -354,6 +354,7 @@
             if(masa.mergedInto) { showToast('Bu parça ana masa ile birleştirilmişti; tekrar açılamaz. Satış ekranından yeniden bölebilirsiniz.', 'error'); return; }
             if(masa.isDeleted) { 
                 // YENİ: showConfirm kullanımı
+                if(ev.categories.some(c => c.masalar.some(x => !x.isDeleted && x.id !== masa.id && String(x.no) === String(masa.no)))) { showToast("Aynı numaralı aktif bir masa var; bu masa tekrar açılamaz.", "error"); return; }
                 showConfirm("BİRİMİ AKTİFLEŞTİR", "Bu masayı tekrar aktif etmek istiyor musunuz?", () => {
                     masa.isDeleted = false; saveAndRender(); showToast("Masa aktif edildi.", "success");
                 });
@@ -415,6 +416,7 @@
             
             // YENİ: showToast ve showConfirm kullanımı
             if(masa.isSold) return showToast("Önce satışı iptal etmelisiniz!", "error");
+            if(cat.masalar.some(x => !x.isDeleted && x.parentNo !== undefined && x.parentNo !== null && String(x.parentNo) === String(masa.no) && x.id !== masa.id)) return showToast("Bu masanın bölünmüş parçaları var. Önce parçaları birleştirin.", "error");
             
             showConfirm("BİRİMİ PASİFE AL", "Masa pasif duruma getirilecek. Numara nizamı bozulmayacak. Onaylıyor musunuz?", () => {
                 masa.isDeleted = true;
@@ -456,7 +458,7 @@
                             <button onclick="deleteCategory(${catIdNum})" class="btn-elite danger">SİL</button>
                         </div>
                     </div>
-                    <div class="masalar-grid">${cat.masalar.sort((a,b)=>String(a.no).localeCompare(String(b.no),'tr',{numeric:true})).map(m => {
+                    <div class="masalar-grid">${cat.masalar.filter(m => !m.mergedInto).sort((a,b)=>String(a.no).localeCompare(String(b.no),'tr',{numeric:true})).map(m => {
                         const masaIdNum = Number(m.id) || 0;
                         if(!m.isDeleted) tK += m.kapasite;
                         const _giseSess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');

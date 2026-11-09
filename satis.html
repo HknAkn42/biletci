@@ -1605,11 +1605,12 @@
                     const dueDate = new Date(eventDate.getTime() + 24*60*60*1000);
                     const dueIso = dueDate.toISOString();
 
-                    const masaNosOnlyPreview = basket.map(b => b.masa.no).join('');
+                    const _hNo = (no) => String(no).replace(/[^0-9A-Za-z.]/g, ''); // 11-A -> 11A (kapı/SQL bilet kodu biçimi bozulmasın)
+                    const masaNosOnlyPreview = basket.map(b => _hNo(b.masa.no)).join('');
                     const baseHash = `EV${ev.id.toString().slice(-4)}-M${masaNosOnlyPreview}-T${secureToken()}`;
 
                     _atomicRows = basket.map((b, idx) => {
-                        const perTableHash = basket.length > 1 ? `${baseHash}-M${b.masa.no}` : baseHash;
+                        const perTableHash = basket.length > 1 ? `${baseHash}-M${_hNo(b.masa.no)}` : baseHash;
                         return {
                             masa_id: b.masa.id,
                             ticket_hash: perTableHash,
@@ -1710,7 +1711,7 @@
             lastDebt = Math.max(0, net - paid);
             
             lastMasaDetails = basket.map(b => `${b.cat.name} (MASA ${b.masa.no})`).join(", ");
-            const masaNosOnly = basket.map(b => b.masa.no).join("");
+            const masaNosOnly = basket.map(b => String(b.masa.no).replace(/[^0-9A-Za-z.]/g, "")).join("");
             
             let oldHash = null;
             

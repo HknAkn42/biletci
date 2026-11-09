@@ -12,7 +12,12 @@
     function isPart(m) { return !!m && m.parentNo !== undefined && m.parentNo !== null; }
     function rootNo(m) { return isPart(m) ? m.parentNo : m.no; }
     function cmpNo(a, b) { return String(a).localeCompare(String(b), 'tr', { numeric: true }); }
-    function soldPeople(m) { return m && m.isSold ? (Number(m.saleDetail && m.saleDetail.people) || 0) : 0; }
+    // Satılmış ama kişi sayısı kayıtta yok/geçersizse masa tam dolu sayılır (koltuklar boşa düşmesin).
+    function soldPeople(m) {
+        if (!m || !m.isSold) return 0;
+        var n = Number(m.saleDetail && m.saleDetail.people);
+        return n > 0 && isFinite(n) ? n : (Number(m.kapasite) || 0);
+    }
     function freeSeats(m) { return Math.max(0, (Number(m.kapasite) || 0) - soldPeople(m)); }
 
     function eachMasa(ev, fn) {
@@ -20,7 +25,8 @@
     }
     function find(ev, masaId) {
         var out = null;
-        eachMasa(ev, function (m, cat) { if (!out && m.id === masaId) out = { m: m, cat: cat }; });
+        if (masaId === undefined || masaId === null) return null;
+        eachMasa(ev, function (m, cat) { if (!out && m.id !== undefined && m.id !== null && String(m.id) === String(masaId)) out = { m: m, cat: cat }; });
         return out;
     }
 
@@ -46,7 +52,10 @@
         return id;
     }
 
-    function intArr(sizes) { return (sizes || []).map(function (n) { return Math.floor(Number(n)); }); }
+    var MAX_PARTS = 40;
+    // Sürüm damgası: her değişiklikte öncekinden büyük olur (senkronda yeni olan yapı kazansın)
+    function nextRev() { var m = Date.now(); for (var i = 0; i < arguments.length; i++) { m = Math.max(m, (Number(arguments[i] && arguments[i].rev) || 0) + 1); } return m; }
+    function intArr(sizes) { return (Array.isArray(sizes) ? sizes : []).map(function (n) { return Math.floor(Number(n)); }); }
 
     /** Bölme önizleme/doğrulama: sizes = YENİ parçaların kişi sayıları. */
     function checkSplit(ev, masaId, sizes) {
@@ -56,8 +65,10 @@
         if (m.isDeleted) return { ok: false, error: 'Pasif masa bölünemez.' };
         sizes = intArr(sizes);
         if (!sizes.length) return { ok: false, error: 'En az bir yeni parça girin.' };
-        if (sizes.some(function (n) { return !(n >= 1); })) return { ok: false, error: 'Her parça en az 1 kişi olmalı.' };
+        if (sizes.length > MAX_PARTS) return { ok: false, error: 'Tek seferde en fazla ' + MAX_PARTS + ' parça açılabilir.' };
+        if (sizes.some(function (n) { return !(n >= 1) || !isFinite(n); })) return { ok: false, error: 'Her parça en az 1 kişi olmalı.' };
         var cap = Number(m.kapasite) || 0;
+        if (cap < 2) return { ok: false, error: 'Bu masa bölünemez (en az 2 kişilik olmalı).' };
         var sum = sizes.reduce(function (a, b) { return a + b; }, 0);
         var keep = cap - sum;
         var minKeep = Math.max(1, soldPeople(m));
@@ -68,6 +79,16 @@
         return { ok: true, keep: keep, sizes: sizes, suffixes: nextSuffixes(ev, rootNo(m), sizes.length), rootNo: rootNo(m) };
     }
 
+    var CANDS = null;
+    function buildCands() {
+        var c = [];
+        for (var dx = -300; dx <= 300; dx += 10) for (var dy = -300; dy <= 300; dy += 10) {
+            if (!dx && !dy) continue;
+            // yan yana (aynı sıra) yerleşim tercih edilir: yatay uzaklık dikeyden ucuz
+            c.push({ dx: dx, dy: dy, d: Math.sqrt(dx * dx + dy * dy * 1.6) + (dx > 0 ? 0 : 4) });
+        }
+        return c.sort(function (a, b) { return a.d - b.d; });
+    }
     function placeNear(ev, fromKey, newKey) {
         var L = ev && ev.layout;
         if (!L || !L.tables || !L.tables[fromKey]) return;
@@ -75,13 +96,8 @@
         function free(x, y) {
             return Object.keys(L.tables).every(function (k) { var q = L.tables[k]; return Math.abs(q.x - x) >= minD || Math.abs(q.y - y) >= minD; });
         }
-        var cands = [];
-        for (var dx = -300; dx <= 300; dx += 10) for (var dy = -300; dy <= 300; dy += 10) {
-            if (!dx && !dy) continue;
-            // yan yana (aynı sıra) yerleşim tercih edilir: yatay uzaklık dikeyden ucuz
-            cands.push({ dx: dx, dy: dy, d: Math.sqrt(dx * dx + dy * dy * 1.6) + (dx > 0 ? 0 : 4) });
-        }
-        cands.sort(function (a, b) { return a.d - b.d; });
+        if (!isFinite(p.x) || !isFinite(p.y)) return;
+        var cands = CANDS || (CANDS = buildCands());
         var chosen = null;
         for (var i = 0; i < cands.length && !chosen; i++) {
             var x = p.x + cands[i].dx, y = p.y + cands[i].dy;
@@ -101,11 +117,12 @@
         var f = find(ev, masaId), m = f.m, cat = f.cat;
         var oldCap = Number(m.kapasite) || 0;
         m.kapasite = chk.keep;
+        m.rev = nextRev(m);
         var created = [];
         var at = cat.masalar.indexOf(m) + 1;
         chk.sizes.forEach(function (n, i) {
             var suffix = chk.suffixes[i];
-            var p = { id: newId(ev), no: chk.rootNo + '-' + suffix, kapasite: n, isSold: false, isDeleted: false, parentNo: chk.rootNo, suffix: suffix, splitFrom: m.id };
+            var p = { id: newId(ev), no: chk.rootNo + '-' + suffix, kapasite: n, isSold: false, isDeleted: false, parentNo: chk.rootNo, suffix: suffix, splitFrom: m.id, rev: nextRev(m) };
             cat.masalar.splice(at++, 0, p);
             created.push(p);
             placeNear(ev, String(m.no), String(p.no));
@@ -121,7 +138,8 @@
         if (p.isDeleted) return { ok: false, error: 'Bu parça zaten birleştirilmiş.' };
         if (!isPart(p)) return { ok: false, error: 'Bu masa bir parça değil (yalnızca A, B... parçaları birleştirilir).' };
         if (p.isSold) return { ok: false, error: 'Satılmış parça birleştirilemez. Önce satışı iptal edin.' };
-        if (busy && busy(p)) return { ok: false, error: 'Bu parça rezerve ya da başka kasada satılmış; birleştirilemez.' };
+        var isBusy = false; try { isBusy = !!(busy && busy(p)); } catch (e) { isBusy = true; }
+        if (isBusy) return { ok: false, error: 'Bu parça rezerve ya da başka kasada satılmış; birleştirilemez.' };
         var t = find(ev, p.splitFrom);
         if (!t || t.m.isDeleted || t.cat !== f.cat) {
             var rootM = null;
@@ -137,7 +155,7 @@
         if (!c.ok) return c;
         c.target.kapasite = (Number(c.target.kapasite) || 0) + (Number(c.part.kapasite) || 0);
         // Silinmez, pasife alınıp işaretlenir: sunucu senkronunda (id bazlı birleştirme) geri dirilmesin.
-        c.part.isDeleted = true; c.part.mergedInto = c.target.id;
+        c.part.isDeleted = true; c.part.mergedInto = c.target.id; c.part.rev = c.target.rev = nextRev(c.part, c.target);
         if (ev.layout && ev.layout.tables) delete ev.layout.tables[String(c.part.no)];
         return { ok: true, target: c.target, removed: c.part };
     }

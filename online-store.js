@@ -416,7 +416,22 @@
                         return localMasa || onlineMasa;
                     });
 
-                    return { ...(onlineCat || localCat), ...(localCat || {}), masalar: mergedMasalar };
+                    // Masa bölme/birleştirme: yapı alanları (kapasite, pasif, birleşti) rev'i daha yeni taraftan gelir
+                    const _byId = (arr, id) => arr.find(x => String(x.id) === String(id)) || null;
+                    const structMasalar = mergedMasalar.map((res) => {
+                        const lm = _byId(localMasalar, res.id), om = _byId(onlineMasalar, res.id);
+                        if (!lm || !om) return res;
+                        const lr = Number(lm.rev) || 0, orr = Number(om.rev) || 0;
+                        if (lr === orr) return res;
+                        const sw = lr > orr ? lm : om;
+                        const out = Object.assign({}, res);
+                        const sold = out.isSold ? (Number(out.saleDetail && out.saleDetail.people) || Number(sw.kapasite) || 0) : 0;
+                        out.kapasite = Math.max(Number(sw.kapasite) || 0, sold);
+                        out.rev = Math.max(lr, orr);
+                        if (!out.isSold) { out.isDeleted = !!sw.isDeleted; if (sw.mergedInto !== undefined) out.mergedInto = sw.mergedInto; }
+                        return out;
+                    });
+                    return { ...(onlineCat || localCat), ...(localCat || {}), masalar: structMasalar };
                 });
                 // Kullanıcı az önce yerelde düzenlediyse (push henüz sunucuya ulaşmamış olabilir) etkinlik alanlarında yerel değer kazanır
                 let _recentLocal = false;

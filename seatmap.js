@@ -39,7 +39,7 @@
     function sortedTables(ev) {
         const cats = (ev.categories || []);
         const order = new Map(cats.map((c, i) => [c, i]));
-        return tablesOf(ev).sort((a, b) => (order.get(a.cat) - order.get(b.cat)) || (Number(a.m.no) - Number(b.m.no)) || String(a.m.no).localeCompare(String(b.m.no), 'tr', { numeric: true }));
+        return tablesOf(ev).sort((a, b) => (order.get(a.cat) - order.get(b.cat)) || String(a.m.no).localeCompare(String(b.m.no), 'tr', { numeric: true }));
     }
 
     const TEMPLATES = {
