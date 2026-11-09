@@ -943,6 +943,8 @@
             if(m.isDeleted) return; 
             
             if(m.isSold) { 
+                // Bos koltugu olan satilmis masa (or. 4/6): yonetici kalani satabilir ya da musteriyi gorebilir
+                if (isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { openPartialChoice(cat.id, m.id); return; }
                 loadEdit(cat, m); 
                 return; 
             }
@@ -2404,6 +2406,56 @@
             return !!(u && u.role === 'admin');
         }
         function togglePartialOnly() { partialOnly = !partialOnly; render(); }
+
+        function closePartialChoice() { const el = document.getElementById('partialChoice'); if (el) el.remove(); }
+        function editFromChoice(catId, masaId) {
+            closePartialChoice();
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (m) loadEdit(cat, m);
+        }
+        function openPartialChoice(catId, masaId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (!m) return;
+            closePartialChoice();
+            const free = MasaBol.freeSeats(m);
+            const el = document.createElement('div'); el.id = 'partialChoice';
+            el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+            el.onclick = (e) => { if (e.target === el) closePartialChoice(); };
+            el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:400px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
+                + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">Masa ' + esc(m.no) + ' · ' + MasaBol.soldPeople(m) + '/' + m.kapasite + ' satılmış</h3>'
+                + '<p style="font-size:12px;color:#64748b;margin-bottom:14px">' + esc(m.soldTo || '') + ' · ' + free + ' koltuk boş</p>'
+                + '<button type="button" onclick="editFromChoice(' + catId + ',' + masaId + ')" style="width:100%;min-height:50px;border-radius:14px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;font-weight:800;margin-bottom:12px">Aynı müşteri · kişi ekle / düzenle</button>'
+                + '<div style="padding:12px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0">'
+                + '<p style="font-size:12px;font-weight:800;color:#334155;margin-bottom:8px">Farklı müşteri: kaç kişilik yeni masa açılsın? <span style="color:#64748b;font-weight:600">(en fazla ' + free + ')</span></p>'
+                + '<div style="display:flex;gap:8px"><input id="partialCount" type="number" inputmode="numeric" min="1" max="' + free + '" placeholder="Kişi sayısı" style="flex:1;min-height:48px;border-radius:12px;border:1px solid #cbd5e1;padding:0 12px;font-weight:800;font-size:16px" onkeydown="if(event.key===\'Enter\')sellRemainder(' + catId + ',' + masaId + ')">'
+                + '<button type="button" onclick="sellRemainder(' + catId + ',' + masaId + ')" style="min-height:48px;padding:0 16px;border-radius:12px;background:#4f46e5;color:#fff;font-weight:800">✂ Böl ve sat</button></div></div>'
+                + '<button type="button" onclick="closePartialChoice()" style="width:100%;min-height:40px;margin-top:6px;font-weight:700;color:#64748b">Vazgeç</button></div>';
+            document.body.appendChild(el);
+            setTimeout(() => { const i = document.getElementById('partialCount'); if (i) i.focus(); }, 50);
+        }
+        function sellRemainder(catId, masaId) {
+            if (!isAdminUser()) { closePartialChoice(); return showToast('Masa bölme yalnızca yönetici içindir.', 'error'); }
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (!m) return closePartialChoice();
+            if (masaBusyNow(m)) { closePartialChoice(); return showToast('Bu masa rezerve ya da başka kasada satılmış; bölünemez.', 'error'); }
+            const inp = document.getElementById('partialCount');
+            const n = Math.floor(Number(inp && inp.value));
+            const free = MasaBol.freeSeats(m);
+            if (!(n >= 1)) { if (inp) { inp.style.borderColor = '#dc2626'; inp.focus(); } return showToast('Kaç kişilik yeni masa açılacağını yazın.', 'error'); }
+            if (n > free) { if (inp) { inp.style.borderColor = '#dc2626'; inp.focus(); } return showToast('En fazla ' + free + ' kişilik yeni masa açılabilir.', 'error'); }
+            const label = m.no, oldCap = m.kapasite;
+            const r = MasaBol.split(ev, masaId, [n]);
+            closePartialChoice();
+            if (!r.ok) return showToast(r.error, 'error');
+            const part = r.created[0];
+            if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Masa Bölündü', 'Masa ' + label + ' (' + oldCap + ' → ' + r.parent.kapasite + ' kişi) | Yeni: ' + part.no + ' (' + part.kapasite + ' kişi) [böl ve sat] | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
+            save(); refreshPlan(true);
+            selectMasa(catId, part.id);
+            showToast('Masa ' + part.no + ' açıldı (' + part.kapasite + ' kişi); sepete eklendi.', 'success');
+        }
 
         let splitCtx = null;
         function masaBusyNow(m) { return !!(reservedMap[String(m.no)] || soldElsewhere(m)); }
