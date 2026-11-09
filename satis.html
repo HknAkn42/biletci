@@ -1303,6 +1303,8 @@
             const sh = document.getElementById('hsSheet'); if (sh) sh.classList.add('hidden');
         }
         function hsTap(cat, m) {
+            // Boş koltuğu olan satılmış masa (yönetici): Hızlı satış açık kalır, seçim penceresi üstte açılır
+            if (m.isSold && isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { selectMasa(cat.id, m.id); return; }
             if (m.isSold || soldElsewhere(m)) { closeHS(); selectMasa(cat.id, m.id); return; }   // satılmış masa: mevcut satış düzenleme akışı
             const before = basket.length;
             selectMasa(cat.id, m.id);
@@ -2413,6 +2415,7 @@
         function closePartialChoice() { const el = document.getElementById('partialChoice'); if (el) el.remove(); }
         function editFromChoice(catId, masaId) {
             closePartialChoice();
+            if (typeof closeHS === 'function') closeHS();
             const cat = ev.categories.find(c => c.id === catId);
             const m = cat && cat.masalar.find(x => x.id === masaId);
             if (m) loadEdit(cat, m);
@@ -2456,7 +2459,7 @@
             const part = r.created[0];
             if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Masa Bölündü', 'Masa ' + label + ' (' + oldCap + ' → ' + r.parent.kapasite + ' kişi) | Yeni: ' + part.no + ' (' + part.kapasite + ' kişi) [böl ve sat] | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
             save(); refreshPlan(true);
-            selectMasa(catId, part.id);
+            selectMasa(catId, part.id, true);
             showToast('Masa ' + part.no + ' açıldı (' + part.kapasite + ' kişi); sepete eklendi.', 'success');
         }
 
