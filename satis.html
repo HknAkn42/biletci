@@ -2449,6 +2449,7 @@
         function closeSplitModal() { splitCtx = null; const el = document.getElementById('splitModal'); if (el) el.remove(); }
         function confirmSplit() {
             const c = splitCtx; if (!c) return;
+            if (!isAdminUser()) { closeSplitModal(); return showToast('Masa bölme yalnızca yönetici içindir.', 'error'); }
             const cat = ev.categories.find(x => x.id === c.catId);
             const m = cat.masalar.find(x => x.id === c.masaId);
             const label = m.no, oldCap = m.kapasite;
@@ -2463,7 +2464,10 @@
             if (!isAdminUser()) return showToast('Birleştirme yalnızca yönetici içindir.', 'error');
             const chk = MasaBol.checkMerge(ev, masaId, masaBusyNow);
             if (!chk.ok) return showToast(chk.error, 'error');
+            const _inCart = (id) => basket.some(b => b.masa.id === id) || editId === id;
+            if (_inCart(masaId) || _inCart(chk.target.id)) return showToast('Önce masayı sepetten çıkarın / düzenlemeyi kapatın.', 'error');
             showConfirm('MASAYI BİRLEŞTİR', 'Masa ' + chk.part.no + ' (' + chk.part.kapasite + ' kişi) ana masa ' + chk.target.no + ' ile birleştirilsin mi? Masa ' + chk.target.no + ' toplam ' + ((Number(chk.target.kapasite) || 0) + (Number(chk.part.kapasite) || 0)) + ' kişilik olur.', () => {
+                if (_inCart(masaId) || _inCart(chk.target.id)) return showToast('Önce masayı sepetten çıkarın.', 'error');
                 const pNo = chk.part.no, pCap = chk.part.kapasite, tNo = chk.target.no;
                 const r = MasaBol.merge(ev, masaId, masaBusyNow);
                 if (!r.ok) return showToast(r.error, 'error');

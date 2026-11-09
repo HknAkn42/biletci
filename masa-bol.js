@@ -38,7 +38,7 @@
     }
     function nextSuffixes(ev, rNo, count) {
         var used = {};
-        eachMasa(ev, function (m) { if (isPart(m) && !m.isDeleted && String(m.parentNo) === String(rNo)) used[m.suffix] = true; });
+        eachMasa(ev, function (m) { if (isPart(m) && !m.mergedInto && String(m.parentNo) === String(rNo)) used[m.suffix] = true; });
         var out = [], i = 0;
         while (out.length < count) { var s = suffixName(i++); if (!used[s]) out.push(s); }
         return out;
