@@ -937,7 +937,7 @@
             panel.innerHTML = onlineChips + lockChips;
         }
 
-        function selectMasa(cId, mId) {
+        function selectMasa(cId, mId, force) {
             const cat = ev.categories.find(c => c.id === cId);
             const m = cat.masalar.find(m => m.id === mId);
             if(m.isDeleted) return; 
@@ -962,6 +962,9 @@
                 openReservationDetail(cat, m);
                 return;
             }
+
+            // Yönetici + boş masa (2+ kişilik): "tüm masayı sat" ya da "böl ve sat" seçimi (sepetteyse dokunuş kaldırır)
+            if (!force && isAdminUser() && (Number(m.kapasite) || 0) >= 2 && !basket.some(b => b.masa.id === mId)) { openFreeChoice(cId, mId); return; }
 
             // Soft lock kontrolü: başkası bu masayı işlemde mi?
             const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
@@ -2455,6 +2458,49 @@
             save(); refreshPlan(true);
             selectMasa(catId, part.id);
             showToast('Masa ' + part.no + ' açıldı (' + part.kapasite + ' kişi); sepete eklendi.', 'success');
+        }
+
+        function openFreeChoice(catId, masaId) {
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (!m) return;
+            closePartialChoice();
+            const cap = Number(m.kapasite) || 0;
+            const el = document.createElement('div'); el.id = 'partialChoice';
+            el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+            el.onclick = (e) => { if (e.target === el) closePartialChoice(); };
+            el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:400px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
+                + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">Masa ' + esc(m.no) + ' · ' + cap + ' kişilik</h3>'
+                + '<p style="font-size:12px;color:#64748b;margin-bottom:14px">' + esc(cat.name) + ' · boş</p>'
+                + '<button type="button" onclick="closePartialChoice();selectMasa(' + catId + ',' + masaId + ',true)" style="width:100%;min-height:50px;border-radius:14px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;font-weight:800;margin-bottom:12px">Tüm masayı sat (' + cap + ' kişi)</button>'
+                + '<div style="padding:12px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0">'
+                + '<p style="font-size:12px;font-weight:800;color:#334155;margin-bottom:8px">Bu müşteriye kaç kişilik satılsın? <span style="color:#64748b;font-weight:600">(1-' + (cap - 1) + ', kalan yeni masa olur)</span></p>'
+                + '<div style="display:flex;gap:8px"><input id="partialCount" type="number" inputmode="numeric" min="1" max="' + (cap - 1) + '" placeholder="Kişi sayısı" style="flex:1;min-height:48px;border-radius:12px;border:1px solid #cbd5e1;padding:0 12px;font-weight:800;font-size:16px" onkeydown="if(event.key===\'Enter\')splitAndSell(' + catId + ',' + masaId + ')">'
+                + '<button type="button" onclick="splitAndSell(' + catId + ',' + masaId + ')" style="min-height:48px;padding:0 16px;border-radius:12px;background:#4f46e5;color:#fff;font-weight:800">✂ Böl ve sat</button></div></div>'
+                + '<button type="button" onclick="closePartialChoice()" style="width:100%;min-height:40px;margin-top:6px;font-weight:700;color:#64748b">Vazgeç</button></div>';
+            document.body.appendChild(el);
+            setTimeout(() => { const i = document.getElementById('partialCount'); if (i) i.focus(); }, 50);
+        }
+        function splitAndSell(catId, masaId) {
+            if (!isAdminUser()) { closePartialChoice(); return showToast('Masa bölme yalnızca yönetici içindir.', 'error'); }
+            const cat = ev.categories.find(c => c.id === catId);
+            const m = cat && cat.masalar.find(x => x.id === masaId);
+            if (!m) return closePartialChoice();
+            if (masaBusyNow(m)) { closePartialChoice(); return showToast('Bu masa rezerve ya da başka kasada satılmış; bölünemez.', 'error'); }
+            const inp = document.getElementById('partialCount');
+            const n = Math.floor(Number(inp && inp.value));
+            const cap = Number(m.kapasite) || 0;
+            if (!(n >= 1) || n > cap) { if (inp) { inp.style.borderColor = '#dc2626'; inp.focus(); } return showToast('1 ile ' + cap + ' arasında bir kişi sayısı yazın.', 'error'); }
+            if (n === cap) { closePartialChoice(); return selectMasa(catId, masaId, true); }
+            const label = m.no;
+            const r = MasaBol.split(ev, masaId, [cap - n]);
+            closePartialChoice();
+            if (!r.ok) return showToast(r.error, 'error');
+            const part = r.created[0];
+            if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Masa Bölündü', 'Masa ' + label + ' (' + cap + ' → ' + n + ' kişi) | Yeni boş masa: ' + part.no + ' (' + part.kapasite + ' kişi) [böl ve sat] | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
+            save(); refreshPlan(true);
+            selectMasa(catId, masaId, true);
+            showToast('Masa ' + label + ' ' + n + ' kişilik oldu; ' + part.no + ' (' + part.kapasite + ' kişi) boş açıldı.', 'success');
         }
 
         let splitCtx = null;
