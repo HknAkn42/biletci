@@ -625,10 +625,56 @@
             return legacyEvent.isActive !== false;
         },
 
+        // Sunucu doğruluk kaynağıdır: bir cihaz etkinliği yazarken sunucudaki masa/kategori/yerleşim yapısını ASLA ezmez.
+        // Sunucuda olup yerelde olmayan her şey eklenir; ikisinde de olan masada rev'i yüksek taraf kazanır (bölme/birleştirme).
+        async _mergeServerStructure(ev) {
+            const t0 = Date.now();
+            try {
+                const { data } = await this.client.from('events').select('payload_json').eq('legacy_event_id', String(ev.id)).maybeSingle();
+                const sp = data && data.payload_json;
+                if (!sp || typeof sp !== 'object') return ev;
+                const out = Object.assign({}, ev);
+                const lCats = JSON.parse(JSON.stringify(Array.isArray(ev.categories) ? ev.categories : []));
+                const sCats = Array.isArray(sp.categories) ? sp.categories : [];
+                const same = (a, b) => String(a) === String(b);
+                sCats.forEach((sc) => {
+                    if (!sc || sc.id === undefined || sc.id === null) return;
+                    const lc = lCats.find(c => c && same(c.id, sc.id));
+                    if (!lc) { lCats.push(JSON.parse(JSON.stringify(sc))); return; }
+                    if (!Array.isArray(lc.masalar)) lc.masalar = [];
+                    (Array.isArray(sc.masalar) ? sc.masalar : []).forEach((sm) => {
+                        if (!sm || sm.id === undefined || sm.id === null) return;
+                        const lm = lc.masalar.find(m => m && same(m.id, sm.id));
+                        if (!lm) { lc.masalar.push(JSON.parse(JSON.stringify(sm))); return; }
+                        if ((Number(sm.rev) || 0) > (Number(lm.rev) || 0)) {
+                            const sold = lm.isSold ? (Number(lm.saleDetail && lm.saleDetail.people) || 0) : 0;
+                            lm.kapasite = Math.max(Number(sm.kapasite) || 0, sold);
+                            lm.rev = sm.rev;
+                            if (!lm.isSold) { lm.isDeleted = !!sm.isDeleted; if (sm.mergedInto !== undefined) lm.mergedInto = sm.mergedInto; }
+                        }
+                    });
+                });
+                out.categories = lCats;
+                const sLay = sp.layout && sp.layout.tables;
+                if (sLay && typeof sLay === 'object') {
+                    const lay = JSON.parse(JSON.stringify(ev.layout || {}));
+                    lay.tables = Object.assign({}, JSON.parse(JSON.stringify(sLay)), lay.tables || {});
+                    out.layout = lay;
+                }
+                return out;
+            } catch (e) {
+                console.warn('[BiletPro OnlineStore] sunucu yapısı okunamadı, etkinlik yazılmadı:', e);
+                throw e;
+            }
+        },
+
         // satis.html için: mevcut legacy event yapısını online tabloya senkronlar
         async syncLegacyEventBundle(ev) {
             if (!ev || !ev.id) return { ok: false, reason: 'invalid_event' };
             if (this.mode !== 'online' || !this.client) return { ok: false, reason: 'offline_mode' };
+            let _dirtyAtStart = null; try { _dirtyAtStart = localStorage.getItem('bp_local_dirty_ts'); } catch (_) {}
+            let evOut;
+            try { evOut = await this._mergeServerStructure(ev); } catch (_) { return { ok: false, reason: 'server_read_failed' }; }
 
             const eventRow = {
                 legacy_event_id: String(ev.id),
@@ -641,7 +687,7 @@
                 door_time: ev.doorTime || null,
                 start_time: ev.startTime || null,
                 is_active: ev.isActive !== false,
-                payload_json: ev
+                payload_json: evOut
             };
 
             const { data: upsertedEvent, error: eventErr } = await this.client
@@ -690,9 +736,11 @@
                 for (let i = ticketRows.length - 1; i >= 0; i--) if (cancelled.has(String(ticketRows[i].ticket_hash))) ticketRows.splice(i, 1);
             } catch (_) {}
 
+            const _markSynced = () => { try { if (localStorage.getItem('bp_local_dirty_ts') === _dirtyAtStart) localStorage.removeItem('bp_unsynced'); } catch (_) {} };
             if (!ticketRows.length) {
                 // Çoklu kullanıcıda yanlışlıkla diğer cihaz satışlarını silmemek için
                 // "boş geldi -> hepsini sil" davranışı kaldırıldı.
+                _markSynced();
                 return { ok: true, reason: 'event_synced_no_tickets', eventId: eventDbId };
             }
 
@@ -705,6 +753,7 @@
                 return { ok: false, reason: 'ticket_upsert_failed' };
             }
 
+            _markSynced();
             return { ok: true, reason: 'event_and_tickets_upserted', eventId: eventDbId, ticketCount: ticketRows.length };
         },
 
@@ -865,6 +914,8 @@
 
             // Event kaydı yoksa oluştur / güncelle (RPC event_id üzerinden çalışır)
             const _act = await this._serverActive(legacyEvent);
+            let _evOut;
+            try { _evOut = await this._mergeServerStructure(legacyEvent); } catch (_) { return { ok: false, reason: 'server_read_failed' }; }
             const eventRow = {
                 legacy_event_id: String(legacyEvent.id),
                 title: legacyEvent.title || 'Etkinlik',
@@ -876,7 +927,7 @@
                 door_time: legacyEvent.doorTime || null,
                 start_time: legacyEvent.startTime || null,
                 is_active: _act,
-                payload_json: Object.assign({}, legacyEvent, { isActive: _act })
+                payload_json: Object.assign({}, _evOut, { isActive: _act })
             };
 
             const { error: evErr } = await this.client

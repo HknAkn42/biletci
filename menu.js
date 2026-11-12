@@ -41,7 +41,7 @@ window.BiletProAuth = {
             if (window.__bpSkipAutoPush) return;
             if ((prevValue || '') === (value || '')) return;
             // Yerel düzenleme zamanı: sunucudan çekme (pull) bu sırada kullanıcının düzenlemesini ezmesin
-            try { _origSetItem('bp_local_dirty_ts', String(Date.now())); } catch (_) {}
+            try { _origSetItem('bp_local_dirty_ts', String(Date.now())); _origSetItem('bp_unsynced', '1'); } catch (_) {}
             // Kısa gecikmeyle push et (aynı tick'te birden fazla yazma varsa birleşsin)
             clearTimeout(window.__bpSyncTimer);
             window.__bpSyncTimer = setTimeout(() => {
@@ -1959,8 +1959,10 @@ window.BiletProAutoSync = {
             let synced = 0;
             let failed = 0;
 
-            // 1) Local -> Online push
-            for (const ev of events) {
+            // 1) Local -> Online push: yalnızca bu cihazda gerçekten düzenleme yapılıp henüz sunucuya ulaşmadıysa.
+            //    Girişte/yenilemede eski bir yerel kopya sunucuya yazılmaz; sunucu doğruluk kaynağıdır.
+            let _unsynced = false; try { _unsynced = localStorage.getItem('bp_unsynced') === '1'; } catch (_) {}
+            for (const ev of (_unsynced ? events : [])) {
                 if (!ev || !ev.id) continue;
                 try {
                     const res = await window.BiletProOnlineStore.syncLegacyEventBundle(ev);
