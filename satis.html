@@ -946,7 +946,7 @@
             
             if(m.isSold) { 
                 // Bos koltugu olan satilmis masa (or. 4/6): yonetici kalani satabilir ya da musteriyi gorebilir
-                if (isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { openPartialChoice(cat.id, m.id); return; }
+                if (SPLIT_IN_SALES && isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { openPartialChoice(cat.id, m.id); return; }
                 loadEdit(cat, m); 
                 return; 
             }
@@ -966,7 +966,7 @@
             }
 
             // Yönetici + boş masa (2+ kişilik): "tüm masayı sat" ya da "böl ve sat" seçimi (sepetteyse dokunuş kaldırır)
-            if (!force && isAdminUser() && (Number(m.kapasite) || 0) >= 2 && !basket.some(b => b.masa.id === mId)) { openFreeChoice(cId, mId); return; }
+            if (SPLIT_IN_SALES && !force && isAdminUser() && (Number(m.kapasite) || 0) >= 2 && !basket.some(b => b.masa.id === mId)) { openFreeChoice(cId, mId); return; }
 
             // Soft lock kontrolü: başkası bu masayı işlemde mi?
             const _slSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
@@ -1306,7 +1306,7 @@
         }
         function hsTap(cat, m) {
             // Boş koltuğu olan satılmış masa (yönetici): Hızlı satış açık kalır, seçim penceresi üstte açılır
-            if (m.isSold && isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { selectMasa(cat.id, m.id); return; }
+            if (SPLIT_IN_SALES && m.isSold && isAdminUser() && MasaBol.freeSeats(m) > 0 && !masaBusyNow(m)) { selectMasa(cat.id, m.id); return; }
             if (m.isSold || soldElsewhere(m)) { closeHS(); selectMasa(cat.id, m.id); return; }   // satılmış masa: mevcut satış düzenleme akışı
             const before = basket.length;
             selectMasa(cat.id, m.id);
@@ -2388,8 +2388,8 @@
                                 : '';
                             const _partial = m.isSold && MasaBol.freeSeats(m) > 0;
                             const _noBusy = !_se && !reservedMap[String(m.no)];
-                            const _canSplit = _isAdm && _noBusy && (m.isSold ? MasaBol.freeSeats(m) > 0 : (Number(m.kapasite) || 0) >= 2);
-                            const _canMerge = _isAdm && _noBusy && MasaBol.isPart(m) && !m.isSold;
+                            const _canSplit = SPLIT_IN_SALES && _isAdm && _noBusy && (m.isSold ? MasaBol.freeSeats(m) > 0 : (Number(m.kapasite) || 0) >= 2);
+                            const _canMerge = SPLIT_IN_SALES && _isAdm && _noBusy && MasaBol.isPart(m) && !m.isSold;
                             const _chips = (_canSplit || _canMerge) ? '<div class="mb-chips">'
                                 + (_canSplit ? '<button type="button" class="mb-chip" title="Masayı böl" onclick="event.stopPropagation();openSplitModal(' + cat.id + ',' + m.id + ')">✂ Böl</button>' : '')
                                 + (_canMerge ? '<button type="button" class="mb-chip merge" title="Ana masaya birleştir" onclick="event.stopPropagation();mergeMasa(' + cat.id + ',' + m.id + ')">⇄ Birleştir</button>' : '')
@@ -2416,6 +2416,8 @@
         }
         
         // ===== MASA BÖLME / BİRLEŞTİRME (yalnızca yönetici) =====
+        // Masa bölme/birleştirme artık satış ekranında değil, Oturma Düzeni sayfasında yapılır (satış sırasında yapı değişmesin).
+        const SPLIT_IN_SALES = false;
         function isAdminUser() {
             const s = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
             if (s.role === 'admin') return true;
