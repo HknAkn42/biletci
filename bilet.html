@@ -48,6 +48,14 @@
         .acts button[disabled] { opacity: .6; }
         .note { text-align: center; font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 10px 8px 0; }
         .state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
+        .kv .hero { padding-bottom: 16px; }
+        .kv .kt { font-size: 15px; font-weight: 800; letter-spacing: .02em; margin-top: 4px; }
+        .kv .kbox { margin: 16px 16px 0; max-height: 48vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--surface-3); font-size: 13px; line-height: 1.6; color: var(--text-2); }
+        .kv .kbox ol { margin: 0; padding-left: 20px; }
+        .kv .kbox li { margin-bottom: 8px; }
+        .kv .kfoot { text-align: center; font-weight: 700; color: var(--text); margin-top: 6px; }
+        .kv .kact { padding: 16px; }
+        .kv .kact button { width: 100%; min-height: 50px; border-radius: 14px; border: 0; background: var(--primary); color: #fff; font: 700 15px var(--font); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -136,7 +144,40 @@
             out.innerHTML = h;
             document.title = (e.title || 'Biletiniz') + ' | BiletPro';
         }
-        main();
+        // KVKK / katılım şartları: bilet açılmadan önce onay (onay bu cihazda hatırlanır; metin değişirse KV_VER artırılır)
+        const KV_VER = 'v1', KV_KEY = 'bp_kvkk_onay';
+        const KV_MADDELER = [
+            'Etkinliğe 6 yaş ve üzeri misafirler kabul edilir. Her katılımcı için bilet zorunludur.',
+            'Dışarıdan yiyecek, içecek ve alkollü içecek getirilmesi yasaktır.',
+            'Rehber hayvanlara ilişkin yasal haklar saklı kalmak üzere evcil hayvan kabul edilmez.',
+            'Yasal haklar ve mücbir sebepler dışında biletlerde iptal, iade ve değişiklik yapılmaz.',
+            'Silah, kesici-delici alet, yanıcı ve tehlikeli maddelerle giriş yasaktır.',
+            'Girişte güvenlik kontrolü zorunludur. Kontrolü reddedenler salona alınmayabilir.',
+            'GO EVENT’in izni olmadan profesyonel ses, görüntü kaydı ve canlı yayın yapılamaz.',
+            'Organizasyon, güvenlik riski oluşturan kişileri bilet bedelini iade ederek etkinliğe almama hakkını saklı tutar.',
+            'Etkinlik düzenini bozan veya misafirleri rahatsız eden kişiler salondan çıkarılabilir.',
+            'GO EVENT, etkinlik boyunca fotoğraf, video ve ses kaydı gerçekleştirebilir.',
+            'Bu kayıtlar, KVKK ve ilgili mevzuata uygun olarak sosyal medya, basın, reklam ve tanıtım faaliyetlerinde kullanılabilir; hukuken ayrıca onay gerekmeyen durumlarda yeniden onay alınmaksızın yayımlanabilir.',
+            'Görsel kayıtlar, yasal şartlar çerçevesinde medya kuruluşları, reklam ajansları ve iş ortaklarıyla paylaşılabilir.',
+            'Kişisel veriler 6698 sayılı KVKK kapsamında işlenir. Açık rıza gerektiren kullanımlar için ayrıca onay alınır.',
+            'Çocukların tanınabilir görüntülerinin tanıtımda kullanılması için gerektiğinde veli veya yasal temsilci izni alınır.',
+            'Katılımcılar, KVKK kapsamındaki başvuru ve açık rızalarını geri çekme haklarını kullanabilir.',
+            'Kişisel eşyaların korunması misafirlerin sorumluluğundadır. Organizasyonun yasal sorumlulukları saklıdır.',
+            'GO EVENT, satın alınan kategori korunarak masa düzeninde ve operasyonel programda değişiklik yapabilir.',
+            'Tüm katılımcılar organizasyon ve güvenlik görevlilerinin talimatlarına uymakla yükümlüdür.',
+            'Bilet satın alan misafirler, önceden bildirilen etkinlik kurallarını kabul eder. KVKK kapsamında gerekli açık rızalar ayrıca alınır.'
+        ];
+        function kvkkOk() { try { return localStorage.getItem(KV_KEY) === KV_VER; } catch (_) { return false; } }
+        function kvkkAccept() { try { localStorage.setItem(KV_KEY, KV_VER); } catch (_) {} out.innerHTML = '<div class="state">Biletiniz yükleniyor…</div>'; window.scrollTo(0, 0); main(); }
+        function kvkkGate() {
+            out.innerHTML = `<div class="card kv">
+                <div class="hero"><img class="glogo" src="assets/go-event-logo.png" alt="GO Event" onerror="this.style.display='none'"><div class="kt">ETKİNLİK KATILIM ŞARTLARI VE KVKK BİLGİLENDİRMESİ</div></div>
+                <div class="kbox"><ol>${KV_MADDELER.map(m => '<li>' + esc(m) + '</li>').join('')}</ol><div class="kfoot">GO EVENT TR<br>Unutulmaz Anlar İçin Buradayız.</div></div>
+                <div class="kact"><button type="button" id="kvBtn">Okudum, kabul ediyorum</button></div>
+            </div>`;
+            document.getElementById('kvBtn').onclick = kvkkAccept;
+        }
+        if (kvkkOk()) main(); else kvkkGate();
     </script>
 </body>
 </html>
