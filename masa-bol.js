@@ -160,6 +160,41 @@
         return { ok: true, target: c.target, removed: c.part };
     }
 
+    function normNo(n) { return String(n == null ? '' : n).replace(/[^0-9A-Za-z]/g, '').toUpperCase(); }
+    /**
+     * Eksik parça onarımı. list = [{root:'98', suffix:'A'}]; cap = her yeni parçanın kişi sayısı.
+     * Ana masaya ve satışlara DOKUNMAZ; yalnız aktif olarak bulunmayan parça masalarını ekler ("99A" ile "99-A" aynı sayılır).
+     */
+    function planRestore(ev, list, cap) {
+        var res = { add: [], exists: [], noParent: [] }, active = {}, parents = {};
+        eachMasa(ev, function (m, cat) {
+            if (m.isDeleted) return;
+            active[normNo(m.no)] = true;
+            if (!isPart(m) && parents[String(m.no)] === undefined) parents[String(m.no)] = { m: m, cat: cat };
+        });
+        (list || []).forEach(function (it) {
+            var no = it.root + '-' + it.suffix;
+            if (active[normNo(no)]) { res.exists.push(no); return; }
+            var p = parents[String(it.root)];
+            if (!p) { res.noParent.push(no); return; }
+            active[normNo(no)] = true;
+            res.add.push({ no: no, root: String(it.root), suffix: it.suffix, parent: p.m, cat: p.cat, kapasite: cap, parentCap: Number(p.m.kapasite) || 0, parentSold: soldPeople(p.m) });
+        });
+        return res;
+    }
+    function applyRestore(ev, plan) {
+        var created = [];
+        plan.add.forEach(function (a) {
+            var at = a.cat.masalar.indexOf(a.parent) + 1;
+            while (at < a.cat.masalar.length && isPart(a.cat.masalar[at]) && String(a.cat.masalar[at].parentNo) === a.root) at++;
+            var p = { id: newId(ev), no: a.no, kapasite: a.kapasite, isSold: false, isDeleted: false, parentNo: a.root, suffix: a.suffix, splitFrom: a.parent.id, rev: nextRev(a.parent) };
+            a.cat.masalar.splice(at, 0, p);
+            created.push(p);
+            placeNear(ev, String(a.parent.no), String(p.no));
+        });
+        return created;
+    }
+
     /** Kısmen satılmış (boş koltuğu olan) masa sayısı / boş koltuk toplamı. */
     function partialStats(ev) {
         var tables = 0, seats = 0;
@@ -167,7 +202,7 @@
         return { tables: tables, seats: seats };
     }
 
-    var api = { isPart: isPart, rootNo: rootNo, cmpNo: cmpNo, soldPeople: soldPeople, freeSeats: freeSeats, checkSplit: checkSplit, split: split, checkMerge: checkMerge, merge: merge, partialStats: partialStats, placeNear: placeNear, find: find };
+    var api = { isPart: isPart, rootNo: rootNo, cmpNo: cmpNo, soldPeople: soldPeople, freeSeats: freeSeats, checkSplit: checkSplit, split: split, checkMerge: checkMerge, merge: merge, partialStats: partialStats, placeNear: placeNear, find: find, planRestore: planRestore, applyRestore: applyRestore, normNo: normNo };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     root.MasaBol = api;
 })(typeof window !== 'undefined' ? window : globalThis);

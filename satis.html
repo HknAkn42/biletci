@@ -208,7 +208,8 @@
 
     <script src="menu.js?v=20261018"></script>
     <script src="seatmap.js?v=1"></script>
-    <script src="masa-bol.js?v=1"></script>
+    <script src="masa-bol.js?v=2"></script>
+    <script src="onar-parca.js?v=1"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="ticketimg.js?v=1"></script>
     <script>
@@ -366,6 +367,7 @@
                         </div>
                         <div id="rsvList" class="mt-3 space-y-2"></div>
                     </div>
+                    <div id="restoreBar"></div>
                     <div class="flex items-center gap-2" id="viewToggle">
                         <button type="button" id="vtList" class="chip on" onclick="setSalesView('list')">Liste</button>
                         <button type="button" id="vtPlan" class="chip" onclick="setSalesView('plan')">Plan (sahne ve masalar)</button>
@@ -2344,6 +2346,16 @@
                 bar.innerHTML = '<span>🪑 Eksik satılan: <b>' + _ps.tables + ' masa</b> · <b>' + _ps.seats + ' boş koltuk</b></span><button type="button" class="' + (partialOnly ? 'on' : '') + '" onclick="togglePartialOnly()">' + (partialOnly ? 'Tümünü göster' : 'Yalnız bunları göster') + '</button>';
                 container.appendChild(bar);
             }
+            // Yönetici: planda olup sistemde eksik kalan bölünmüş (boş) parçalar varsa geri ekleme uyarısı
+            try {
+                const _rbox = document.getElementById('restoreBar'); if (_rbox) _rbox.innerHTML = '';
+                const _rp = _isAdm && window.ParcaOnar ? window.ParcaOnar.plan(ev, 2) : null;
+                if (_rp && _rbox) {
+                    const rb = document.createElement('div'); rb.className = 'mb-bar'; rb.style.margin = '0'; rb.style.background = '#eef2ff'; rb.style.borderColor = '#a5b4fc'; rb.style.color = '#3730a3';
+                    rb.innerHTML = '<span>🧩 Planda olup sistemde eksik <b>' + _rp.add.length + ' bölünmüş parça</b> var</span><button type="button" style="border-color:#6366f1;color:#3730a3" onclick="openRestoreModal()">Eksik parçaları ekle</button>';
+                    _rbox.appendChild(rb);
+                }
+            } catch (_) {}
             ev.categories.forEach(cat => {
                 const filteredMasalar = cat.masalar.filter(m => !m.isDeleted
                     && (searchTerm === '' || m.no.toString().toLowerCase().includes(searchTerm) || (m.soldTo && m.soldTo.toLowerCase().includes(searchTerm)))
@@ -2412,6 +2424,38 @@
         }
         function togglePartialOnly() { partialOnly = !partialOnly; render(); }
 
+        function openRestoreModal() {
+            if (!isAdminUser()) return showToast('Bu işlem yalnızca yönetici içindir.', 'error');
+            const cap = Math.floor(Number((document.getElementById('restoreCap') || {}).value)) || 2;
+            const p = window.ParcaOnar && window.ParcaOnar.plan(ev, cap);
+            closePartialChoice();
+            if (!p) return showToast('Eklenecek eksik parça yok.', 'success');
+            const el = document.createElement('div'); el.id = 'partialChoice';
+            el.style.cssText = 'position:fixed;inset:0;z-index:260000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+            el.onclick = (e) => { if (e.target === el) closePartialChoice(); };
+            const rows = p.add.map(a => '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #eef0f6"><b>' + esc(a.no) + '</b><span style="color:#64748b">ana masa ' + esc(a.root) + ' · ' + a.parentCap + ' kişilik · ' + a.parentSold + ' satılmış</span></div>').join('');
+            el.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:440px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:20px;box-shadow:0 30px 80px rgba(0,0,0,.35)">'
+                + '<h3 style="font-weight:900;font-size:18px;margin-bottom:4px">Eksik parçaları ekle</h3>'
+                + '<p style="font-size:12px;color:#64748b;margin-bottom:10px">' + esc(ev.title) + ' · <b>' + p.add.length + '</b> yeni boş masa eklenecek · ' + p.exists.length + ' zaten var' + (p.noParent.length ? ' · ' + p.noParent.length + ' için ana masa yok (' + esc(p.noParent.join(', ')) + ')' : '') + '</p>'
+                + '<p style="font-size:12px;font-weight:700;color:#334155;margin-bottom:10px">Ana masalara ve satışlara dokunulmaz. Yalnızca aşağıdaki boş masalar eklenir.</p>'
+                + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:800;color:#334155">Her parça kaç kişilik? <input id="restoreCap" type="number" min="1" max="20" value="' + cap + '" style="width:70px;min-height:38px;border-radius:10px;border:1px solid #cbd5e1;padding:0 8px;font-weight:800" onchange="openRestoreModal()"></div>'
+                + '<div style="flex:1;overflow-y:auto;font-size:12.5px;border:1px solid #e2e8f0;border-radius:12px;padding:6px 12px;margin-bottom:12px">' + rows + '</div>'
+                + '<div style="display:flex;gap:8px"><button type="button" onclick="closePartialChoice()" style="flex:1;min-height:46px;border-radius:12px;border:1px solid #cbd5e1;font-weight:800;color:#475569">Vazgeç</button>'
+                + '<button type="button" onclick="confirmRestore()" style="flex:2;min-height:46px;border-radius:12px;background:#4f46e5;color:#fff;font-weight:800">' + p.add.length + ' masayı ekle</button></div></div>';
+            document.body.appendChild(el);
+        }
+        function confirmRestore() {
+            if (!isAdminUser()) { closePartialChoice(); return showToast('Bu işlem yalnızca yönetici içindir.', 'error'); }
+            if (basket.length || editId) { closePartialChoice(); return showToast('Önce sepeti boşaltın / düzenlemeyi bitirin.', 'error'); }
+            const cap = Math.floor(Number((document.getElementById('restoreCap') || {}).value)) || 2;
+            const p = window.ParcaOnar && window.ParcaOnar.plan(ev, cap);
+            closePartialChoice();
+            if (!p) return;
+            const created = MasaBol.applyRestore(ev, p);
+            if (typeof window.writeAuditEvent === 'function') writeAuditEvent('Satış', 'Eksik Parça Geri Eklendi', created.length + ' boş parça masa eklendi (' + created.map(c => c.no).join(', ') + ') | Etkinlik: ' + ev.title + ' | Yapan: ' + (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name || '?'));
+            save(); refreshPlan(true); render();
+            showToast(created.length + ' boş parça masa eklendi.', 'success');
+        }
         function closePartialChoice() { const el = document.getElementById('partialChoice'); if (el) el.remove(); }
         function editFromChoice(catId, masaId) {
             closePartialChoice();
