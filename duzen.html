@@ -23,6 +23,7 @@
         .fld + input, .fld + select { width: 100%; }
         .save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; }
         .save-dot.busy { background: var(--warning); }
+        .save-dot.err { background: var(--danger, #dc2626); }
         @media (min-width: 1024px) { #canvasBox { height: calc(100vh - 150px); } }
         @media (max-width: 1023px) { #canvasBox { height: 62vh; } }
         /* Telefon: seçili öğe paneli ekranın altında açılır (planın altında kaybolmasın) */
@@ -46,11 +47,11 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[12.5px] text-slate-500"><span id="saveDot" class="save-dot"></span> <span id="saveTxt">Kaydedildi</span></span>
-                <button class="btn2" onclick="location.href='gise.html?id=' + encodeURIComponent(eventId)">Masa ve kategori ayarları</button>
-                <button class="btn2" onclick="location.href='satis.html?id=' + encodeURIComponent(eventId)">Satış ekranı</button>
+                <button class="btn2" onclick="leave('gise.html?id=' + encodeURIComponent(eventId))">Masa ve kategori ayarları</button>
+                <button class="btn2" onclick="leave('satis.html?id=' + encodeURIComponent(eventId))">Satış ekranı</button>
                 <button class="btn2" id="undoBtn" onclick="undo()">↶ Geri al</button>
                 <button class="btn2" id="redoBtn" onclick="redo()">↷ İleri al</button>
-                <button class="btn2 pri" onclick="saveNow(true)">Kaydet</button>
+                <button class="btn2 pri" onclick="saveAndPush()">Kaydet</button>
             </div>
         </header>
 
@@ -167,10 +168,10 @@
         function onLayoutChange() { pushHistory(); scheduleSave(); syncCanvasInputs(); }
         function scheduleSave() {
             document.getElementById('saveDot').className = 'save-dot busy'; document.getElementById('saveTxt').textContent = 'Kaydediliyor…';
-            clearTimeout(saveTimer); saveTimer = setTimeout(() => saveNow(false), 700);
+            clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveTimer = null; saveNow(false); }, 700);
         }
         function saveNow(manual) {
-            clearTimeout(saveTimer);
+            clearTimeout(saveTimer); saveTimer = null;
             try {
                 // başka sekmede / cihazdan gelen en güncel etkinlik verisini koru, yalnızca layout'u yaz
                 const fresh = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || [];
@@ -180,10 +181,48 @@
                 events = fresh;
                 if (typeof writeAuditEvent === 'function' && manual) writeAuditEvent('Etkinlik', 'Oturma Düzeni Kaydedildi', (ev.title || '') + ' oturma düzeni güncellendi.');
             } catch (e) { console.error(e); if (typeof showToast === 'function') showToast('Kaydedilemedi', 'error'); return; }
-            document.getElementById('saveDot').className = 'save-dot';
-            document.getElementById('saveTxt').textContent = 'Kaydedildi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-            if (manual && typeof showToast === 'function') showToast('Oturma düzeni kaydedildi.', 'success');
+            pushNow();   // her kayıt anında sunucuya da gider (sonuç üstteki durum yazısında görünür)
         }
+
+        /* ---- sunucuya gönderme + çıkış uyarısı ---- */
+        let pushPending = false, pushOk = true, skipWarn = false, pushInFlight = 0, pushSeq = 0;
+        function hasUnsaved() { return !!saveTimer || pushPending || !pushOk; }
+        function setSaveStatus(kind, txt) {
+            document.getElementById('saveDot').className = 'save-dot' + (kind === 'busy' ? ' busy' : kind === 'err' ? ' err' : '');
+            document.getElementById('saveTxt').textContent = txt;
+        }
+        async function pushNow() {
+            const mySeq = ++pushSeq; pushInFlight++; pushPending = true; setSaveStatus('busy', 'Sunucuya gönderiliyor…');
+            let ok = false;
+            try {
+                const S = window.BiletProOnlineStore;
+                if (S && typeof S.getMode === 'function' && S.getMode() === 'online' && typeof S.syncLegacyEventBundle === 'function') {
+                    const fresh = (JSON.parse(localStorage.getItem(DZ_EV_KEY) || '[]') || []).find(e => String(e.id) === String(eventId));
+                    const r = fresh ? await S.syncLegacyEventBundle(fresh) : null;
+                    ok = !!(r && r.ok);
+                }
+            } catch (_) { ok = false; }
+            pushInFlight--; pushPending = pushInFlight > 0;
+            if (mySeq !== pushSeq) return ok;          // daha yeni bir gönderim başladı: durumu o belirler
+            pushOk = ok;
+            if (ok) setSaveStatus('ok', 'Sunucuya kaydedildi ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
+            else setSaveStatus('err', 'Sunucuya gönderilemedi — bu cihazda kayıtlı, tekrar denenecek');
+            return ok;
+        }
+        async function saveAndPush() {
+            clearTimeout(saveTimer); saveNow(false);
+            const ok = await pushNow();
+            if (typeof showToast === 'function') showToast(ok ? 'Oturma düzeni sunucuya kaydedildi.' : 'Sunucuya gönderilemedi. Bu cihazda kayıtlı; bağlantı gelince otomatik tekrar denenir.', ok ? 'success' : 'error');
+        }
+        function leave(url) {
+            if (hasUnsaved() && !confirm('Sunucuya kaydedilmemiş değişiklikler var. Yine de çıkmak istediğinize emin misiniz?')) return;
+            skipWarn = true; location.href = url;
+        }
+        document.addEventListener('click', (e) => {
+            const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+            if (!a || a.target === '_blank' || /^(#|javascript:)/i.test(a.getAttribute('href') || '')) return;
+            if (hasUnsaved() && !confirm('Sunucuya kaydedilmemiş değişiklikler var. Yine de çıkmak istediğinize emin misiniz?')) { e.preventDefault(); e.stopPropagation(); } else { skipWarn = true; }
+        }, true);
 
         /* ---- taslak ---- */
         function applyTpl(k) {
@@ -300,7 +339,8 @@
             if (!r) return;
             if (typeof writeAuditEvent === 'function') writeAuditEvent('Etkinlik', 'Masa Bölündü', 'Masa ' + label + ' (' + oldCap + ' → ' + r.parent.kapasite + ' kişi) | Yeni: ' + r.created.map(c => c.no + ' (' + c.kapasite + ' kişi)').join(', ') + ' [oturma düzeni] | Etkinlik: ' + (ev.title || ''));
             reloadAfterStructure(r.created[0].no);
-            if (typeof showToast === 'function') showToast('Masa ' + label + ' bölündü: ' + r.created[0].no + ' (' + r.created[0].kapasite + ' kişi) açıldı.', 'success');
+            const pushed = await pushNow();
+            if (typeof showToast === 'function') showToast('Masa ' + label + ' bölündü: ' + r.created[0].no + ' (' + r.created[0].kapasite + ' kişi) açıldı.' + (pushed ? ' Sunucuya kaydedildi.' : ' Sunucuya gönderilemedi, tekrar denenecek.'), pushed ? 'success' : 'error');
         }
         async function doMerge(key) {
             const m0 = masaByKey(ev, key); if (!m0) return;
@@ -309,7 +349,8 @@
             if (!r) return;
             if (typeof writeAuditEvent === 'function') writeAuditEvent('Etkinlik', 'Masa Birleştirildi', 'Masa ' + label + ' ana masa ' + r.target.no + ' ile birleştirildi (' + r.target.kapasite + ' kişi) [oturma düzeni] | Etkinlik: ' + (ev.title || ''));
             reloadAfterStructure(r.target.no);
-            if (typeof showToast === 'function') showToast('Masa ' + label + ' ' + r.target.no + ' ile birleştirildi.', 'success');
+            const pushed = await pushNow();
+            if (typeof showToast === 'function') showToast('Masa ' + label + ' ' + r.target.no + ' ile birleştirildi.' + (pushed ? ' Sunucuya kaydedildi.' : ' Sunucuya gönderilemedi, tekrar denenecek.'), pushed ? 'success' : 'error');
         }
 
         function commit() { ctrl.refresh(); onLayoutChange(); }
@@ -345,7 +386,7 @@
         // Düzenleme sırasında sayfanın uzaktan veri değişimiyle yeniden yüklenmesini engelle (yarım kalan işi kaybetmeyelim)
         window.addEventListener('biletpro:data-updated', (e) => e.preventDefault());
 
-        window.addEventListener('beforeunload', () => { if (saveTimer) saveNow(false); });
+        window.addEventListener('beforeunload', (e) => { if (saveTimer) saveNow(false); if (!skipWarn && hasUnsaved()) { e.preventDefault(); e.returnValue = ''; return ''; } });
     </script>
 </body>
 </html>

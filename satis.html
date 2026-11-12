@@ -2208,6 +2208,7 @@
                             const syncRes = await window.BiletProOnlineStore.syncLegacyEventBundle(ev);
                             if (!syncRes?.ok) {
                                 console.warn('[SATIŞ] Online senkron başarısız, local mod devam:', syncRes);
+                                try { showToast('Satış bu cihazda kayıtlı ama sunucuya gönderilemedi; bağlantı gelince otomatik tekrar denenecek.', 'error'); } catch (_) {}
                             }
                         }
                     } catch (syncErr) {
