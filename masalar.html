@@ -194,7 +194,7 @@
                         return `<div class="tbl s-${r.st}">
                             <div class="flex items-center justify-between"><span class="no">${esc(r.no)}</span><span class="tag ${tagCls}">${tagTxt}</span></div>
                             <div class="nm">${t ? esc(t.customer_name || '—') : '—'}${r.extra.length ? ` <span class="text-slate-400">+${r.extra.length}</span>` : ''}</div>
-                            <div class="sub"><span>${t ? (r.st === 'rsv' ? `${t.people_count || 0} kişi · rezerve` : `${t.inside_count || 0}/${t.people_count || 0} kişi` + (r.cap && t.people_count < r.cap ? ` · <b style="color:var(--warning-text)">${r.cap - t.people_count} koltuk boş</b>` : '')) : `${r.kapasite || ''} kişilik`}</span><span>${when}</span></div>
+                            <div class="sub"><span>${t ? (r.st === 'rsv' ? `${t.people_count || 0} kişi · rezerve` : `${t.inside_count || 0}/${t.people_count || 0} kişi` + (r.cap && t.people_count < r.cap ? ` · <b style="color:var(--warning-text)">${r.cap - t.people_count} koltuk boş</b>` : '')) : `${r.cap || ''} kişilik`}</span><span>${when}</span></div>
                             ${debt || phone ? `<div class="sub">${debt}${phone}</div>` : ''}
                         </div>`;
                     }).join('') + '</div></section>';

@@ -31,11 +31,51 @@ window.BiletProAuth = {
  * BiletPro | Crystal Silk Official Guard v18.2 (Premium UI + Müşteriler + BİLET SATIŞ)
  */
 
+// Yapı koruması: bayat bir sekme/cihaz, bölünmüş masa parçalarını silemez ve daha yeni (rev) masa yapısını geri alamaz.
+// Yalnızca BÖLÜNMÜŞ PARÇALAR ve rev'li yapı alanları korunur; satış, müşteri, ödeme gibi diğer alanlara dokunulmaz.
+function bpGuardStructure(prevRaw, nextRaw) {
+    try {
+        if (!prevRaw || !nextRaw || prevRaw === nextRaw) return nextRaw;
+        const prev = JSON.parse(prevRaw), next = JSON.parse(nextRaw);
+        if (!Array.isArray(prev) || !Array.isArray(next)) return nextRaw;
+        const same = (a, b) => String(a) === String(b);
+        let changed = false;
+        next.forEach((ne) => {
+            const pe = ne && prev.find(e => e && same(e.id, ne.id)); if (!pe) return;
+            (pe.categories || []).forEach((pc) => {
+                const nc = pc && (ne.categories || []).find(c => c && same(c.id, pc.id));
+                if (!nc || !Array.isArray(nc.masalar)) return;
+                (pc.masalar || []).forEach((pm) => {
+                    if (!pm || pm.id === undefined || pm.id === null) return;
+                    const nm = nc.masalar.find(m => m && same(m.id, pm.id));
+                    if (!nm) {
+                        if (pm.parentNo !== undefined && pm.parentNo !== null) {   // bölünmüş parça asla düşmez
+                            nc.masalar.push(pm); changed = true;
+                            const L = pe.layout && pe.layout.tables, key = String(pm.no);
+                            if (L && L[key]) { ne.layout = ne.layout || {}; ne.layout.tables = ne.layout.tables || {}; if (!ne.layout.tables[key]) ne.layout.tables[key] = L[key]; }
+                        }
+                        return;
+                    }
+                    if ((Number(pm.rev) || 0) > (Number(nm.rev) || 0)) {          // daha yeni masa yapısı korunur
+                        const sold = nm.isSold ? (Number(nm.saleDetail && nm.saleDetail.people) || 0) : 0;
+                        nm.kapasite = Math.max(Number(pm.kapasite) || 0, sold);
+                        nm.rev = pm.rev;
+                        if (!nm.isSold) { nm.isDeleted = !!pm.isDeleted; if (pm.mergedInto !== undefined) nm.mergedInto = pm.mergedInto; }
+                        changed = true;
+                    }
+                });
+            });
+        });
+        return changed ? JSON.stringify(next) : nextRaw;
+    } catch (_) { return nextRaw; }
+}
+
 // localStorage intercept: kritik anahtarlar yazılınca anında Supabase push tetikle
 (function() {
     const _origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value) {
         const prevValue = localStorage.getItem(key);
+        if (key === 'EventPro_DB_Ultimate_Final') value = bpGuardStructure(prevValue, value);
         _origSetItem(key, value);
         if (key === 'EventPro_DB_Ultimate_Final') {
             if (window.__bpSkipAutoPush) return;

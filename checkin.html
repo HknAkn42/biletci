@@ -1088,6 +1088,9 @@
                 cat.masalar.push(masa);
                 mi = cat.masalar.length - 1;
             } else {
+                const _old = cat.masalar[mi];
+                // Bilet anındaki masa görüntüsü, daha yeni (bölünmüş) kapasiteyi geri almasın
+                if (_old && (Number(_old.rev) || 0) > (Number(masa.rev) || 0)) { masa.kapasite = Math.max(Number(_old.kapasite) || 0, Number(masa.saleDetail && masa.saleDetail.people) || 0); masa.rev = _old.rev; if (_old.parentNo !== undefined) { masa.parentNo = _old.parentNo; masa.suffix = _old.suffix; masa.splitFrom = _old.splitFrom; } }
                 cat.masalar[mi] = masa;
             }
             return { ei, ci, mi };

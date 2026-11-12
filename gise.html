@@ -200,7 +200,7 @@
         <div class="bg-white w-full max-w-[450px] p-5 sm:p-[45px] rounded-[26px] sm:rounded-[45px] shadow-2xl animate-pop">
             <h3 class="text-center font-black text-slate-800 text-xl uppercase mb-10 italic">MASA REVİZYONU</h3>
             <div class="space-y-6">
-                <div><span class="label-mini">MASA NUMARASI</span><input id="editMasaNo" type="number" class="input-silk text-center text-xl font-bold"></div>
+                <div><span class="label-mini">MASA NUMARASI</span><input id="editMasaNo" type="text" inputmode="numeric" class="input-silk text-center text-xl font-bold"></div>
                 <div><span class="label-mini">KİŞİ KAPASİTESİ</span><input id="editMasaKap" type="number" class="input-silk text-center"></div>
             </div>
             <div class="grid grid-cols-2 gap-4 mt-12">
@@ -356,7 +356,7 @@
                 // YENİ: showConfirm kullanımı
                 if(ev.categories.some(c => c.masalar.some(x => !x.isDeleted && x.id !== masa.id && String(x.no) === String(masa.no)))) { showToast("Aynı numaralı aktif bir masa var; bu masa tekrar açılamaz.", "error"); return; }
                 showConfirm("BİRİMİ AKTİFLEŞTİR", "Bu masayı tekrar aktif etmek istiyor musunuz?", () => {
-                    masa.isDeleted = false; saveAndRender(); showToast("Masa aktif edildi.", "success");
+                    masa.isDeleted = false; masa.rev = Math.max(Date.now(), (Number(masa.rev) || 0) + 1); saveAndRender(); showToast("Masa aktif edildi.", "success");
                 });
                 return; 
             }
@@ -388,7 +388,7 @@
         function saveMasaEdit() {
             const cat = ev.categories.find(c => c.id === editingMasaRef.catId);
             const masa = cat.masalar.find(m => m.id === editingMasaRef.masaId);
-            const _hasParts = cat.masalar.some(x => x.parentNo !== undefined && x.parentNo !== null && String(x.parentNo) === String(masa.no));
+            const _hasParts = cat.masalar.some(x => !x.isDeleted && !x.mergedInto && x.parentNo !== undefined && x.parentNo !== null && String(x.parentNo) === String(masa.no));
             const _isPart = masa.parentNo !== undefined && masa.parentNo !== null;
             const newNo = (_isPart) ? masa.no : parseInt(document.getElementById('editMasaNo').value);
             if (_hasParts && newNo !== masa.no) return showToast("Bu masanın bölünmüş parçaları var; numarası değiştirilemez.", "error");
@@ -402,6 +402,7 @@
             const oldKap = masa.kapasite;
             masa.no = newNo; 
             masa.kapasite = parseInt(document.getElementById('editMasaKap').value);
+            if (masa.kapasite !== oldKap && (_isPart || _hasParts || masa.rev)) masa.rev = Math.max(Date.now(), (Number(masa.rev) || 0) + 1);
             const changes = [];
             if(oldNo !== masa.no) changes.push(`No: ${oldNo} → ${masa.no}`);
             if(oldKap !== masa.kapasite) changes.push(`Kapasite: ${oldKap} → ${masa.kapasite} kişi`);
@@ -419,7 +420,7 @@
             if(cat.masalar.some(x => !x.isDeleted && x.parentNo !== undefined && x.parentNo !== null && String(x.parentNo) === String(masa.no) && x.id !== masa.id)) return showToast("Bu masanın bölünmüş parçaları var. Önce parçaları birleştirin.", "error");
             
             showConfirm("BİRİMİ PASİFE AL", "Masa pasif duruma getirilecek. Numara nizamı bozulmayacak. Onaylıyor musunuz?", () => {
-                masa.isDeleted = true;
+                masa.isDeleted = true; if (masa.parentNo !== undefined && masa.parentNo !== null) masa.rev = Math.max(Date.now(), (Number(masa.rev) || 0) + 1);
                 if(typeof window.writeAuditEvent === 'function') writeAuditEvent('Gişe', 'Masa Pasife Alındı', `Masa ${masa.no} | Kategori: ${ev.categories.find(c=>c.id===catId)?.name || '?'} | Etkinlik: ${ev.title}`);
                 saveAndRender(); showToast("Birim pasife alındı.", "info");
             });

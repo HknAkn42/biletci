@@ -25,6 +25,13 @@
         .save-dot.busy { background: var(--warning); }
         @media (min-width: 1024px) { #canvasBox { height: calc(100vh - 150px); } }
         @media (max-width: 1023px) { #canvasBox { height: 62vh; } }
+        /* Telefon: seçili öğe paneli ekranın altında açılır (planın altında kaybolmasın) */
+        #selClose { display: none; }
+        @media (max-width: 1023px) {
+            #selPanel { display: none; position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 50vh; overflow-y: auto; z-index: 300; box-shadow: 0 -10px 40px rgba(15,23,42,.28); border-radius: 18px; -webkit-overflow-scrolling: touch; }
+            #selPanel.has-sel { display: block; }
+            #selClose { display: inline-flex; float: right; }
+        }
     </style>
 </head>
 <body class="no-scrollbar overflow-hidden bg-[#f4f7fa] font-['Plus_Jakarta_Sans'] text-[#0f172a]">
@@ -62,7 +69,7 @@
                     </div>
 
                     <div class="panel" id="selPanel">
-                        <h3>Seçili öğe</h3>
+                        <h3>Seçili öğe <button type="button" id="selClose" class="btn2" onclick="ctrl.select([], false)">✕ Kapat</button></h3>
                         <div id="selBody" class="text-[13px] text-slate-500">Bir masa, sahne ya da alan seçin.</div>
                     </div>
 
@@ -191,6 +198,7 @@
         function renderSel() {
             const box = document.getElementById('selBody');
             const nT = sel.tables.length, nL = sel.labels.length;
+            document.getElementById('selPanel').classList.toggle('has-sel', !!(nT || nL || sel.stage));
             if (!nT && !nL && !sel.stage) { box.innerHTML = 'Bir masa, sahne ya da alan seçin.'; return; }
             let h = '';
             if (sel.stage) {
@@ -250,30 +258,54 @@
             build(); pushHistory();
             if (selectKey) ctrl.select([String(selectKey)], false);
         }
-        function structOp(fn) {
-            clearTimeout(saveTimer); saveNow(false);          // önce yerleşimi kaydet
-            load();                                           // en güncel etkinlik verisi
-            const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
-            const r = fn(ev, sess);
-            if (!r || !r.ok) { if (typeof showToast === 'function') showToast((r && r.error) || 'İşlem yapılamadı', 'error'); return null; }
-            localStorage.setItem(DZ_EV_KEY, JSON.stringify(events));
-            return r;
+        // Sunucuda bu masa başka cihazda satılmış / rezerve edilmişse yapı değiştirilmez
+        async function serverBusyMasa(m) {
+            const S = window.BiletProOnlineStore;
+            if (!S || typeof S.getMode !== 'function' || S.getMode() !== 'online') return null;   // çevrimdışı/demo: sunucu kontrolü yok
+            try {
+                const r = await S.listTicketStates(eventId);
+                if (!r || !r.ok) return 'Sunucuya ulaşılamadı; masa durumu doğrulanamadı. Biraz sonra tekrar deneyin.';
+                const row = (r.rows || []).find(x => String(x.table_no) === String(m.no));
+                if (row && !m.isSold) return 'Masa ' + m.no + ' başka cihazda ' + (String(row.status).toUpperCase() === 'RESERVED' ? 'rezerve edilmiş' : 'satılmış') + '. Sayfayı yenileyip tekrar deneyin.';
+                const me = (JSON.parse(localStorage.getItem('BiletPro_Session') || '{}').name) || '';
+                const lk = window.bpSoftLock && window.bpSoftLock.getConflict ? window.bpSoftLock.getConflict(eventId, m.no, me) : null;
+                if (lk) return 'Masa ' + m.no + ' şu an ' + (lk.lockedBy || 'başka bir kasiyer') + ' tarafından satış işleminde. Bitince tekrar deneyin.';
+            } catch (e) { return 'Masa durumu doğrulanamadı.'; }
+            return null;
         }
-        function doSplit(key) {
+        let structBusy = false;
+        async function structOp(key, fn) {
+            if (structBusy) return null; structBusy = true;
+            try {
+                clearTimeout(saveTimer); saveNow(false);          // önce yerleşimi kaydet
+                const S = window.BiletProOnlineStore;
+                if (S && typeof S.getMode === 'function' && S.getMode() === 'online' && typeof S.pullOnlineToLocal === 'function') { try { await S.pullOnlineToLocal(); } catch (_) {} }   // en güncel yapı
+                load();                                           // en güncel etkinlik verisi
+                const m = masaByKey(ev, key);
+                if (!m) { if (typeof showToast === 'function') showToast('Masa bulunamadı; sayfa yenileniyor.', 'error'); return null; }
+                const busy = await serverBusyMasa(m);
+                if (busy) { if (typeof showToast === 'function') showToast(busy, 'error'); return null; }
+                const r = fn(ev, m);
+                if (!r || !r.ok) { if (typeof showToast === 'function') showToast((r && r.error) || 'İşlem yapılamadı', 'error'); return null; }
+                localStorage.setItem(DZ_EV_KEY, JSON.stringify(events));
+                return r;
+            } finally { structBusy = false; }
+        }
+        async function doSplit(key) {
             const n = Math.floor(Number((document.getElementById('spCount') || {}).value));
             if (!(n >= 1)) { if (typeof showToast === 'function') showToast('Yeni masa için kişi sayısı yazın.', 'error'); return; }
             const m0 = masaByKey(ev, key); if (!m0) return;
             const label = m0.no, oldCap = m0.kapasite;
-            const r = structOp((e, sess) => { const m = masaByKey(e, key); return m ? MasaBol.split(e, m.id, [n]) : { ok: false, error: 'Masa bulunamadı.' }; });
+            const r = await structOp(key, (e, m) => MasaBol.split(e, m.id, [n]));
             if (!r) return;
             if (typeof writeAuditEvent === 'function') writeAuditEvent('Etkinlik', 'Masa Bölündü', 'Masa ' + label + ' (' + oldCap + ' → ' + r.parent.kapasite + ' kişi) | Yeni: ' + r.created.map(c => c.no + ' (' + c.kapasite + ' kişi)').join(', ') + ' [oturma düzeni] | Etkinlik: ' + (ev.title || ''));
             reloadAfterStructure(r.created[0].no);
             if (typeof showToast === 'function') showToast('Masa ' + label + ' bölündü: ' + r.created[0].no + ' (' + r.created[0].kapasite + ' kişi) açıldı.', 'success');
         }
-        function doMerge(key) {
+        async function doMerge(key) {
             const m0 = masaByKey(ev, key); if (!m0) return;
             const label = m0.no;
-            const r = structOp((e) => { const m = masaByKey(e, key); return m ? MasaBol.merge(e, m.id, null) : { ok: false, error: 'Masa bulunamadı.' }; });
+            const r = await structOp(key, (e, m) => MasaBol.merge(e, m.id, null));
             if (!r) return;
             if (typeof writeAuditEvent === 'function') writeAuditEvent('Etkinlik', 'Masa Birleştirildi', 'Masa ' + label + ' ana masa ' + r.target.no + ' ile birleştirildi (' + r.target.kapasite + ' kişi) [oturma düzeni] | Etkinlik: ' + (ev.title || ''));
             reloadAfterStructure(r.target.no);

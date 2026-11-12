@@ -227,9 +227,41 @@
             const byEv = new Map();
             data.forEach((r) => { if (!byEv.has(r.event_id)) byEv.set(r.event_id, new Map()); byEv.get(r.event_id).set(String(r.table_no), r); });
             let changed = false;
+            const _n = (v) => String(v == null ? '' : v).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
             merged.forEach((ev) => {
                 if (!idMap[String(ev && ev.id)]) return;                      // sunucuda etkinlik satırı yok
                 const map = byEv.get(idMap[String(ev && ev.id)]) || new Map();   // bilet yoksa boş küme: yerelde "satılmış" görünenler iptal sayılır
+                // Satılmış bölünmüş parça (125-A) bileti var ama bu cihazda masası yok / pasif görünüyorsa masayı bilet kaydından geri kur
+                try {
+                    const active = {}, byNo = {}, parents = {};
+                    (ev.categories || []).forEach((cat) => (cat.masalar || []).forEach((m) => {
+                        if (!m) return;
+                        const k = _n(m.no);
+                        if (!m.isDeleted) { active[k] = m; if (m.parentNo === undefined || m.parentNo === null) parents[String(m.no)] = { m, cat }; }
+                        else if (!byNo[k]) byNo[k] = { m, cat };
+                    }));
+                    map.forEach((row, tno) => {
+                        if (String(row.status).toUpperCase() === 'RESERVED') return;
+                        const mm = /^(\d+)\s*-\s*([A-Za-z]+)$/.exec(String(tno).trim());
+                        if (!mm || active[_n(tno)]) return;
+                        const dead = byNo[_n(tno)];
+                        if (dead) {                                              // pasif/birleştirilmiş görünen ama satışı olan parça: canlandır
+                            dead.m.isDeleted = false; delete dead.m.mergedInto;
+                            dead.m.kapasite = Math.max(Number(dead.m.kapasite) || 0, Number(row.people_count) || 0);
+                            dead.m.rev = Math.max(Date.now(), (Number(dead.m.rev) || 0) + 1);
+                            active[_n(tno)] = dead.m; changed = true; return;
+                        }
+                        const par = parents[mm[1]]; if (!par) return;
+                        const snap = row.payload_json && row.payload_json.masa;
+                        const part = (snap && typeof snap === 'object' && snap.id !== undefined)
+                            ? Object.assign({}, snap, { isDeleted: false })
+                            : { id: Date.now() * 1000 + Math.floor(Math.random() * 1000), no: mm[1] + '-' + mm[2].toUpperCase(), kapasite: Number(row.people_count) || 2, isSold: false, isDeleted: false };
+                        part.no = mm[1] + '-' + mm[2].toUpperCase(); part.parentNo = mm[1]; part.suffix = mm[2].toUpperCase(); part.splitFrom = par.m.id;
+                        part.kapasite = Math.max(Number(part.kapasite) || 0, Number(row.people_count) || 0);
+                        part.rev = Math.max(Date.now(), (Number(part.rev) || 0) + 1);
+                        if (par.cat && Array.isArray(par.cat.masalar)) { par.cat.masalar.push(part); active[_n(tno)] = part; changed = true; }
+                    });
+                } catch (e) { console.warn('[BiletPro OnlineStore] parça geri kurma hatası:', e); }
                 (ev.categories || []).forEach((cat) => (cat.masalar || []).forEach((m) => {
                     if (!m || m.isDeleted) return;
                     const row = map.get(String(m.no));
