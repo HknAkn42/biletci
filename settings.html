@@ -104,6 +104,15 @@
                 </div>
 
                 <div class="mb-8 border-t border-slate-200 pt-6">
+                    <h2 class="text-lg font-black uppercase mb-4">Veri Yedeği</h2>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-semibold text-slate-600 leading-relaxed mb-3">
+                        Etkinlikler, masalar, satışlar ve biletler tek dosya olarak indirilir (sunucudaki kayıtlar ve bu cihazdaki kopya). Satışlar sürerken ne olur olmaz diye düzenli alın; dosyayı telefonda ya da bilgisayarda güvenli bir yerde saklayın. Personel şifreleri yedeğe girmez.
+                    </div>
+                    <button type="button" id="bpBackupBtn" onclick="bpBackupDownload()" class="input-silk" style="cursor:pointer;font-weight:900;text-align:center">⬇ Yedeği indir</button>
+                    <p id="bpBackupMsg" class="text-xs font-semibold text-slate-500 mt-2"></p>
+                </div>
+
+                <div class="mb-8 border-t border-slate-200 pt-6">
                     <h2 class="text-lg font-black uppercase mb-4">Yönetici Güvenlik</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
@@ -144,6 +153,43 @@
     </main>
 
     <script>
+        // Veri yedeği: sunucudaki etkinlik + bilet kayıtları ve bu cihazdaki kopya (yalnızca okuma; hiçbir şeyi değiştirmez)
+        async function bpBuildBackup() {
+            const sess = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
+            const out = { meta: { tur: 'BiletPro veri yedeği', surum: 1, tarih: new Date().toISOString(), alan: sess.name || sess.username || '' }, yerel: { events: [] }, sunucu: null, uyarilar: [] };
+            try { out.yerel.events = JSON.parse(localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') || []; } catch (e) { out.uyarilar.push('Bu cihazdaki kopya okunamadı: ' + e.message); }
+            const S = window.BiletProOnlineStore;
+            if (S && typeof S.getMode === 'function' && S.getMode() === 'online' && S.client) {
+                const readAll = async (table) => {
+                    const rows = []; const page = 1000;
+                    for (let from = 0; from < 200000; from += page) {
+                        const { data, error } = await S.client.from(table).select('*').range(from, from + page - 1);
+                        if (error) throw new Error(table + ': ' + error.message);
+                        rows.push(...(data || [])); if (!data || data.length < page) break;
+                    }
+                    return rows;
+                };
+                try { out.sunucu = { events: await readAll('events'), tickets: await readAll('tickets') }; }
+                catch (e) { out.uyarilar.push('Sunucu verisi tam alınamadı: ' + e.message); }
+            } else { out.uyarilar.push('Sunucu bağlantısı yok: yalnızca bu cihazdaki kopya yedeklendi.'); }
+            return out;
+        }
+        async function bpBackupDownload() {
+            const btn = document.getElementById('bpBackupBtn'), msg = document.getElementById('bpBackupMsg');
+            btn.disabled = true; btn.textContent = 'Hazırlanıyor…'; msg.textContent = '';
+            try {
+                const data = await bpBuildBackup();
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                const d = new Date(), p = (n) => String(n).padStart(2, '0');
+                const name = 'biletpro-yedek-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+                const sv = data.sunucu;
+                msg.textContent = '✓ ' + name + ' indirildi · sunucu: ' + (sv ? sv.events.length + ' etkinlik, ' + sv.tickets.length + ' bilet' : 'yok') + ' · bu cihaz: ' + data.yerel.events.length + ' etkinlik' + (data.uyarilar.length ? ' · UYARI: ' + data.uyarilar.join(' | ') : '');
+                msg.style.color = data.uyarilar.length ? '#b45309' : '#047857';
+            } catch (e) { msg.textContent = 'Yedek alınamadı: ' + (e && e.message || e); msg.style.color = '#dc2626'; }
+            btn.disabled = false; btn.textContent = '⬇ Yedeği indir';
+        }
         const SETTINGS_PIN_SESSION_KEY = 'BiletPro_SettingsPinUntil';
         const __bpSession = JSON.parse(localStorage.getItem('BiletPro_Session') || '{}');
         const __bpStaffRec = (JSON.parse(localStorage.getItem('BiletPro_Staff') || '[]') || []).find(s => (s.username||'').toLowerCase() === (__bpSession.username||'').toLowerCase());
