@@ -289,6 +289,9 @@
                                 }, pj.saleDetail || {}, { ticketHash: row.ticket_hash });
                                 changed = true; return;
                             }
+                            if (row.customer_name && m.soldTo !== row.customer_name) { m.soldTo = row.customer_name; changed = true; }
+                            if (row.customer_phone && sd.phone !== row.customer_phone) { sd.phone = row.customer_phone; changed = true; }
+                            if (Number(row.people_count) > 0 && Number(sd.people) !== Number(row.people_count)) { sd.people = Number(row.people_count); changed = true; }
                             if (row.status && sd.status !== row.status) { sd.status = row.status; changed = true; }
                             if ((Number(sd.insideCount) || 0) !== (Number(row.inside_count) || 0)) { sd.insideCount = Number(row.inside_count) || 0; changed = true; }
                             if ((Number(sd.debt) || 0) !== (Number(row.debt) || 0)) { sd.debt = Number(row.debt) || 0; changed = true; }
@@ -444,7 +447,7 @@
                             const _nh = (x) => String(x || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
                             const _wh = _nh(winner.saleDetail && winner.saleDetail.ticketHash), _lh = _nh(loser.saleDetail && loser.saleDetail.ticketHash);
                             if (_wh && _lh && _wh !== _lh) {
-                                _conflicts.push({ sig: String(localEv.id) + '|' + localMasa.id + '|' + [_wh, _lh].sort().join('~'),
+                                _conflicts.push({ sig: String(localEv.id) + '|' + localMasa.id + '|' + [_wh, _lh].sort().join('~'), hashes: [String(winner.saleDetail.ticketHash), String(loser.saleDetail.ticketHash)],
                                     msg: `Masa ${localMasa.no} için aynı anda iki farklı satış kaydı bulundu. Bilet kaydı esas alındı. Kayıt 1: ${winner.soldTo} (${winner.saleDetail?.soldBy || '?'} @ ${winner.saleDetail?.saleDate?.slice(11,19) || '?'}) | Kayıt 2: ${loser.soldTo} (${loser.saleDetail?.soldBy || '?'})` });
                             }
                             return winner;
@@ -488,15 +491,18 @@
             rows.forEach((r) => { if (r && r.legacy_event_id && r.id) idMap[String(r.legacy_event_id)] = r.id; });
             try { await this.reconcileWithTickets(merged, idMap); } catch (e) { console.warn('[BiletPro OnlineStore] reconcile hatası:', e); }
             // Çakışma bulunduysa: uyarı aynı çakışma için BİR kez yazılır (her yenilemede tekrar yazılmaz) ve düzeltilmiş hâl sunucuya da gönderilir (sunucudaki eski kayıt kalmasın).
-            if (_conflicts.length) {
+            let _cs = new Set(); try { _cs = await this.getCancelledSet(false); } catch (_) {}
+            const _real = _conflicts.filter(c => !c.hashes.some(h => _cs.has(h)));   // iptal edilmiş koda ait çakışma gürültüdür
+            if (_real.length) {
                 try {
                     let seen = []; try { seen = JSON.parse(localStorage.getItem('bp_conflict_seen') || '[]'); } catch (_) {}
-                    _conflicts.forEach((c) => {
-                        if (seen.indexOf(c.sig) >= 0) return; seen.push(c.sig);
+                    let _fresh = false;
+                    _real.forEach((c) => {
+                        if (seen.indexOf(c.sig) >= 0) return; seen.push(c.sig); _fresh = true;
                         try { if (typeof window.writeAuditEvent === 'function') window.writeAuditEvent('Satış', '⚠️ Çift Satış Çakışması', c.msg); } catch (_) {}
                     });
                     localStorage.setItem('bp_conflict_seen', JSON.stringify(seen.slice(-100)));
-                    localStorage.setItem('bp_unsynced', '1');
+                    if (_fresh) localStorage.setItem('bp_unsynced', '1');   // yalnızca yeni çakışmada düzeltilmiş hâli sunucuya gönder (her 45 sn'de tam push olmasın)
                 } catch (_) {}
             }
 
