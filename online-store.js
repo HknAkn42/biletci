@@ -428,7 +428,10 @@
                             const winner = localDate <= onlineDate ? localMasa : onlineMasa;
                             const loser  = localDate <= onlineDate ? onlineMasa : localMasa;
                             // Çift satış çakışmasını log'a yaz
-                            if (winner.soldTo !== loser.soldTo || winner.saleDetail?.ticketHash !== loser.saleDetail?.ticketHash) {
+                            // Gerçek çakışma: iki tarafın da bilet kodu var ve farklı. İsim farkı / eksik kod (eski kayıt, tiresiz yazım) uyarı sayılmaz.
+                            const _nh = (x) => String(x || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                            const _wh = _nh(winner.saleDetail && winner.saleDetail.ticketHash), _lh = _nh(loser.saleDetail && loser.saleDetail.ticketHash);
+                            if (_wh && _lh && _wh !== _lh) {
                                 try {
                                     if (typeof window.writeAuditEvent === 'function') {
                                         window.writeAuditEvent(
