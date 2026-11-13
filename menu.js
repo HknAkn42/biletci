@@ -42,6 +42,10 @@ function bpGuardStructure(prevRaw, nextRaw) {
         let changed = false;
         next.forEach((ne) => {
             const pe = ne && prev.find(e => e && same(e.id, ne.id)); if (!pe) return;
+            if ((Number(pe.metaTs) || 0) > (Number(ne.metaTs) || 0)) {   // etkinlik bilgisi (kapı saati vb.): yeni düzenleme eski sekme tarafından ezilmez
+                ['title', 'company', 'venue', 'city', 'fullAddress', 'date', 'doorTime', 'startTime', 'cover', 'coverBase64', 'logo', 'metaTs'].forEach((k) => { if (pe[k] !== undefined) ne[k] = pe[k]; });
+                changed = true;
+            }
             (pe.categories || []).forEach((pc) => {
                 const nc = pc && (ne.categories || []).find(c => c && same(c.id, pc.id));
                 if (!nc || !Array.isArray(nc.masalar)) return;

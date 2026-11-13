@@ -468,7 +468,9 @@
                 // Kullanıcı az önce yerelde düzenlediyse (push henüz sunucuya ulaşmamış olabilir) etkinlik alanlarında yerel değer kazanır
                 let _recentLocal = false;
                 try { _recentLocal = (Date.now() - Number(localStorage.getItem('bp_local_dirty_ts') || 0)) < 20000; } catch (_) {}
-                mergedMap[key] = _recentLocal ? { ...onlineEv, ...localEv, categories: mergedCats } : { ...onlineEv, categories: mergedCats };
+                const _lt = Number(localEv.metaTs) || 0, _ot = Number(onlineEv.metaTs) || 0;
+                const _localWins = _lt > _ot || (_lt === _ot && _recentLocal);
+                mergedMap[key] = _localWins ? { ...onlineEv, ...localEv, categories: mergedCats } : { ...onlineEv, categories: mergedCats };
             });
 
             const merged = Object.values(mergedMap).filter((ev) => !deletedIds.has(String(ev && ev.id)));
@@ -666,6 +668,10 @@
                 const sp = data && data.payload_json;
                 if (!sp || typeof sp !== 'object') return ev;
                 const out = Object.assign({}, ev);
+                // Etkinlik bilgileri (kapı/başlama saati, tarih, mekân…): düzenleme damgası (metaTs) yeni olan kazanır; eski cihaz ezemez.
+                if ((Number(sp.metaTs) || 0) > (Number(ev.metaTs) || 0)) {
+                    ['title', 'company', 'venue', 'city', 'fullAddress', 'date', 'doorTime', 'startTime', 'cover', 'coverBase64', 'logo', 'metaTs'].forEach((k) => { if (sp[k] !== undefined) out[k] = sp[k]; });
+                }
                 const lCats = JSON.parse(JSON.stringify(Array.isArray(ev.categories) ? ev.categories : []));
                 const sCats = Array.isArray(sp.categories) ? sp.categories : [];
                 const same = (a, b) => String(a) === String(b);
@@ -710,14 +716,14 @@
 
             const eventRow = {
                 legacy_event_id: String(ev.id),
-                title: ev.title || 'Etkinlik',
-                company: ev.company || null,
-                venue: ev.venue || null,
-                city: ev.city || null,
-                full_address: ev.fullAddress || null,
-                event_date: this.normalizeEventDate(ev.date),
-                door_time: ev.doorTime || null,
-                start_time: ev.startTime || null,
+                title: evOut.title || 'Etkinlik',
+                company: evOut.company || null,
+                venue: evOut.venue || null,
+                city: evOut.city || null,
+                full_address: evOut.fullAddress || null,
+                event_date: this.normalizeEventDate(evOut.date),
+                door_time: evOut.doorTime || null,
+                start_time: evOut.startTime || null,
                 is_active: ev.isActive !== false,
                 payload_json: evOut
             };
@@ -950,14 +956,14 @@
             try { _evOut = await this._mergeServerStructure(legacyEvent); } catch (_) { return { ok: false, reason: 'server_read_failed' }; }
             const eventRow = {
                 legacy_event_id: String(legacyEvent.id),
-                title: legacyEvent.title || 'Etkinlik',
-                company: legacyEvent.company || null,
-                venue: legacyEvent.venue || null,
-                city: legacyEvent.city || null,
-                full_address: legacyEvent.fullAddress || null,
-                event_date: this.normalizeEventDate(legacyEvent.date),
-                door_time: legacyEvent.doorTime || null,
-                start_time: legacyEvent.startTime || null,
+                title: _evOut.title || 'Etkinlik',
+                company: _evOut.company || null,
+                venue: _evOut.venue || null,
+                city: _evOut.city || null,
+                full_address: _evOut.fullAddress || null,
+                event_date: this.normalizeEventDate(_evOut.date),
+                door_time: _evOut.doorTime || null,
+                start_time: _evOut.startTime || null,
                 is_active: _act,
                 payload_json: Object.assign({}, _evOut, { isActive: _act })
             };
@@ -1003,18 +1009,20 @@
             if (!legacyEvent || !legacyEvent.id) return { ok: false, reason: 'invalid_event' };
             const _actR = await this._serverActive(legacyEvent);
             // Etkinlik satırı yoksa oluştur (RPC event satırı üzerinden çalışır)
+            let _evR;
+            try { _evR = await this._mergeServerStructure(legacyEvent); } catch (_) { return { ok: false, reason: 'server_read_failed' }; }
             const { error: evErr } = await this.client.from('events').upsert({
                 legacy_event_id: String(legacyEvent.id),
-                title: legacyEvent.title || 'Etkinlik',
-                company: legacyEvent.company || null,
-                venue: legacyEvent.venue || null,
-                city: legacyEvent.city || null,
-                full_address: legacyEvent.fullAddress || null,
-                event_date: this.normalizeEventDate(legacyEvent.date),
-                door_time: legacyEvent.doorTime || null,
-                start_time: legacyEvent.startTime || null,
+                title: _evR.title || 'Etkinlik',
+                company: _evR.company || null,
+                venue: _evR.venue || null,
+                city: _evR.city || null,
+                full_address: _evR.fullAddress || null,
+                event_date: this.normalizeEventDate(_evR.date),
+                door_time: _evR.doorTime || null,
+                start_time: _evR.startTime || null,
                 is_active: _actR,
-                payload_json: Object.assign({}, legacyEvent, { isActive: _actR })
+                payload_json: Object.assign({}, _evR, { isActive: _actR })
             }, { onConflict: 'legacy_event_id' });
             if (evErr) return { ok: false, reason: 'event_upsert_failed' };
             const { data, error } = await this.client.rpc('ticket_reserve_atomic', {

@@ -664,6 +664,7 @@
                     events[idx].doorTime = document.getElementById('evDoorTime').value;
                     events[idx].startTime = document.getElementById('evStartTime').value;
                     events[idx].cover = document.getElementById('evImg').value;
+                    events[idx].metaTs = Date.now();   // etkinlik bilgisi düzenleme damgası: eski cihaz bu saati geri ezemez
                     if(tempCover) events[idx].coverBase64 = tempCover;
                     if(tempLogo) events[idx].logo = tempLogo;
                 }
@@ -682,6 +683,7 @@
                     cover: document.getElementById('evImg').value, 
                     coverBase64: tempCover,
                     logo: tempLogo, categories: [],
+                    metaTs: Date.now(),
                     isActive: true
                 };
                 events.push(data); 
