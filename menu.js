@@ -2218,7 +2218,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.__BiletProOnlineStoreScriptLoaded = true;
 
     const script = document.createElement('script');
-    script.src = 'online-store.js?v=20260331';
+    script.src = 'online-store.js?v=20261113b';
     script.defer = true;
     script.onerror = () => {
         console.warn('[BiletPro] online-store.js yüklenemedi; local modda devam ediliyor.');
