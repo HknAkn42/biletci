@@ -278,6 +278,17 @@
                             changed = true;
                         } else if (m.saleDetail) {
                             const sd = m.saleDetail;
+                            // Bilet tablosu doğruluk kaynağıdır: yerelde başka bir müşterinin satışı görünüyorsa (farklı bilet kodu) bilet kaydındaki satış yazılır.
+                            const _rh = _n(row.ticket_hash), _lh = _n(sd.ticketHash);
+                            if (_rh && _lh && _rh !== _lh) {
+                                const pj = row.payload_json || {};
+                                m.soldTo = row.customer_name || (pj.saleDetail && pj.saleDetail.soldTo) || '';
+                                m.saleDetail = Object.assign({
+                                    phone: row.customer_phone || '', people: row.people_count, paid: Number(row.paid) || 0, debt: Number(row.debt) || 0,
+                                    ticketHash: row.ticket_hash, status: row.status || 'READY', soldBy: row.sold_by_username || '', categoryName: cat.name
+                                }, pj.saleDetail || {}, { ticketHash: row.ticket_hash });
+                                changed = true; return;
+                            }
                             if (row.status && sd.status !== row.status) { sd.status = row.status; changed = true; }
                             if ((Number(sd.insideCount) || 0) !== (Number(row.inside_count) || 0)) { sd.insideCount = Number(row.inside_count) || 0; changed = true; }
                             if ((Number(sd.debt) || 0) !== (Number(row.debt) || 0)) { sd.debt = Number(row.debt) || 0; changed = true; }
