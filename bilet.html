@@ -144,8 +144,8 @@
             out.innerHTML = h;
             document.title = (e.title || 'Biletiniz') + ' | BiletPro';
         }
-        // KVKK / katılım şartları: bilet açılmadan önce onay (her açılışta sorulur, onay sunucuya kaydedilir; metin değişirse KV_VER artırılır)
-        const KV_VER = 'v1', KV_KEY = 'bp_kvkk_onay';
+        // KVKK / katılım şartları: bilet açılmadan önce onay (her açılışta sorulur, kayıt tutulmaz)
+        const KV_VER = 'v1';
         const KV_MADDELER = [
             'Etkinliğe 6 yaş ve üzeri misafirler kabul edilir. Her katılımcı için bilet zorunludur.',
             'Dışarıdan yiyecek, içecek ve alkollü içecek getirilmesi yasaktır.',
@@ -167,34 +167,8 @@
             'Tüm katılımcılar organizasyon ve güvenlik görevlilerinin talimatlarına uymakla yükümlüdür.',
             'Bilet satın alan misafirler, önceden bildirilen etkinlik kurallarını kabul eder. KVKK kapsamında gerekli açık rızalar ayrıca alınır.'
         ];
-        // Onay HER açılışta sorulur (hatırlanmaz) ve her onay sunucuya kaydedilir.
-        const KV_PEND = 'bp_kvkk_bekleyen';
-        function kvkkClient() { return window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }); }
-        async function kvkkSend(token) {
-            const { data, error } = await kvkkClient().rpc('kvkk_onayla', { p_token: token, p_ver: KV_VER, p_ua: (navigator.userAgent || '').slice(0, 300) });
-            if (error) { const e = new Error(error.message || 'rpc'); e.code = error.code; e.missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist/i.test(error.message || ''); throw e; }
-            if (!data || !data.ok) { const e = new Error((data && data.reason) || 'rejected'); e.rejected = true; throw e; }
-            return data;
-        }
-        function kvkkQueue(token) { try { const q = JSON.parse(localStorage.getItem(KV_PEND) || '[]'); q.push({ t: token, v: KV_VER, at: new Date().toISOString() }); localStorage.setItem(KV_PEND, JSON.stringify(q.slice(-20))); } catch (_) {} }
-        async function kvkkFlush() {
-            try {
-                const q = JSON.parse(localStorage.getItem(KV_PEND) || '[]'); if (!q.length) return; const left = [];
-                for (const it of q) { try { await kvkkSend(it.t); } catch (e) { if (!e.rejected) left.push(it); } }
-                localStorage.setItem(KV_PEND, JSON.stringify(left));
-            } catch (_) {}
-        }
-        async function kvkkAccept() {
-            const btn = document.getElementById('kvBtn'); if (btn) { btn.disabled = true; btn.textContent = 'Kaydediliyor…'; }
-            const token = new URLSearchParams(location.search).get('t') || '';
-            let saved = false;
-            for (let i = 0; i < 3 && !saved; i++) {
-                try { await kvkkSend(token); saved = true; }
-                catch (e) { if (e.missing || e.rejected) break; if (i < 2) await new Promise(r => setTimeout(r, 700 * (i + 1))); }
-            }
-            if (!saved) { console.warn('KVKK onayı sunucuya yazılamadı, sonra tekrar denenecek'); kvkkQueue(token); }   // bilet engellenmez; bağlantı gelince bir sonraki açılışta gönderilir
-            out.innerHTML = '<div class="state">Biletiniz yükleniyor…</div>'; window.scrollTo(0, 0); main();
-        }
+        // Onay HER açılışta sorulur (hatırlanmaz, sunucuya kayıt yok).
+        function kvkkAccept() { out.innerHTML = '<div class="state">Biletiniz yükleniyor…</div>'; window.scrollTo(0, 0); main(); }
         function kvkkGate() {
             out.innerHTML = `<div class="card kv">
                 <div class="hero"><img class="glogo" src="assets/go-event-logo.png" alt="GO Event" onerror="this.style.display='none'"><div class="kt">ETKİNLİK KATILIM ŞARTLARI VE KVKK BİLGİLENDİRMESİ</div></div>
@@ -203,7 +177,6 @@
             </div>`;
             document.getElementById('kvBtn').onclick = kvkkAccept;
         }
-        kvkkFlush();
         if (!/^[0-9a-fA-F-]{36}$/.test(new URLSearchParams(location.search).get('t') || '')) main(); else kvkkGate();
     </script>
 </body>
