@@ -390,6 +390,7 @@
             const localEvents = JSON.parse(localRaw);
 
             const mergedMap = {};
+            const _conflicts = [];
 
             // Önce online veriyi yükle
             onlineEvents.forEach(ev => { mergedMap[String(ev.id)] = ev; });
@@ -443,15 +444,8 @@
                             const _nh = (x) => String(x || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
                             const _wh = _nh(winner.saleDetail && winner.saleDetail.ticketHash), _lh = _nh(loser.saleDetail && loser.saleDetail.ticketHash);
                             if (_wh && _lh && _wh !== _lh) {
-                                try {
-                                    if (typeof window.writeAuditEvent === 'function') {
-                                        window.writeAuditEvent(
-                                            'Satış',
-                                            '⚠️ Çift Satış Çakışması',
-                                            `Masa ${localMasa.no} aynı anda iki kasadan satıldı! KAZANAN: ${winner.soldTo} (${winner.saleDetail?.soldBy || '?'} @ ${winner.saleDetail?.saleDate?.slice(11,19) || '?'}) | İPTAL: ${loser.soldTo} (${loser.saleDetail?.soldBy || '?'}) — İptal edilen bilet sistemden silindi.`
-                                        );
-                                    }
-                                } catch(_) {}
+                                _conflicts.push({ sig: String(localEv.id) + '|' + localMasa.id + '|' + [_wh, _lh].sort().join('~'),
+                                    msg: `Masa ${localMasa.no} için aynı anda iki farklı satış kaydı bulundu. Bilet kaydı esas alındı. Kayıt 1: ${winner.soldTo} (${winner.saleDetail?.soldBy || '?'} @ ${winner.saleDetail?.saleDate?.slice(11,19) || '?'}) | Kayıt 2: ${loser.soldTo} (${loser.saleDetail?.soldBy || '?'})` });
                             }
                             return winner;
                         }
@@ -493,6 +487,18 @@
             const idMap = {};
             rows.forEach((r) => { if (r && r.legacy_event_id && r.id) idMap[String(r.legacy_event_id)] = r.id; });
             try { await this.reconcileWithTickets(merged, idMap); } catch (e) { console.warn('[BiletPro OnlineStore] reconcile hatası:', e); }
+            // Çakışma bulunduysa: uyarı aynı çakışma için BİR kez yazılır (her yenilemede tekrar yazılmaz) ve düzeltilmiş hâl sunucuya da gönderilir (sunucudaki eski kayıt kalmasın).
+            if (_conflicts.length) {
+                try {
+                    let seen = []; try { seen = JSON.parse(localStorage.getItem('bp_conflict_seen') || '[]'); } catch (_) {}
+                    _conflicts.forEach((c) => {
+                        if (seen.indexOf(c.sig) >= 0) return; seen.push(c.sig);
+                        try { if (typeof window.writeAuditEvent === 'function') window.writeAuditEvent('Satış', '⚠️ Çift Satış Çakışması', c.msg); } catch (_) {}
+                    });
+                    localStorage.setItem('bp_conflict_seen', JSON.stringify(seen.slice(-100)));
+                    localStorage.setItem('bp_unsynced', '1');
+                } catch (_) {}
+            }
 
             // Çekme sürerken kullanıcı yerelde bir şey değiştirdiyse bu eski görüntüyü yazma (düzenleme kaybolmasın)
             if ((localStorage.getItem('EventPro_DB_Ultimate_Final') || '[]') !== localRaw) {
